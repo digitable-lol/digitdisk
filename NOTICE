@@ -1,0 +1,76 @@
+# Происхождение и лицензии / Provenance and licences
+
+## Откуда взялась идея / Where the idea comes from
+
+Состав показателей digitdisk навеян **mole** (https://github.com/tw93/mole,
+GPL-3.0): «куда ушло место» и «как чувствует себя машина» — две картины,
+которые mole показывает командами `mo analyze` и `mo status`. Наблюдать чужую
+работу и повторить состав показателей можно; копировать код — нельзя.
+
+The set of readings digitdisk prints was inspired by **mole**
+(https://github.com/tw93/mole, GPL-3.0): "where the disk space went" and "how
+the machine is feeling", the two pictures `mo analyze` and `mo status` draw.
+Watching the ideas is fine; copying the code is not.
+
+## Что взято и что не взято / What was taken and what was not
+
+**Ни одной строки кода mole здесь нет.** digitdisk — не форк mole: это
+самостоятельное дерево, написанное с нуля на другом устройстве (ядро — это
+спецификация на flang, печатаемая в Go; хозяин — рукописный Go), под другой
+лицензией и для других систем. Код mole в это дерево не входит и никакому
+покупателю не поставляется.
+
+**Not a single line of mole's code is here.** digitdisk is not a fork of mole:
+it is a separate tree, written from scratch on a different construction (a
+flang specification printed into Go, plus a hand-written Go host), under a
+different licence and for different systems. No mole code enters this tree and
+none is shipped to anyone.
+
+Причина названа прямо: mole распространяется под GPL-3.0, а заимствование
+оттуда сдвинуло бы digitdisk на GPL-3.0 целиком — и уронило бы обоих сторожей
+стека: `digitwm/tools/check-licensing.py` («No GPL in the tree») и
+`products/workbench/scripts/license-gate.mjs` (копилефт не входит в платный
+архив Workbench).
+
+The reason is stated plainly: mole ships under GPL-3.0, and borrowing from it
+would relicense digitdisk as a whole — and would fail both gates of the stack,
+`digitwm/tools/check-licensing.py` ("No GPL in the tree") and
+`products/workbench/scripts/license-gate.mjs` (no copyleft inside the paid
+Workbench archive).
+
+## Имя и логотип / Name and logo
+
+`TRADEMARK.md` в репозитории mole требует от форков не использовать имя «Mole»
+и логотип mole и не продвигать под этим именем конкурирующий продукт. Мы это
+требование соблюдаем, хотя форком и не являемся: имя **digitdisk** и любые его
+знаки — свои, о родстве с mole не заявляется, одобрения mole не подразумевается.
+
+mole's `TRADEMARK.md` asks forks not to use the "Mole" name or logo and not to
+market a competing product under that name. We honour it, fork or not: the name
+**digitdisk** and its marks are our own, no affiliation with mole is claimed and
+no endorsement is implied.
+
+## Лицензия / Licence
+
+Весь код digitdisk выходит под **BSD-2-Clause**, дословный текст — в `LICENSE`,
+объяснение по-русски — в `LICENSE-RU.md`. Правообладатель — Marat Zimnurov.
+Одна лицензия на всё дерево, включая напечатанный из flang Go в `core/out-go`:
+он производная нашей же спецификации и ничьих чужих прав не несёт.
+
+All digitdisk code is released under **BSD-2-Clause**; the verbatim text is in
+`LICENSE`. One licence covers the whole tree, the Go printed from flang in
+`core/out-go` included: it derives from our own specification and carries no
+third-party rights.
+
+## Почему LICENSE выглядит именно так / Why LICENSE looks the way it does
+
+Файл `LICENSE` содержит только дословный текст BSD-2-Clause и строку
+копирайта, без единой пояснительной строки. Детекторы лицензий (GitHub
+licensee, SPDX-сканеры, корпоративные проверки, а также сверка с эталоном SPDX
+в `license-gate.mjs --spdx`) опознают лицензию сравнением с эталоном, и любая
+приписка сверху превращает её в «не определена». Всё, что нужно объяснить,
+объясняется здесь.
+
+`LICENSE` holds nothing but the verbatim BSD-2-Clause text and the copyright
+line. Licence detectors match against a reference text, and any preamble turns
+a well-known licence into "unrecognised". Explanations live here.
