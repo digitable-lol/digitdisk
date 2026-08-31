@@ -45,7 +45,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # Напечатанное из flang. Освобождено от требования заголовка — печать его не
 # ставит, а дописывать руками в вывод печати запрещено (AGENTS.md). От проверки
 # на копилефт НЕ освобождено: печать чужого кода была бы тем же нарушением.
-GENERATED = ("core/out-go/",)
+GENERATED = ("core/out-go/", "core/out-c/")
 
 SOURCE_SUFFIXES = {".go", ".flang", ".py", ".sh", ".mjs"}
 
