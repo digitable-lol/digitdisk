@@ -22,9 +22,11 @@ import { existsSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { errorCode, evaluateFlang } from "/home/b/projects/flang/flang/src/compat.mjs"
-import { variant } from "/home/b/projects/flang/flang/src/interpret.mjs"
-import { loadProgram } from "/home/b/projects/flang/flang/bin/flang.mjs"
+import { модуль } from "./flang-home.mjs"
+
+const { errorCode, evaluateFlang } = await модуль("flang/src/compat.mjs")
+const { variant } = await модуль("flang/src/interpret.mjs")
+const { loadProgram } = await модуль("flang/bin/flang.mjs")
 
 const здесь = dirname(fileURLToPath(import.meta.url))
 

@@ -24,7 +24,9 @@ import { writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { loadProgram } from "/home/b/projects/flang/flang/bin/flang.mjs"
+import { модуль } from "./flang-home.mjs"
+
+const { loadProgram } = await модуль("flang/bin/flang.mjs")
 
 const здесь = dirname(fileURLToPath(import.meta.url))
 const источник = join(здесь, "opis-diska.flang")

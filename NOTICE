@@ -28,15 +28,13 @@ none is shipped to anyone.
 
 Причина названа прямо: mole распространяется под GPL-3.0, а заимствование
 оттуда сдвинуло бы digitdisk на GPL-3.0 целиком — и уронило бы обоих сторожей
-стека: `digitwm/tools/check-licensing.py` («No GPL in the tree») и
-`products/workbench/scripts/license-gate.mjs` (копилефт не входит в платный
-архив Workbench).
+стека: лицензионный сторож соседнего репозитория стека («No GPL in the tree») и
+сторож сборки платного архива Workbench (копилефт в него не входит).
 
 The reason is stated plainly: mole ships under GPL-3.0, and borrowing from it
 would relicense digitdisk as a whole — and would fail both gates of the stack,
-`digitwm/tools/check-licensing.py` ("No GPL in the tree") and
-`products/workbench/scripts/license-gate.mjs` (no copyleft inside the paid
-Workbench archive).
+the licensing gate of a sibling repository in the stack ("No GPL in the tree")
+and the gate that builds the paid Workbench archive (no copyleft goes into it).
 
 ## Имя и логотип / Name and logo
 
@@ -66,8 +64,7 @@ third-party rights.
 
 Файл `LICENSE` содержит только дословный текст BSD-2-Clause и строку
 копирайта, без единой пояснительной строки. Детекторы лицензий (GitHub
-licensee, SPDX-сканеры, корпоративные проверки, а также сверка с эталоном SPDX
-в `license-gate.mjs --spdx`) опознают лицензию сравнением с эталоном, и любая
+licensee, SPDX-сканеры, корпоративные проверки, а также наша собственная сверка с эталоном SPDX) опознают лицензию сравнением с эталоном, и любая
 приписка сверху превращает её в «не определена». Всё, что нужно объяснить,
 объясняется здесь.
 

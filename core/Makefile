@@ -16,7 +16,10 @@
 # Каталоги out-go/ и out-c/ ПЕЧАТАЮТСЯ, а не правятся руками: `make -C core`
 # восстанавливает их целиком.
 
-FLANG ?= node /home/b/projects/flang/flang/bin/flang.mjs
+# Корень клона flang. Переопределяется переменной окружения; по умолчанию —
+# соседний каталог рядом с этим репозиторием.
+FLANG_HOME ?= $(abspath $(CURDIR)/../../flang)
+FLANG ?= node $(FLANG_HOME)/flang/bin/flang.mjs
 ИСХОДНИК = opis-diska.flang
 AST = opis-diska.ast.json
 
