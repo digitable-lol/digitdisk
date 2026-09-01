@@ -37,7 +37,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-TARGETS=("linux/amd64" "linux/arm64")
+TARGETS=("linux/amd64" "linux/arm64" "darwin/amd64" "darwin/arm64")
 DIST="$ROOT/dist"
 REPRO_CHECK=1
 VERSION_ARG=""
@@ -173,11 +173,15 @@ sed 's/^/  /' "$DIST/SHA256SUMS"
 
 SHA_AMD64="$(grep -- "-linux-amd64.tar.gz\$" "$DIST/SHA256SUMS" | cut -d' ' -f1)"
 SHA_ARM64="$(grep -- "-linux-arm64.tar.gz\$" "$DIST/SHA256SUMS" | cut -d' ' -f1)"
+SHA_MAC_AMD64="$(grep -- "-darwin-amd64.tar.gz\$" "$DIST/SHA256SUMS" | cut -d' ' -f1)"
+SHA_MAC_ARM64="$(grep -- "-darwin-arm64.tar.gz\$" "$DIST/SHA256SUMS" | cut -d' ' -f1)"
 
 mkdir -p "$DIST/homebrew"
 sed -e "s/VERSION_PLACEHOLDER/$VERSION/g" \
 	-e "s/SHA256_LINUX_AMD64_PLACEHOLDER/$SHA_AMD64/" \
 	-e "s/SHA256_LINUX_ARM64_PLACEHOLDER/$SHA_ARM64/" \
+	-e "s/SHA256_MACOS_AMD64_PLACEHOLDER/$SHA_MAC_AMD64/" \
+	-e "s/SHA256_MACOS_ARM64_PLACEHOLDER/$SHA_MAC_ARM64/" \
 	packaging/homebrew/digitdisk.rb >"$DIST/homebrew/digitdisk.rb"
 
 if grep -q PLACEHOLDER "$DIST/homebrew/digitdisk.rb"; then

@@ -19,31 +19,44 @@
 # версии компилятора. Выпуск собран один раз, повторимо и с признаком
 # `flangcore`, а отпечаток архива проверяет сам brew до распаковки.
 #
-# ТОЛЬКО LINUX — И ЭТО ПРО ВЫПУСК, А НЕ ПРО КОД. Хозяин собирается и на macOS
-# (host/internal/sysinfo/collect_darwin.go берёт факты из sysctl вместо /proc),
-# но на живом маке его ещё никто не прогонял, и маковского архива в выпуске нет.
-# Ставить нечего — значит depends_on :linux, а не тихая установка, которая
-# падает при первом запуске. Появится прогон и архив — здесь добавится on_macos.
+# LINUX И macOS. Факты собираются по-разному: под Linux из /proc и /sys, под
+# macOS из sysctl, getfsstat и маршрутного сокета — всё по справочным страницам
+# системы. Решающее ядро (спецификация на flang, напечатанная в Go) одно на обе.
+#
+# ⚠ МАКОВСКИЙ АРХИВ НИ РАЗУ НЕ ЗАПУСКАЛСЯ НА МАКЕ. Он собирается и проходит
+# статическую проверку, а разбор ответов системы написан самопроверяющимся:
+# раскладка структуры принимается, только если сошлась с заведомо известным —
+# свой номер процесса, свой пользователь, размер пакета от стандартной
+# библиотеки. Не сошлось — поле пустое и названо в «не измерено», а не
+# напечатано наугад. Часть полей на macOS пуста и так: разбивка памяти, доля
+# процессора и температура требуют cgo, а он ломает повторимую сборку выпуска.
 class Digitdisk < Formula
   desc "Read-only disk and system reporter: where the space went, how the machine feels"
   homepage "https://github.com/digitable-lol/digitdisk"
   version "VERSION_PLACEHOLDER"
   license "BSD-2-Clause"
 
-  # Адрес объявлен БЕЗУСЛОВНО, а не только внутри on_linux, и это не
-  # небрежность. Формула обязана прочитаться на любой машине: без адреса
-  # снаружи Homebrew падает ещё до проверки depends_on, и человек на маке
-  # получает «formula requires at least a URL» со следом вызовов вместо
-  # внятного «нужен Linux». Отказ должен объяснять, а не пугать.
+  # Адрес объявлен безусловно, а не только внутри on_linux: без него Homebrew
+  # падает ещё до проверок системы, и человек видит след вызовов вместо
+  # объяснения. Проверено на живой машине владельца.
   url "https://github.com/digitable-lol/digitdisk/releases/download/vVERSION_PLACEHOLDER/digitdisk-VERSION_PLACEHOLDER-linux-amd64.tar.gz"
   sha256 "SHA256_LINUX_AMD64_PLACEHOLDER"
-
-  depends_on :linux
 
   on_linux do
     on_arm do
       url "https://github.com/digitable-lol/digitdisk/releases/download/vVERSION_PLACEHOLDER/digitdisk-VERSION_PLACEHOLDER-linux-arm64.tar.gz"
       sha256 "SHA256_LINUX_ARM64_PLACEHOLDER"
+    end
+  end
+
+  on_macos do
+    on_intel do
+      url "https://github.com/digitable-lol/digitdisk/releases/download/vVERSION_PLACEHOLDER/digitdisk-VERSION_PLACEHOLDER-darwin-amd64.tar.gz"
+      sha256 "SHA256_MACOS_AMD64_PLACEHOLDER"
+    end
+    on_arm do
+      url "https://github.com/digitable-lol/digitdisk/releases/download/vVERSION_PLACEHOLDER/digitdisk-VERSION_PLACEHOLDER-darwin-arm64.tar.gz"
+      sha256 "SHA256_MACOS_ARM64_PLACEHOLDER"
     end
   end
 
