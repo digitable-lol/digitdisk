@@ -1,0 +1,158 @@
+# Выпуск digitdisk.
+#
+# Запускается ТОЛЬКО тегом вида v0.1.0 (и вручную — тогда собирает и
+# показывает, но ничего не публикует). Публикация тегом, а не по вливанию в
+# ветку: выпуск — решение человека, и оно должно быть записано в истории
+# отдельным именем, а не случиться от нажатия «слить».
+#
+# Что делает: прогоняет сторожей, собирает повторимо двоичные файлы под
+# linux/amd64 и linux/arm64 с настоящим ядром на flang, считает контрольные
+# суммы, заполняет формулу Homebrew и кладёт архивы в выпуск.
+#
+# Проверить синтаксис, не запуская:  python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1]))' .github/workflows/release.yml
+name: Выпуск
+
+# Ключ в кавычках нарочно: без них разборщик YAML 1.1 читает «on» как
+# логическую истину, и синтаксическая проверка показывает ключ True вместо
+# «on». GitHub принимает обе записи одинаково.
+"on":
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Версия без ведущего v, например 0.1.0. Ничего не публикуется."
+        required: true
+        type: string
+
+# Больше прав, чем нужно, не берём: выпуску хватает записи в содержимое.
+permissions:
+  contents: write
+
+env:
+  # Инструментарий закреплён точной версией, а не «1.26.x»: повторимость
+  # сборки держится на одном и том же компиляторе. Смена версии здесь —
+  # осознанная правка, после которой отпечатки архивов другие.
+  GO_VERSION: "1.26.5"
+
+jobs:
+  release:
+    name: Собрать и выпустить
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Взять дерево
+        uses: actions/checkout@v4
+        with:
+          # Нужна полная история: сборка берёт хеш и время коммита метками
+          # выпуска, а не часы машины.
+          fetch-depth: 0
+
+      - name: Поставить Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: false
+
+      - name: Определить версию
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="${{ inputs.version }}"
+            version="${version#v}"
+          fi
+          expected="$(tr -d ' \t\n\r' < VERSION)"
+          if [ "$version" != "$expected" ]; then
+            echo "Тег говорит $version, а файл VERSION — $expected." >&2
+            echo "Выпуск, чьё имя расходится с деревом, нечем проверить." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Лицензионный сторож
+        run: python3 tools/check-licensing.py
+
+      - name: Проверки хозяина
+        run: |
+          test -z "$(gofmt -l host core/out-go)" || { gofmt -l host core/out-go; exit 1; }
+          cd host
+          go vet ./...
+          go vet -tags flangcore ./...
+          go test ./...
+          go test -tags flangcore ./...
+
+      - name: Дерево чистое
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            echo "Проверки наследили в дереве — выпуск собирается только из чистого." >&2
+            exit 1
+          fi
+
+      - name: Собрать выпуск
+        run: scripts/build-release.sh "${{ steps.version.outputs.version }}"
+
+      - name: Сложить описание выпуска
+        run: |
+          {
+            echo "## Установка"
+            echo
+            echo '```bash'
+            echo "brew install digitable-lol/tap/digitdisk"
+            echo '```'
+            echo
+            echo "Или готовым двоичным файлом:"
+            echo
+            echo '```bash'
+            echo "curl -fsSLO https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/digitdisk-${{ steps.version.outputs.version }}-linux-amd64.tar.gz"
+            echo "curl -fsSLO https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/SHA256SUMS"
+            echo "sha256sum --check --ignore-missing SHA256SUMS"
+            echo "tar -xzf digitdisk-${{ steps.version.outputs.version }}-linux-amd64.tar.gz"
+            echo "sudo install -m 0755 digitdisk-${{ steps.version.outputs.version }}-linux-amd64/digitdisk /usr/local/bin/digitdisk"
+            echo '```'
+            echo
+            echo "Только Linux (x86-64 и arm64): хозяин читает /proc и /sys."
+            echo "Двоичный файл собран с ядром на flang; проверить — \`digitdisk --version\`."
+            echo
+            echo "## Контрольные суммы"
+            echo
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+            echo
+            echo "Сборка повторима: тот же коммит и тот же Go ${{ env.GO_VERSION }} дают те же отпечатки."
+            echo "Формула Homebrew для digitable-lol/homebrew-tap приложена файлом \`digitdisk.rb\`."
+          } > dist/NOTES.md
+          cat dist/NOTES.md
+
+      - name: Сохранить собранное
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitdisk-${{ steps.version.outputs.version }}
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+            dist/homebrew/digitdisk.rb
+            dist/NOTES.md
+          if-no-files-found: error
+
+      # Публикуется только выпуск по тегу. Ручной запуск собирает и показывает,
+      # но наружу ничего не отдаёт: кнопка «проверить сборку» не должна уметь
+      # выпустить версию.
+      - name: Выпустить
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "digitdisk ${{ steps.version.outputs.version }}" \
+            --notes-file dist/NOTES.md \
+            --verify-tag \
+            dist/digitdisk-${{ steps.version.outputs.version }}-linux-amd64.tar.gz \
+            dist/digitdisk-${{ steps.version.outputs.version }}-linux-arm64.tar.gz \
+            dist/SHA256SUMS \
+            dist/homebrew/digitdisk.rb

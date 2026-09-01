@@ -9,6 +9,7 @@
 //
 //	digitdisk status [--json] [--top N] [--sample MS]
 //	digitdisk analyze <путь> [--json] [--top N] [--cross-device] [--max-depth N]
+//	digitdisk --version
 package main
 
 import (
@@ -35,6 +36,9 @@ const usage = `digitdisk — снимок системы и разбор дер�
       границу файловой системы без --cross-device не пересекаем,
       недоступное считается и пропускается.
 
+  digitdisk --version
+      Версия, хеш сборки, инструментарий и решающий слой этого двоичного файла.
+
 Ключи:
   --json           машиночитаемый вывод
   --top N          сколько строк в списках (по умолчанию 10 / 15)
@@ -58,6 +62,9 @@ func main() {
 		err = cmdAnalyze(os.Args[2:])
 	case "-h", "--help", "help":
 		fmt.Print(usage)
+		return
+	case "-V", "--version", "version":
+		printVersion(os.Stdout)
 		return
 	default:
 		fmt.Fprintf(os.Stderr, "digitdisk: неизвестная подкоманда %q\n\n%s", os.Args[1], usage)
