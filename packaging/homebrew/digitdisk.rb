@@ -29,13 +29,17 @@ class Digitdisk < Formula
   version "VERSION_PLACEHOLDER"
   license "BSD-2-Clause"
 
+  # Адрес объявлен БЕЗУСЛОВНО, а не только внутри on_linux, и это не
+  # небрежность. Формула обязана прочитаться на любой машине: без адреса
+  # снаружи Homebrew падает ещё до проверки depends_on, и человек на маке
+  # получает «formula requires at least a URL» со следом вызовов вместо
+  # внятного «нужен Linux». Отказ должен объяснять, а не пугать.
+  url "https://github.com/digitable-lol/digitdisk/releases/download/vVERSION_PLACEHOLDER/digitdisk-VERSION_PLACEHOLDER-linux-amd64.tar.gz"
+  sha256 "SHA256_LINUX_AMD64_PLACEHOLDER"
+
   depends_on :linux
 
   on_linux do
-    on_intel do
-      url "https://github.com/digitable-lol/digitdisk/releases/download/vVERSION_PLACEHOLDER/digitdisk-VERSION_PLACEHOLDER-linux-amd64.tar.gz"
-      sha256 "SHA256_LINUX_AMD64_PLACEHOLDER"
-    end
     on_arm do
       url "https://github.com/digitable-lol/digitdisk/releases/download/vVERSION_PLACEHOLDER/digitdisk-VERSION_PLACEHOLDER-linux-arm64.tar.gz"
       sha256 "SHA256_LINUX_ARM64_PLACEHOLDER"
