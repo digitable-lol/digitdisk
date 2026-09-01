@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Marat Zimnurov <zimtir@mail.ru>
 // SPDX-License-Identifier: BSD-2-Clause
 
-// Command digitdisk looks at a Linux system and at a directory tree, and
-// reports what it found.  It never deletes, moves, or writes anything: the
-// tool only reads /proc, /sys, and the tree it is pointed at.
+// Command digitdisk looks at a system and at a directory tree, and reports
+// what it found.  It never deletes, moves, or writes anything: the tool only
+// reads what the system publishes about itself — /proc and /sys on Linux,
+// sysctl and getfsstat on macOS — and the tree it is pointed at.
 //
 // Subcommands:
 //
@@ -28,8 +29,10 @@ const usage = `digitdisk — снимок системы и разбор дер�
 
 Использование:
   digitdisk status  [--json] [--top N] [--sample MS]
-      Снимок системы из /proc и /sys: ядро и дистрибутив, время работы,
-      загрузка, память, процессы, диски, сеть, температура.
+      Снимок системы: ядро и выпуск, время работы, загрузка, память, процессы,
+      диски, сеть, температура. Источники платформенные — /proc и /sys на
+      Linux, sysctl и getfsstat на macOS. Чего система не публикует, печатается
+      прочерком и называется в разделе «НЕ ИЗМЕРЕНО», а не нулём.
 
   digitdisk analyze <путь> [--json] [--top N] [--cross-device] [--max-depth N]
       Обход дерева через lstat: символические ссылки не раскрываются,
@@ -42,7 +45,9 @@ const usage = `digitdisk — снимок системы и разбор дер�
 Ключи:
   --json           машиночитаемый вывод
   --top N          сколько строк в списках (по умолчанию 10 / 15)
-  --sample MS      окно замера загрузки ЦП, мс (status, по умолчанию 200)
+  --sample MS      окно замера загрузки ЦП, мс (status, по умолчанию 200;
+                   на macOS не используется — эта доля там из Mach, а её мы
+                   не зовём)
   --cross-device   заходить на смонтированные другие файловые системы
   --max-depth N    предел глубины обхода (0 — без предела)
 

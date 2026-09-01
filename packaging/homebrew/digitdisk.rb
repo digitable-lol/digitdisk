@@ -19,10 +19,11 @@
 # версии компилятора. Выпуск собран один раз, повторимо и с признаком
 # `flangcore`, а отпечаток архива проверяет сам brew до распаковки.
 #
-# ТОЛЬКО LINUX. Хозяин читает /proc и /sys и зовёт uname(2) и statfs(2) в том
-# виде, в каком их даёт ядро Linux; под macOS он не собирается вовсе, а не
-# «собирается, но врёт». Поэтому depends_on :linux, а не тихая установка,
-# которая падает при первом запуске.
+# ТОЛЬКО LINUX — И ЭТО ПРО ВЫПУСК, А НЕ ПРО КОД. Хозяин собирается и на macOS
+# (host/internal/sysinfo/collect_darwin.go берёт факты из sysctl вместо /proc),
+# но на живом маке его ещё никто не прогонял, и маковского архива в выпуске нет.
+# Ставить нечего — значит depends_on :linux, а не тихая установка, которая
+# падает при первом запуске. Появится прогон и архив — здесь добавится on_macos.
 class Digitdisk < Formula
   desc "Read-only disk and system reporter: where the space went, how the machine feels"
   homepage "https://github.com/digitable-lol/digitdisk"

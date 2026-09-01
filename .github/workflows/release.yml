@@ -84,6 +84,11 @@ jobs:
           go vet -tags flangcore ./...
           go test ./...
           go test -tags flangcore ./...
+          # Маковский хозяин собирается и проверяется отсюда: мака у выпуска
+          # нет, а кросс-сборка ловит всё, что ловится без прогона.
+          GOOS=darwin GOARCH=arm64 go build ./...
+          GOOS=darwin GOARCH=amd64 go build ./...
+          GOOS=darwin go vet ./...
 
       - name: Дерево чистое
         run: |
@@ -115,7 +120,7 @@ jobs:
             echo "sudo install -m 0755 digitdisk-${{ steps.version.outputs.version }}-linux-amd64/digitdisk /usr/local/bin/digitdisk"
             echo '```'
             echo
-            echo "Только Linux (x86-64 и arm64): хозяин читает /proc и /sys."
+            echo "Только Linux (x86-64 и arm64): маковской сборки в выпуске пока нет."
             echo "Двоичный файл собран с ядром на flang; проверить — \`digitdisk --version\`."
             echo
             echo "## Контрольные суммы"

@@ -6,6 +6,7 @@ package scan
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -239,5 +240,68 @@ func TestWalkSingleFileRoot(t *testing.T) {
 	}
 	if res.Entries != 1 || res.Files != 1 || res.TotalBytes != 42 {
 		t.Errorf("single-file root = %+v", res)
+	}
+}
+
+// The size rule written out as numbers rather than derived by walking the tree
+// a second time: the total is the apparent size of every distinct inode, a
+// directory is charged nothing for itself, a symlink is charged the length of
+// its target, and a second name for one inode is charged nothing.
+//
+// It is here because the rule has to be the same on every system digitdisk
+// runs on.  The walk is one piece of code on Linux and macOS, and this is the
+// arithmetic it must produce on both — expected values that a run cannot talk
+// its way out of.
+func TestWalkSizeRuleInExactBytes(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel string, n int) string {
+		p := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, make([]byte, n), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+
+	big := write("big.bin", 1000)
+	write("sub/small.bin", 7)
+	if err := os.Link(big, filepath.Join(root, "sub", "second-name.bin")); err != nil {
+		t.Skipf("hard links unavailable here: %v", err)
+	}
+	// Two symlinks whose targets are of a length we choose, since a symlink
+	// is charged the length of the string it holds.
+	target := strings.Repeat("x", 30)
+	if err := os.Symlink(target, filepath.Join(root, "link-a")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("y", filepath.Join(root, "link-b")); err != nil {
+		t.Fatal(err)
+	}
+
+	const wantBytes = 1000 + 7 + 30 + 1
+	res, err := Walk(Options{Root: root, Now: time.Now(), Top: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.TotalBytes != wantBytes {
+		t.Errorf("TotalBytes = %d, want %d (1000 + 7 + два адреса ссылок; жёсткая ссылка и каталоги — ноль)",
+			res.TotalBytes, wantBytes)
+	}
+	if res.FileBytes != 1007 {
+		t.Errorf("FileBytes = %d, want 1007", res.FileBytes)
+	}
+	if res.LinkBytes != 31 {
+		t.Errorf("LinkBytes = %d, want 31", res.LinkBytes)
+	}
+	if res.HardlinkDupes != 1 || res.HardlinkBytes != 1000 {
+		t.Errorf("hard link = %d name, %d bytes; want 1 and 1000", res.HardlinkDupes, res.HardlinkBytes)
+	}
+	if res.Files != 3 || res.Links != 2 || res.Dirs != 2 {
+		t.Errorf("files/links/dirs = %d/%d/%d, want 3/2/2", res.Files, res.Links, res.Dirs)
+	}
+	if res.DirBytes == 0 {
+		t.Errorf("the directories' own size must still be reported, just not counted into the total")
 	}
 }

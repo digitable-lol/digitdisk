@@ -15,7 +15,34 @@
 // themselves — GNU du with --apparent-size reports 0 for a directory's own
 // size, so counting it here would inflate the total by roughly 4 KiB per
 // directory.  A directory's own st_size is still reported separately as
-// DirBytes.  That makes TotalBytes directly checkable against an outside tool.
+// DirBytes.  That makes TotalBytes directly checkable against an outside tool:
+// `du -sb` where GNU coreutils is the du (Linux), `gdu -sb` or `du -A` where it
+// is the BSD one (macOS).
+//
+// # The same walk on macOS
+//
+// This file is the same code on both systems — lstat, st_dev, st_ino, st_nlink
+// and st_size mean there what they mean on Linux, and the arithmetic above is
+// unchanged.  Four things about macOS are worth naming, because they change
+// what a walk finds without changing how it counts:
+//
+//   - Case-insensitive volumes (the APFS default) change nothing here: entries
+//     are counted as the directory lists them, and one name is never compared
+//     with another.
+//   - .DS_Store and ._AppleDouble files are ordinary files, counted as ordinary
+//     files — which is what du does with them too.
+//   - The system volume is split in two: / and the data volume under
+//     /System/Volumes/Data are separate filesystems joined by firmlinks, so a
+//     walk of / stops at that boundary without --cross-device, the same way it
+//     stops at a mount point on Linux.  On macOS that boundary sits between the
+//     system and the user's own files, so it is one people meet.
+//   - A directory the privacy machinery refuses (Full Disk Access) answers
+//     EPERM where Linux answers EACCES.  Go maps both to fs.ErrPermission, so
+//     the refusal is counted as "нет доступа" and not as an unexplained error.
+//
+// Not verified against a running Mac: we have none.  What is verified is that
+// the accounting is arithmetic over lstat, and the tests in this package build
+// the tree they measure instead of trusting the machine under them.
 package scan
 
 import (
