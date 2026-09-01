@@ -220,3 +220,45 @@ func TestParseOSRelease(t *testing.T) {
 		t.Errorf("line without '=' must be ignored")
 	}
 }
+
+// A kernel too old for MemAvailable, which is what the Present map is for: the
+// derived "used" cannot be computed from what is here, and must not come back
+// as a zero that reads like a measurement.
+const meminfoWithoutAvailable = `MemTotal:        8000 kB
+MemFree:         1000 kB
+Buffers:          100 kB
+Cached:           200 kB
+`
+
+func TestParseMeminfoMarksWhatItDidNotSee(t *testing.T) {
+	full := ParseMeminfo(meminfoSample)
+	for _, field := range []string{FieldTotal, FieldFree, FieldAvailable, FieldUsed, FieldBuffCache, FieldSwapUsed} {
+		if !full.Has(field) {
+			t.Errorf("%s is in the sample and must be marked present", field)
+		}
+	}
+
+	old := ParseMeminfo(meminfoWithoutAvailable)
+	if !old.Has(FieldTotal) || !old.Has(FieldFree) {
+		t.Errorf("what the old kernel does publish must stay present: %+v", old.Present)
+	}
+	if old.Has(FieldAvailable) || old.Has(FieldUsed) {
+		t.Errorf("MemAvailable is absent, so available and used are not measurements: %+v", old.Present)
+	}
+	if old.Used != 0 {
+		t.Errorf("Used = %d, want 0 — and the zero is only safe because Has says it is not a measurement", old.Used)
+	}
+	if old.Has(FieldSwapTotal) || old.Has(FieldSwapUsed) {
+		t.Errorf("there is no swap line in this sample: %+v", old.Present)
+	}
+}
+
+func TestMemoryHasTakesAHandBuiltStructAtFaceValue(t *testing.T) {
+	// A Memory nobody marked up — a test's, or one from a source that
+	// fills every field it has — answers true, so the nil map never turns
+	// real numbers into dashes.
+	m := Memory{Total: 1024}
+	if !m.Has(FieldTotal) || !m.Has(FieldUsed) {
+		t.Errorf("a nil Present map must be taken at face value")
+	}
+}

@@ -1,10 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Marat Zimnurov <zimtir@mail.ru>
 // SPDX-License-Identifier: BSD-2-Clause
 
+//go:build linux
+
+// The Linux half of the collector: everything here reads /proc and /sys.  The
+// parsers it hands the text to live in internal/procfs and are built
+// everywhere, because a parser of captured text is testable on any machine;
+// only this file, which names the paths and calls the Linux kernel, is behind
+// the build tag.
+
 package sysinfo
 
 import (
-	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -20,6 +27,9 @@ import (
 // Collector reads a snapshot from a set of filesystem roots.  The roots are
 // fields so tests can point them at a captured tree instead of the live
 // kernel.
+//
+// Every system has its own Collector with its own fields; what they share is
+// the two knobs the command line sets (SampleWindow, Top), New, and Collect.
 type Collector struct {
 	Proc string // usually /proc
 	Sys  string // usually /sys
@@ -186,6 +196,12 @@ func (c Collector) Collect() Status {
 	st.Network, err = c.Network()
 	miss("net/dev", err)
 	st.Sensors = c.Sensors()
+	if len(st.Sensors) == 0 {
+		// An absent sensor is a fact about the machine, not a failed
+		// read — but "no temperatures" and "temperatures not looked
+		// for" are still different things, so it is named.
+		st.Missing[FactSensors] = "в " + filepath.Join(c.Sys, "class/hwmon") + " датчиков нет"
+	}
 
 	if len(st.Missing) == 0 {
 		st.Missing = nil
@@ -302,7 +318,7 @@ func (c Collector) Network() ([]Iface, error) {
 	if err != nil {
 		return nil, err
 	}
-	addrs := c.interfaceAddresses()
+	addrs := interfaceAddresses()
 	var out []Iface
 	for _, nc := range procfs.ParseNetDev(text) {
 		i := Iface{NetCounters: nc}
@@ -369,24 +385,6 @@ func (c Collector) Sensors() []Sensor {
 	return out
 }
 
-// cpuOrZero sorts unmeasured processes below every measured one.
-func cpuOrZero(p Proc) float64 {
-	if p.CPUPercent == nil {
-		return -1
-	}
-	return *p.CPUPercent
-}
-
-func head(p []Proc, n int) []Proc {
-	if n <= 0 {
-		return nil
-	}
-	if len(p) > n {
-		p = p[:n]
-	}
-	return p
-}
-
 func utsString[T ~int8 | ~uint8](b []T) string {
 	out := make([]byte, 0, len(b))
 	for _, c := range b {
@@ -396,19 +394,4 @@ func utsString[T ~int8 | ~uint8](b []T) string {
 		out = append(out, byte(c))
 	}
 	return string(out)
-}
-
-// HumanDuration renders a number of seconds as "5д 03:14".
-func HumanDuration(seconds float64) string {
-	if seconds <= 0 {
-		return ""
-	}
-	d := time.Duration(seconds) * time.Second
-	days := int(d.Hours()) / 24
-	hours := int(d.Hours()) % 24
-	mins := int(d.Minutes()) % 60
-	if days > 0 {
-		return fmt.Sprintf("%dд %02d:%02d", days, hours, mins)
-	}
-	return fmt.Sprintf("%02d:%02d", hours, mins)
 }

@@ -1,10 +1,18 @@
 // SPDX-FileCopyrightText: 2026 Marat Zimnurov <zimtir@mail.ru>
 // SPDX-License-Identifier: BSD-2-Clause
 
-// Package sysinfo assembles a snapshot of the running Linux system out of
-// /proc and /sys.  Anything the kernel does not expose is left empty (nil,
-// zero-length, or a null in JSON) and named in Status.Missing — the snapshot
-// never invents a value.
+// Package sysinfo assembles a snapshot of the running system.
+//
+// The snapshot has one shape everywhere; where the facts come from does not.
+// Linux reads /proc and /sys (collect_linux.go), macOS asks sysctl and
+// getfsstat (collect_darwin.go).  Everything else in this package — the types
+// below, the durations, the interface addresses — is the same code on both.
+//
+// Anything the system does not publish is left empty: a nil pointer (JSON
+// null), an empty list, a false flag in Memory.Present.  It is then named in
+// Status.Missing with the reason.  A zero that was measured and a field nobody
+// could measure must never look alike, and on a system that publishes less
+// than Linux does that rule is most of the work.
 package sysinfo
 
 import "digitdisk/internal/procfs"
@@ -19,16 +27,23 @@ type Status struct {
 	Disks     []Disk        `json:"disks"`
 	Network   []Iface       `json:"network"`
 	Sensors   []Sensor      `json:"sensors"`
-	// Missing names the sources that could not be read, with the reason.
+	// Missing names what is not in the snapshot and why: a source that
+	// could not be read (keyed by its name, "meminfo", "mounts"), and a
+	// fact this system does not publish at all (keyed by one of the Fact
+	// constants below).  The reason is meant for a reader, and the report
+	// prints it where the number would have been.
 	Missing map[string]string `json:"missing,omitempty"`
 }
 
 // Host is identity and lifetime.
 type Host struct {
-	Hostname      string  `json:"hostname"`
-	KernelRelease string  `json:"kernel_release"`
-	KernelVersion string  `json:"kernel_version"`
-	Machine       string  `json:"machine"`
+	Hostname      string `json:"hostname"`
+	KernelRelease string `json:"kernel_release"`
+	KernelVersion string `json:"kernel_version"`
+	Machine       string `json:"machine"`
+	// Model is the machine's own name for itself, when it has one:
+	// "MacBookPro18,3" from hw.model.  Linux leaves it empty.
+	Model         string  `json:"model,omitempty"`
 	Distro        string  `json:"distro"`
 	DistroID      string  `json:"distro_id"`
 	DistroVersion string  `json:"distro_version"`

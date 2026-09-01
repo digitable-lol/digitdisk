@@ -9,10 +9,13 @@ package report
 import (
 	"fmt"
 	"io"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/procfs"
 	"digitdisk/internal/scan"
 	"digitdisk/internal/sysinfo"
 )
@@ -63,6 +66,9 @@ func Status(w io.Writer, st sysinfo.Status) {
 	p("СИСТЕМА")
 	p("  узел          %s", dash(st.Host.Hostname))
 	p("  дистрибутив   %s", dash(st.Host.Distro))
+	if st.Host.Model != "" {
+		p("  модель        %s", st.Host.Model)
+	}
 	p("  ядро          %s (%s)", dash(st.Host.KernelRelease), dash(st.Host.Machine))
 	if st.Host.UptimeSeconds > 0 {
 		boot := "—"
@@ -82,34 +88,46 @@ func Status(w io.Writer, st sysinfo.Status) {
 	} else {
 		p("  ядер          —")
 	}
-	if st.Load.BusyPercent != nil {
+	switch why, unmeasured := st.Unmeasured(sysinfo.FactCPUBusy); {
+	case st.Load.BusyPercent != nil:
 		p("  занято ЦП     %.1f%% (замер %d мс)", *st.Load.BusyPercent, st.Load.SampleMillis)
-	} else {
+	case unmeasured:
+		p("  занято ЦП     — (%s)", why)
+	default:
 		p("  занято ЦП     — (замер не делался)")
 	}
 
 	p("")
 	p("ПАМЯТЬ")
 	m := st.Memory
-	if m.Total == 0 {
+	if m.Total == 0 || !m.Has(procfs.FieldTotal) {
 		p("  —")
 	} else {
 		p("  всего         %s", UBytes(m.Total))
-		p("  занято        %s (%.1f%%)  [всего − доступно]", UBytes(m.Used), pct(m.Used, m.Total))
-		p("  свободно      %s", UBytes(m.Free))
-		p("  кэш/буферы    %s  (в т.ч. разделяемая %s)", UBytes(m.BuffCache), UBytes(m.Shared))
-		p("  доступно      %s", UBytes(m.Available))
-		if m.SwapTotal > 0 {
-			p("  своп          %s из %s занято", UBytes(m.SwapUsed), UBytes(m.SwapTotal))
+		if m.Has(procfs.FieldUsed) {
+			p("  занято        %s (%.1f%%)  [всего − доступно]", UBytes(m.Used), pct(m.Used, m.Total))
 		} else {
+			p("  занято        —")
+		}
+		p("  свободно      %s", measured(m, procfs.FieldFree, m.Free))
+		p("  кэш/буферы    %s  (в т.ч. разделяемая %s)",
+			measured(m, procfs.FieldBuffCache, m.BuffCache), measured(m, procfs.FieldShared, m.Shared))
+		p("  доступно      %s", measured(m, procfs.FieldAvailable, m.Available))
+		switch {
+		case !m.Has(procfs.FieldSwapTotal):
+			p("  своп          —")
+		case m.SwapTotal > 0:
+			p("  своп          %s из %s занято", measured(m, procfs.FieldSwapUsed, m.SwapUsed), UBytes(m.SwapTotal))
+		default:
 			p("  своп          нет")
 		}
 	}
 
 	p("")
 	pr := st.Processes
-	p("ПРОЦЕССЫ  всего %d, потоков %d, выполняется %d, заблокировано %d%s",
-		pr.Total, pr.Threads, pr.Running, pr.Blocked, plural(pr.Unreadable))
+	p("ПРОЦЕССЫ  всего %d, потоков %s, выполняется %d, заблокировано %s%s",
+		pr.Total, counted(st, sysinfo.FactThreads, pr.Threads), pr.Running,
+		counted(st, sysinfo.FactBlocked, pr.Blocked), plural(pr.Unreadable))
 	if len(pr.TopByMemory) > 0 {
 		p("  десятка по памяти:")
 		for _, x := range pr.TopByMemory {
@@ -149,7 +167,12 @@ func Status(w io.Writer, st sysinfo.Status) {
 		p("  —")
 	} else {
 		p("  %-12s %-8s %12s %12s %10s %10s", "интерфейс", "состоян.", "принято", "передано", "пак. вх.", "пак. исх.")
+		_, noCounters := st.Unmeasured(sysinfo.FactNetCounters)
 		for _, n := range st.Network {
+			if noCounters {
+				p("  %-12s %-8s %12s %12s %10s %10s", cut(n.Name, 12), cut(dash(n.OperState), 8), "—", "—", "—", "—")
+				continue
+			}
 			p("  %-12s %-8s %12s %12s %10d %10d", cut(n.Name, 12), cut(dash(n.OperState), 8),
 				UBytes(n.RxBytes), UBytes(n.TxBytes), n.RxPackets, n.TxPackets)
 		}
@@ -158,7 +181,11 @@ func Status(w io.Writer, st sysinfo.Status) {
 	p("")
 	p("ТЕМПЕРАТУРА")
 	if len(st.Sensors) == 0 {
-		p("  — (в /sys/class/hwmon датчиков нет)")
+		if why, ok := st.Unmeasured(sysinfo.FactSensors); ok {
+			p("  — (%s)", why)
+		} else {
+			p("  —")
+		}
 	} else {
 		for _, s := range st.Sensors {
 			extra := ""
@@ -169,11 +196,18 @@ func Status(w io.Writer, st sysinfo.Status) {
 		}
 	}
 
+	// Sorted, because this section is read to compare two runs or two
+	// machines, and Go's map order would shuffle it on every run.
 	if len(st.Missing) > 0 {
 		p("")
-		p("НЕ ПРОЧИТАНО")
-		for k, v := range st.Missing {
-			p("  %s: %s", k, v)
+		p("НЕ ИЗМЕРЕНО (и почему)")
+		names := make([]string, 0, len(st.Missing))
+		for k := range st.Missing {
+			names = append(names, k)
+		}
+		sort.Strings(names)
+		for _, k := range names {
+			p("  %s: %s", k, st.Missing[k])
 		}
 	}
 }
@@ -185,7 +219,7 @@ func Analyze(w io.Writer, r scan.Result) {
 	p("ОБХОД  %s", r.Root)
 	p("  записей       %d  (файлов %d, каталогов %d, ссылок %d, прочего %d)",
 		r.Entries, r.Files, r.Dirs, r.Links, r.Others)
-	p("  объём         %s (%d Б, видимый размер, сходится с du -sb)", Bytes(r.TotalBytes), r.TotalBytes)
+	p("  объём         %s (%d Б, видимый размер: du --apparent-size, он же du -sb)", Bytes(r.TotalBytes), r.TotalBytes)
 	p("                файлы %s, ссылки %s; сверх того сами каталоги %s (в объём не входят, как и у du)",
 		Bytes(r.FileBytes), Bytes(r.LinkBytes), Bytes(r.DirBytes))
 	if r.HardlinkDupes > 0 {
@@ -234,6 +268,24 @@ func Analyze(w io.Writer, r scan.Result) {
 			p("  %10s  %-9s %5.0f дн  %s", Bytes(e.Size), e.Kind, e.AgeDays, cut(e.Path, 80))
 		}
 	}
+}
+
+// measured renders a memory field: its value when the system published it,
+// "—" when it did not.  A field nobody measured must not print as "0 Б", which
+// is a number a reader would believe.
+func measured(m procfs.Memory, field string, v uint64) string {
+	if !m.Has(field) {
+		return "—"
+	}
+	return UBytes(v)
+}
+
+// counted renders a counter the running system may not publish at all.
+func counted(st sysinfo.Status, fact string, v int) string {
+	if _, unmeasured := st.Unmeasured(fact); unmeasured {
+		return "—"
+	}
+	return strconv.Itoa(v)
 }
 
 func pct(a, b uint64) float64 {
