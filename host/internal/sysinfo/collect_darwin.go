@@ -57,6 +57,7 @@ import (
 	"time"
 
 	"digitdisk/internal/darwinsys"
+	"digitdisk/internal/lang"
 	"digitdisk/internal/libsystem"
 	"digitdisk/internal/procfs"
 )
@@ -128,7 +129,7 @@ func sysctlGrowing(name string, attempts int) ([]byte, error) {
 // Status.Missing rather than aborting the run, and a fact this system does not
 // publish at all is recorded there under its Fact constant.
 func (c Collector) Collect() Status {
-	st := Status{TakenAt: time.Now().Format(time.RFC3339), Missing: map[string]string{}}
+	st := Status{TakenAt: time.Now().Format(time.RFC3339), Missing: map[string]lang.Phrase{}}
 
 	c.host(&st)
 	c.load(&st)
@@ -137,13 +138,13 @@ func (c Collector) Collect() Status {
 
 	disks, err := c.Disks()
 	if err != nil {
-		st.Missing["getfsstat"] = err.Error()
+		st.Missing["getfsstat"] = lang.FromError(err)
 	}
 	st.Disks = disks
 	st.Network = c.network(&st)
 
 	st.Sensors = nil
-	st.Missing[FactSensors] = "macOS не публикует показания датчиков, а угадывать их формат нельзя"
+	st.Missing[FactSensors] = lang.Say("macOS не публикует показания датчиков, а угадывать их формат нельзя")
 
 	// The video cards are the same case as the sensors, and for the same
 	// reason.  What a Mac knows about its graphics lives in the IORegistry,
@@ -152,7 +153,7 @@ func (c Collector) Collect() Status {
 	// five functions in internal/libsystem are.  Every number a card here
 	// could show would be a guess about somebody's reverse engineering, so
 	// there are none.
-	st.Missing[FactGPUs] = "macOS публикует сведения о видеокартах только через IOKit, объектами Core Foundation; без cgo мы их не читаем, а угадывать не станем"
+	st.Missing[FactGPUs] = lang.Say("macOS публикует сведения о видеокартах только через IOKit, объектами Core Foundation; без cgo мы их не читаем, а угадывать не станем")
 
 	if len(st.Missing) == 0 {
 		st.Missing = nil
@@ -165,7 +166,7 @@ func (c Collector) Collect() Status {
 func text(st *Status, name string) string {
 	v, err := syscall.Sysctl(name)
 	if err != nil {
-		st.Missing[name] = err.Error()
+		st.Missing[name] = lang.FromError(err)
 		return ""
 	}
 	return strings.TrimSpace(v)
@@ -186,7 +187,7 @@ func (c Collector) host(st *Status) {
 	if v, err := syscall.Sysctl("machdep.cpu.brand_string"); err == nil && strings.TrimSpace(v) != "" {
 		st.Host.CPUModel = strings.TrimSpace(v)
 	} else {
-		st.Missing[FactCPUModel] = "узел machdep.cpu.brand_string ничего не ответил — процессор себя не назвал"
+		st.Missing[FactCPUModel] = lang.Say("узел machdep.cpu.brand_string ничего не ответил — процессор себя не назвал")
 	}
 	environment(st)
 
@@ -205,12 +206,12 @@ func (c Collector) host(st *Status) {
 
 	b, err := sysctlRaw("kern.boottime")
 	if err != nil {
-		st.Missing["kern.boottime"] = err.Error()
+		st.Missing["kern.boottime"] = lang.FromError(err)
 		return
 	}
 	boot, ok := darwinsys.ParseTimeval(b)
 	if !ok {
-		st.Missing["kern.boottime"] = "ответ не читается как момент времени — время работы не считаем"
+		st.Missing["kern.boottime"] = lang.Say("ответ не читается как момент времени — время работы не считаем")
 		return
 	}
 	st.Host.BootTime = boot.Unix()
@@ -222,15 +223,15 @@ func (c Collector) host(st *Status) {
 
 func (c Collector) load(st *Status) {
 	if b, err := sysctlRaw("vm.loadavg"); err != nil {
-		st.Missing["vm.loadavg"] = err.Error()
+		st.Missing["vm.loadavg"] = lang.FromError(err)
 	} else if one, five, fifteen, ok := darwinsys.ParseLoadAvg(b); ok {
 		st.Load.One, st.Load.Five, st.Load.Fifteen = one, five, fifteen
 	} else {
-		st.Missing["vm.loadavg"] = "ответ не читается как средние загрузки — не показываем"
+		st.Missing["vm.loadavg"] = lang.Say("ответ не читается как средние загрузки — не показываем")
 	}
 	// /proc/loadavg carries three more numbers macOS does not publish.  The
 	// report never prints them, so this is a note for the JSON only.
-	st.Missing[FactLoadEntities] = "macOS не публикует длину очереди планировщика"
+	st.Missing[FactLoadEntities] = lang.Say("macOS не публикует длину очереди планировщика")
 
 	for _, name := range []string{"hw.logicalcpu", "hw.ncpu"} {
 		if n, err := syscall.SysctlUint32(name); err == nil && n > 0 {
@@ -243,23 +244,23 @@ func (c Collector) load(st *Status) {
 func (c Collector) memory(st *Status) {
 	m := procfs.Memory{Present: map[string]bool{}, Raw: map[string]uint64{}}
 	if b, err := sysctlRaw("hw.memsize"); err != nil {
-		st.Missing["hw.memsize"] = err.Error()
+		st.Missing["hw.memsize"] = lang.FromError(err)
 	} else if v, ok := darwinsys.ParseUint64(b); ok {
 		m.Total = v
 		m.Present[procfs.FieldTotal] = true
 	} else {
-		st.Missing["hw.memsize"] = "ответ не восьмибайтовый — объём памяти не показываем"
+		st.Missing["hw.memsize"] = lang.Say("ответ не восьмибайтовый — объём памяти не показываем")
 	}
 
 	if b, err := sysctlRaw("vm.swapusage"); err != nil {
-		st.Missing["vm.swapusage"] = err.Error()
+		st.Missing["vm.swapusage"] = lang.FromError(err)
 	} else if s, ok := darwinsys.ParseSwapUsage(b); ok {
 		m.SwapTotal, m.SwapFree, m.SwapUsed = s.Total, s.Avail, s.Used
 		m.Present[procfs.FieldSwapTotal] = true
 		m.Present[procfs.FieldSwapFree] = true
 		m.Present[procfs.FieldSwapUsed] = true
 	} else {
-		st.Missing["vm.swapusage"] = "ответ не читается как сведения о свопе — не показываем"
+		st.Missing["vm.swapusage"] = lang.Say("ответ не читается как сведения о свопе — не показываем")
 	}
 
 	c.pages(st, &m)
@@ -274,26 +275,26 @@ func (c Collector) memory(st *Status) {
 // different source — hw.memsize and hw.pagesize.  Two sources agreeing is the
 // whole warrant for printing any of these numbers.
 func (c Collector) pages(st *Status, m *procfs.Memory) {
-	notes := func(why string) { st.Missing[FactMemoryPages] = why }
+	notes := func(why lang.Phrase) { st.Missing[FactMemoryPages] = why }
 
 	pageSize, err := syscall.SysctlUint32("hw.pagesize")
 	if err != nil || pageSize == 0 {
-		notes("без размера страницы разбивку памяти не пересчитать в байты")
+		notes(lang.Say("без размера страницы разбивку памяти не пересчитать в байты"))
 		return
 	}
 	if m.Total == 0 {
-		notes("без объёма памяти разбивку не с чем сверить")
+		notes(lang.Say("без объёма памяти разбивку не с чем сверить"))
 		return
 	}
 
 	b, err := libsystem.HostStatistics64(darwinsys.FlavorVMInfo64, darwinsys.VMInfo64Count)
 	if err != nil {
-		notes("ядро не дало разбивку памяти: " + err.Error())
+		notes(lang.Say("ядро не дало разбивку памяти: %s", err))
 		return
 	}
 	v, ok := darwinsys.ParseVMStat64(b, m.Total/uint64(pageSize))
 	if !ok {
-		notes("разбивка памяти не сошлась с объёмом памяти машины — не публикуем")
+		notes(lang.Say("разбивка памяти не сошлась с объёмом памяти машины — не публикуем"))
 		return
 	}
 
@@ -350,9 +351,9 @@ func (c Collector) sample(st *Status) {
 	if c.SampleWindow <= 0 {
 		// Everything measured across a window is measured across no
 		// window at all, which is not a measurement.
-		st.Missing[FactCPUBusy] = "окно замера нулевое — доля занятого процессора не измерялась"
-		st.Missing[FactCores] = "окно замера нулевое — доля занятого времени каждого ядра не измерялась"
-		st.Missing[FactProcessCPU] = "окно замера нулевое — процессорное время процессов не измерялось"
+		st.Missing[FactCPUBusy] = lang.Say("окно замера нулевое — доля занятого процессора не измерялась")
+		st.Missing[FactCores] = lang.Say("окно замера нулевое — доля занятого времени каждого ядра не измерялась")
+		st.Missing[FactProcessCPU] = lang.Say("окно замера нулевое — процессорное время процессов не измерялось")
 		if after, ok := c.snapProcesses(st, true); ok {
 			c.rank(st, nil, after)
 		}
@@ -384,8 +385,8 @@ func (c Collector) sample(st *Status) {
 // and the window that is finally reported is the one that was really used.
 func (c Collector) busyShare(st *Status, before cpuReading, have bool, started time.Time) {
 	if !have {
-		st.Missing[FactCPUBusy] = "ядро не дало счётчики процессорного времени"
-		st.Missing[FactCores] = "ядро не дало счётчики процессорного времени"
+		st.Missing[FactCPUBusy] = lang.Say("ядро не дало счётчики процессорного времени")
+		st.Missing[FactCores] = lang.Say("ядро не дало счётчики процессорного времени")
 		return
 	}
 	for attempt := 0; ; attempt++ {
@@ -400,8 +401,8 @@ func (c Collector) busyShare(st *Status, before cpuReading, have bool, started t
 			}
 		}
 		if attempt >= busyRetries {
-			st.Missing[FactCPUBusy] = "за окно замера счётчики процессора не сдвинулись"
-			st.Missing[FactCores] = "за окно замера счётчики процессоров не сдвинулись"
+			st.Missing[FactCPUBusy] = lang.Say("за окно замера счётчики процессора не сдвинулись")
+			st.Missing[FactCores] = lang.Say("за окно замера счётчики процессоров не сдвинулись")
 			return
 		}
 		time.Sleep(c.SampleWindow)
@@ -420,11 +421,11 @@ func (c Collector) busyShare(st *Status, before cpuReading, have bool, started t
 // are, and then there are no per-processor numbers at all.
 func (c Collector) cores(st *Status, before, now cpuReading) {
 	if len(before.cores) == 0 || len(now.cores) != len(before.cores) {
-		st.Missing[FactCores] = "ядро не дало счётчики по каждому процессору отдельно"
+		st.Missing[FactCores] = lang.Say("ядро не дало счётчики по каждому процессору отдельно")
 		return
 	}
 	if st.Load.CPUCount > 0 && len(now.cores) != st.Load.CPUCount {
-		st.Missing[FactCores] = "процессоров в ответе ядра не столько, сколько машина насчитала у себя, — по ядрам не публикуем"
+		st.Missing[FactCores] = lang.Say("процессоров в ответе ядра не столько, сколько машина насчитала у себя, — по ядрам не публикуем")
 		return
 	}
 	out := make([]Core, 0, len(now.cores))
@@ -483,7 +484,7 @@ func (c Collector) cpuReading() (cpuReading, bool) {
 // came back at all; report says whether the reasons for what is missing should
 // be written into the snapshot, so the first of two passes stays silent.
 func (c Collector) snapProcesses(st *Status, report bool) (map[int]procSample, bool) {
-	notes := func(key, why string) {
+	notes := func(key string, why lang.Phrase) {
 		if report {
 			st.Missing[key] = why
 		}
@@ -491,16 +492,16 @@ func (c Collector) snapProcesses(st *Status, report bool) (map[int]procSample, b
 
 	b, err := sysctlGrowing("kern.proc.all", 3)
 	if err != nil {
-		notes("kern.proc.all", err.Error())
+		notes("kern.proc.all", lang.FromError(err))
 		return nil, false
 	}
 	procs, ok := darwinsys.ParseProcs(b)
 	if !ok {
-		notes("kern.proc.all", "ответ не делится на записи процессов — список не публикуем")
+		notes("kern.proc.all", lang.Say("ответ не делится на записи процессов — список не публикуем"))
 		return nil, false
 	}
 	if !darwinsys.Verify(procs, os.Getpid(), os.Getppid(), os.Getuid()) {
-		notes("kern.proc.all", "самопроверка записи о процессе не сошлась — числа из неё не публикуем")
+		notes("kern.proc.all", lang.Say("самопроверка записи о процессе не сошлась — числа из неё не публикуем"))
 		return nil, false
 	}
 
@@ -512,8 +513,8 @@ func (c Collector) snapProcesses(st *Status, report bool) (map[int]procSample, b
 	memTotal := st.Memory.Total
 	detailOK := memTotal > 0 && c.selfTaskInfo(memTotal)
 	if !detailOK && report {
-		st.Missing[FactProcessRSS] = "самопроверка памяти процессов не сошлась — их память и потоки не публикуем"
-		st.Missing[FactThreads] = "самопроверка памяти процессов не сошлась — их память и потоки не публикуем"
+		st.Missing[FactProcessRSS] = lang.Say("самопроверка памяти процессов не сошлась — их память и потоки не публикуем")
+		st.Missing[FactThreads] = lang.Say("самопроверка памяти процессов не сошлась — их память и потоки не публикуем")
 	}
 
 	out := make(map[int]procSample, len(procs))
@@ -548,17 +549,17 @@ func (c Collector) snapProcesses(st *Status, report bool) (map[int]procSample, b
 		// "runnable" for every process that is merely alive, and counting
 		// by it reported the whole list as running.
 		if !detailOK {
-			st.Missing[FactRunning] = "сколько процессов работает прямо сейчас, видно только по их потокам"
+			st.Missing[FactRunning] = lang.Say("сколько процессов работает прямо сейчас, видно только по их потокам")
 		}
 		// A process belonging to another user is not a process we failed
 		// to read: the kernel refused on purpose, and it refuses the same
 		// way to every tool that is not the administrator.
 		if detailOK && denied > 0 {
-			st.Missing[FactOtherUsers] = "память, потоки и командные строки чужих процессов видны только администратору — запустите под sudo"
+			st.Missing[FactOtherUsers] = lang.Say("память, потоки и командные строки чужих процессов видны только администратору — запустите под sudo")
 		}
 		// The scheduler state macOS keeps in a process record does not
 		// separate uninterruptible sleep from ordinary sleep.
-		st.Missing[FactBlocked] = "macOS не различает заблокированные процессы среди спящих"
+		st.Missing[FactBlocked] = lang.Say("macOS не различает заблокированные процессы среди спящих")
 	}
 	return out, true
 }
@@ -605,7 +606,7 @@ func (c Collector) rank(st *Status, before, after map[int]procSample) {
 	st.Processes.WithDetail = detailed
 	if detailed == 0 {
 		if _, named := st.Unmeasured(FactProcessCPU); !named {
-			st.Missing[FactProcessCPU] = "без памяти процессов их процессорное время тоже не публикуем"
+			st.Missing[FactProcessCPU] = lang.Say("без памяти процессов их процессорное время тоже не публикуем")
 		}
 		return
 	}
@@ -633,7 +634,7 @@ func (c Collector) rank(st *Status, before, after map[int]procSample) {
 	})
 	if len(byCPU) > 0 && byCPU[0].CPUPercent == nil {
 		if _, named := st.Unmeasured(FactProcessCPU); !named {
-			st.Missing[FactProcessCPU] = "ни один процесс не прожил всё окно замера"
+			st.Missing[FactProcessCPU] = lang.Say("ни один процесс не прожил всё окно замера")
 		}
 		st.Processes.TopByCPU = nil
 	} else {
@@ -677,7 +678,7 @@ func describe(args func(int) (string, bool), list []Proc) {
 func argsReader(st *Status) func(int) (string, bool) {
 	argmax, err := syscall.SysctlUint32("kern.argmax")
 	if err != nil || argmax == 0 {
-		st.Missing[FactProcessArgs] = "ядро не назвало предельный размер блока аргументов"
+		st.Missing[FactProcessArgs] = lang.Say("ядро не назвало предельный размер блока аргументов")
 		return nil
 	}
 	read := func(pid int) ([]string, bool) {
@@ -690,7 +691,7 @@ func argsReader(st *Status) func(int) (string, bool) {
 	}
 	mine, ok := read(os.Getpid())
 	if !ok || !darwinsys.SameArgv(mine, os.Args) {
-		st.Missing[FactProcessArgs] = "самопроверка командной строки не сошлась — чужих командных строк не публикуем"
+		st.Missing[FactProcessArgs] = lang.Say("самопроверка командной строки не сошлась — чужих командных строк не публикуем")
 		return nil
 	}
 	return func(pid int) (string, bool) {
@@ -750,7 +751,7 @@ func (c Collector) Disks() ([]Disk, error) {
 func (c Collector) network(st *Status) []Iface {
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		st.Missing["net.Interfaces"] = err.Error()
+		st.Missing["net.Interfaces"] = lang.FromError(err)
 		return nil
 	}
 	mtus := make(map[int]int, len(ifaces))
@@ -760,12 +761,12 @@ func (c Collector) network(st *Status) []Iface {
 
 	counters := map[int]darwinsys.IfCounters{}
 	if b, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, 0); err != nil {
-		st.Missing[FactNetCounters] = "список интерфейсов не прочитался: " + err.Error()
+		st.Missing[FactNetCounters] = lang.Say("список интерфейсов не прочитался: %s", err)
 	} else if got := darwinsys.ParseIfList2(b); darwinsys.VerifyIfList(got, mtus) {
 		counters = got
-		st.Missing[FactNetTxDrops] = "macOS не считает отброшенные исходящие пакеты"
+		st.Missing[FactNetTxDrops] = lang.Say("macOS не считает отброшенные исходящие пакеты")
 	} else {
-		st.Missing[FactNetCounters] = "самопроверка счётчиков интерфейсов не сошлась — не публикуем"
+		st.Missing[FactNetCounters] = lang.Say("самопроверка счётчиков интерфейсов не сошлась — не публикуем")
 	}
 
 	addrs := interfaceAddresses()

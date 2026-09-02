@@ -151,8 +151,12 @@ for target in "${TARGETS[@]}"; do
 
 	# В архив едет то, без чего двоичный файл нельзя ни законно раздать, ни
 	# понять, ни поставить: лицензия, происхождение, обе редакции описания,
-	# версия и страница руководства — её ставит формула в man1.
-	cp LICENSE NOTICE README.md README.ru.md VERSION digitdisk.1 "$stage/"
+	# версия и ОБЕ страницы руководства.
+	#
+	# Страниц две, потому что инструмент говорит на двух языках, и
+	# `man digitdisk` обязан ответить на том же. Формула ставит английскую
+	# в man1, русскую — в ru/man1; man сам выбирает по LC_ALL/LC_MESSAGES/LANG.
+	cp LICENSE NOTICE README.md README.ru.md VERSION digitdisk.1 digitdisk.en.1 "$stage/"
 
 	touch -d "@$SOURCE_DATE_EPOCH" "$stage"/* "$stage"
 	tar --sort=name --owner=0 --group=0 --numeric-owner \
@@ -238,21 +242,37 @@ echo "$out" | grep -q "flang" || {
 	echo "build-release: status не отработал" >&2
 	exit 1
 }
-# Страница руководства обязана уехать в архиве: без неё формула поставит
-# двоичный файл, а `man digitdisk` ответит «нет такой страницы».
-page="$probe/digitdisk-$VERSION-$host_os-$host_arch/digitdisk.1"
-[ -f "$page" ] || {
-	echo "build-release: в архиве нет digitdisk.1 — man ставить нечего" >&2
-	exit 1
-}
-grep -q "^\.Dt DIGITDISK 1$" "$page" || {
-	echo "build-release: digitdisk.1 не объявляет себя страницей раздела 1" >&2
-	exit 1
-}
+# Обе страницы руководства обязаны уехать в архиве: без них формула поставит
+# двоичный файл, а `man digitdisk` ответит «нет такой страницы» — и заметит это
+# читатель ровно одного из двух языков.
+for page_name in digitdisk.1 digitdisk.en.1; do
+	page="$probe/digitdisk-$VERSION-$host_os-$host_arch/$page_name"
+	[ -f "$page" ] || {
+		echo "build-release: в архиве нет $page_name — man ставить нечего" >&2
+		exit 1
+	}
+	grep -q "^\.Dt DIGITDISK 1$" "$page" || {
+		echo "build-release: $page_name не объявляет себя страницей раздела 1" >&2
+		exit 1
+	}
+done
 "$bin" --help | grep -q "man digitdisk" || {
 	echo "build-release: справка не отсылает к man digitdisk" >&2
 	exit 1
 }
-echo "  analyze и status отработали, ядро на flang на месте, digitdisk.1 в архиве"
+# Справка обязана выйти на обоих языках, и не одинаковой: две одинаковые
+# справки — это непереведённая справка, притворившаяся переведённой. Язык
+# берётся ключом, а не окружением: у бегунка выпуска локали может не быть.
+if [ "$("$bin" --lang ru --help)" = "$("$bin" --lang en --help)" ]; then
+	echo "build-release: --help на ru и en вышел одинаковым" >&2
+	exit 1
+fi
+# И JSON обязан не зависеть от языка: его читают скрипты.
+if [ "$("$bin" --lang ru status --json --sample 10 | grep -c .)" \
+	!= "$("$bin" --lang en status --json --sample 10 | grep -c .)" ]; then
+	echo "build-release: --json разошёлся между языками" >&2
+	exit 1
+fi
+echo "  analyze и status отработали, ядро на flang на месте, обе страницы руководства в архиве"
 echo
 echo "готово: $DIST"

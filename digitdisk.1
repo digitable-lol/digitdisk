@@ -12,6 +12,7 @@
 .Op Ar ключи
 .Nm digitdisk Cm status
 .Op Fl -json
+.Op Fl -lang Ar язык
 .Op Fl -why
 .Op Fl -top Ar N
 .Op Fl -sample Ar MS
@@ -20,6 +21,7 @@
 .Op Fl -interval Ar MS
 .Nm digitdisk Cm analyze Ar путь
 .Op Fl -json
+.Op Fl -lang Ar язык
 .Op Fl -top Ar N
 .Op Fl -places Ar файл
 .Op Fl -no-places
@@ -27,6 +29,7 @@
 .Op Fl -max-depth Ar N
 .Nm digitdisk Cm clean Ar путь
 .Op Fl -json
+.Op Fl -lang Ar язык
 .Op Fl -apply
 .Op Fl -top Ar N
 .Op Fl -trash Ar каталог
@@ -38,17 +41,21 @@
 .Op Fl -max-depth Ar N
 .Nm digitdisk Cm restore Ar корзина
 .Op Fl -json
+.Op Fl -lang Ar язык
 .Op Fl -dry-run
 .Nm digitdisk Cm purge Ar корзина
 .Op Fl -json
+.Op Fl -lang Ar язык
 .Op Fl -confirm Ar N
 .Nm digitdisk Cm places
 .Op Fl -json
+.Op Fl -lang Ar язык
 .Op Fl -top Ar N
 .Op Fl -places Ar файл
 .Op Fl -no-measure
 .Nm digitdisk Cm history Ar путь
 .Op Fl -json
+.Op Fl -lang Ar язык
 .Op Fl -top Ar N
 .Nm digitdisk
 .Fl -help | Fl -version
@@ -103,6 +110,39 @@
 Место освобождает только
 .Cm purge ,
 и это необратимо.
+.Pp
+.Nm
+говорит на двух языках — по-русски и по-английски, — и язык выбирает человек, а
+не машина.
+При первом запуске в терминале
+.Nm
+спрашивает, на каком языке писать, и запоминает ответ в
+.Pa ~/.digitable/digitdisk/settings.conf ;
+локаль машины при этом только подсказывает, что предложить по умолчанию.
+Не терминал — труба, файл, скрипт, CI — или
+.Fl -json :
+не спрашивается ничего и не заводится никакого файла, а язык берётся из
+.Ev LC_ALL ,
+.Ev LC_MESSAGES ,
+.Ev LANG ;
+незаданная или незнакомая локаль означает английский.
+На один запуск язык перекрывает
+.Fl -lang ,
+на сессию —
+.Ev DIGITDISK_LANG ,
+на живом экране его переключает клавиша
+.Ic l .
+.Pp
+.Fl -json
+НЕ переводится: ключи и машинные значения одни и те же байты на любом языке,
+потому что их читают скрипты.
+Русские слова, которые едут в JSON значениями — разряд
+.Dq Кэш ,
+приговор
+.Dq МожноУбрать ,
+тексты отказов, — это имена решающего слоя и записи журнала, а не текст вывода;
+на экране они называются словом того языка, на котором идёт вывод, а в файле
+остаются собой.
 .Sh SUBCOMMANDS
 .Bl -tag -width "history <путь>XX"
 .It Cm status
@@ -171,6 +211,19 @@
 едет целиком и ключом
 .Fl -top
 не режется.
+.It Fl -lang Ar язык
+Язык вывода на этот запуск:
+.Cm ru
+или
+.Cm en .
+Принимают все подкоманды.
+Перекрывает и запомненный выбор, и локаль машины; ничего не сохраняет —
+запомнить язык может только ответ на вопрос или клавиша
+.Ic l
+на живом экране.
+На
+.Fl -json
+не влияет: он не переводится.
 .It Fl -top Ar N
 Сколько строк в списках: у
 .Cm status
@@ -248,7 +301,7 @@
 .It Fl -protect-file Ar файл
 .Cm clean :
 защитный список файлом вместо
-.Pa ~/.config/digitdisk/protect.conf .
+.Pa ~/.digitable/digitdisk/protect.conf .
 .It Fl -dry-run
 .Cm restore :
 показать, что вернулось бы, и не возвращать.
@@ -282,6 +335,11 @@
 пауза
 .It Ic r
 замер сейчас
+.It Ic l
+язык вывода: ru \(<> en.
+Новый выбор тут же ложится в
+.Pa ~/.digitable/digitdisk/settings.conf ,
+и следующий запуск начинает с него
 .It Ic \&?
 список команд; он только называет команды, набираются они в оболочке
 .It Ic q , Esc
@@ -289,6 +347,29 @@
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width "XDG_CONFIG_HOMEXX"
+.It Ev DIGITDISK_LANG
+Язык вывода на всю сессию:
+.Cm ru
+или
+.Cm en .
+Перекрывает запомненный выбор и локаль, уступает ключу
+.Fl -lang ,
+ничего не сохраняет.
+.It Ev LC_ALL , LC_MESSAGES , LANG
+Локаль машины, в этом порядке.
+Ею язык вывода решается только там, где спросить некого: не терминал,
+.Fl -json ,
+скрипт, CI.
+.Cm ru\&*
+— по-русски,
+.Cm en\&*
+— по-английски; незаданная, а также
+.Cm C
+и
+.Cm POSIX
+— по-английски, потому что переносимая локаль по определению английская, а
+машина, ничего не сказавшая о языке, не сказала
+.Dq русский .
 .It Ev DIGITDISK_PALETTE
 Вариант палитры живого экрана:
 .Cm carbon
@@ -301,12 +382,15 @@
 .Cm dumb
 или пустое значение — живого экрана нет, печатается текст.
 .It Ev XDG_CONFIG_HOME
-Где искать
+Где искать СТАРЫЕ
 .Pa digitdisk/places.conf
 и
 .Pa digitdisk/protect.conf ;
 по умолчанию
 .Pa ~/.config .
+Новый дом настроек —
+.Pa ~/.digitable/digitdisk/ ,
+и от этой переменной он не зависит.
 .It Ev XDG_CACHE_HOME , XDG_DATA_HOME
 Куда справочник целит якоря
 .Dq кэш
@@ -336,16 +420,34 @@
 .Cm history ;
 без него каталог не считается корзиной
 .Nm .
-.It Pa ~/.config/digitdisk/places.conf
+.It Pa ~/.digitable/digitdisk/settings.conf
+Настройки:
+.Pa язык=ru
+или
+.Pa lang=en ,
+по строке на ключ.
+Файл заводится один раз — когда
+.Nm
+спросил про язык у терминала и получил ответ, — и о том, что он заведён,
+говорится вслух одной строкой.
+Не терминал или
+.Fl -json :
+не спрашивается и не заводится ничего.
+.It Pa ~/.digitable/digitdisk/places.conf
 Свой справочник известных мест.
 Если файла нет, берётся справочник, встроенный в двоичный файл;
 .Cm places
 печатает, какой из двух взят.
-.It Pa ~/.config/digitdisk/protect.conf
+.It Pa ~/.digitable/digitdisk/protect.conf
 Защитный список: строки вида
 .Pa путь|<путь>|<почему>
 и
 .Pa разряд|<разряд>|<почему> .
+.It Pa ~/.config/digitdisk/places.conf , ~/.config/digitdisk/protect.conf
+Прежний дом этих двух файлов.
+Он ещё читается — там, где в новом доме своего файла нет, — и о том, откуда
+файл взят, говорится один раз.
+Ничего никуда не копируется само: переносит их человек, когда ему удобно.
 .El
 .Sh EXIT STATUS
 .Bl -tag -width "0XX" -compact
@@ -397,6 +499,15 @@
 .Xr find 1 ,
 .Xr lstat 2 ,
 .Xr rename 2
+.Pp
+Эта страница есть на двух языках, и
+.Xr man 1
+выбирает её по локали сам:
+.Pp
+.Dl man digitdisk
+.Dl LANG=ru_RU.UTF-8 man digitdisk
+.Pp
+Первое даёт английскую редакцию, второе — эту.
 .Pp
 Исходники и обе редакции описания:
 .Lk https://github.com/digitable-lol/digitdisk

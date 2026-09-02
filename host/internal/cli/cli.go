@@ -15,6 +15,8 @@ package cli
 import (
 	"fmt"
 	"strings"
+
+	"digitdisk/internal/lang"
 )
 
 // A Command is one subcommand: its name, the argument it needs, and one line
@@ -73,55 +75,69 @@ func Known(name string) bool {
 	return false
 }
 
-// Call is "clean   <путь>", padded so the glosses line up.
-func (c Command) Call() string {
-	return fmt.Sprintf("%-7s %s", c.Name, c.Arg)
+// Call is "clean   <путь>", padded so the glosses line up.  The name of a
+// подкоманда is not translated — it is what a person types — and the довод
+// beside it is, because «<путь>» is not something anybody types.
+func (c Command) Call(l lang.Lang) string {
+	return fmt.Sprintf("%-7s %s", c.Name, l.T(c.Arg))
 }
 
 // Usage is the text of --help: what to type, and nothing about why.
-func Usage() string {
+func Usage(l lang.Lang) string {
 	var b strings.Builder
-	b.WriteString("digitdisk — снимок системы, разбор дерева каталогов и уборка.\n\n")
-	b.WriteString("  digitdisk [подкоманда] [ключи]      без подкоманды — " + Default + "\n\n")
-	b.WriteString("Подкоманды:\n")
+	b.WriteString(l.T("digitdisk — снимок системы, разбор дерева каталогов и уборка.") + "\n\n")
+	b.WriteString("  " + l.F("digitdisk [подкоманда] [ключи]      без подкоманды — %s", Default) + "\n\n")
+	b.WriteString(l.T("Подкоманды:") + "\n")
 	for _, c := range Commands {
-		b.WriteString(fmt.Sprintf("  %-18s %s\n", strings.TrimRight(c.Call(), " "), c.Gloss))
+		b.WriteString(fmt.Sprintf("  %-18s %s\n", strings.TrimRight(c.Call(l), " "), l.T(c.Gloss)))
 	}
-	b.WriteString("  --help, --version  эта справка; версия, сборка и решающий слой\n")
-	b.WriteString(keys)
+	b.WriteString("  " + l.T("--help, --version  эта справка; версия, сборка и решающий слой") + "\n")
+	for _, line := range keys {
+		b.WriteString(l.T(line) + "\n")
+	}
 	return b.String()
 }
 
 // keys lists every flag the subcommands register, one line each, naming the
 // subcommands that take it.  Nothing here explains itself: a key, what it
 // takes, where it works, what it does.
-const keys = `
-Ключи:
-  --json            машиночитаемый вывод; принимают все подкоманды
-  --top N           строк в списках: status 10, analyze и clean 15,
-                    places 40, history 20; 0 — без предела
-  --why             status: что не измерено и почему
-  --sample MS       status: окно замера загрузки ЦП, по умолчанию 200
-  --gpu-tool        status: спросить о видеокартах чужую программу
-                    (nvidia-smi) — то, чего драйвер не публикует файлами
-  --live            status: живой экран; без терминала — ошибка
-  --plain           status: один снимок, даже когда вывод в терминал
-  --interval MS     status: период обновления живого экрана, 2000
-  --cross-device    analyze, clean: заходить на другие файловые системы
-  --max-depth N     analyze, clean: предел глубины обхода; 0 — без предела
-  --places ФАЙЛ     analyze, clean, places: свой справочник известных мест
-  --no-places       analyze, clean: судить одними приметами, без справочника
-  --no-measure      places: не считать размеры, только назвать места
-  --apply           clean: перенести в корзину, а не только показать план
-  --trash КАТ       clean: другая корзина; обязана лежать внутри корня
-  --protect ЧТО     clean: не трогать путь или «разряд:кэш»; можно повторять
-  --protect-file Ф  clean: защитный список файлом
-  --dry-run         restore: показать, что вернулось бы, и не возвращать
-  --confirm N       purge: подтвердить стирание ровно N файлов
-
-Живой экран: ← → разделы (их десять), 1…9 раздел сразу, ↑ ↓ PgUp/PgDn прокрутка,
-  p пауза, r замер, ? команды, q выход. Палитра: DIGITDISK_PALETTE=
-  carbon|paper|signal, NO_COLOR и TERM=dumb уважаются.
-
-Подробно: man digitdisk
-`
+//
+// It is a list of lines rather than one block of text because every line is
+// translated on its own: an English line wraps where English wraps, and a
+// block would have to break in the same places in both languages or be
+// re-flowed by hand at every edit.
+var keys = []string{
+	"",
+	"Ключи:",
+	"  --json            машиночитаемый вывод; принимают все подкоманды",
+	"  --lang ЯЗЫК       ru или en на этот запуск; принимают все подкоманды",
+	"  --top N           строк в списках: status 10, analyze и clean 15,",
+	"                    places 40, history 20; 0 — без предела",
+	"  --why             status: что не измерено и почему",
+	"  --sample MS       status: окно замера загрузки ЦП, по умолчанию 200",
+	"  --gpu-tool        status: спросить о видеокартах чужую программу",
+	"                    (nvidia-smi) — то, чего драйвер не публикует файлами",
+	"  --live            status: живой экран; без терминала — ошибка",
+	"  --plain           status: один снимок, даже когда вывод в терминал",
+	"  --interval MS     status: период обновления живого экрана, 2000",
+	"  --cross-device    analyze, clean: заходить на другие файловые системы",
+	"  --max-depth N     analyze, clean: предел глубины обхода; 0 — без предела",
+	"  --places ФАЙЛ     analyze, clean, places: свой справочник известных мест",
+	"  --no-places       analyze, clean: судить одними приметами, без справочника",
+	"  --no-measure      places: не считать размеры, только назвать места",
+	"  --apply           clean: перенести в корзину, а не только показать план",
+	"  --trash КАТ       clean: другая корзина; обязана лежать внутри корня",
+	"  --protect ЧТО     clean: не трогать путь или «разряд:кэш»; можно повторять",
+	"  --protect-file Ф  clean: защитный список файлом",
+	"  --dry-run         restore: показать, что вернулось бы, и не возвращать",
+	"  --confirm N       purge: подтвердить стирание ровно N файлов",
+	"",
+	"Живой экран: ← → разделы (их десять), 1…9 раздел сразу, ↑ ↓ PgUp/PgDn прокрутка,",
+	"  p пауза, r замер, l язык, ? команды, q выход. Палитра: DIGITDISK_PALETTE=",
+	"  carbon|paper|signal, NO_COLOR и TERM=dumb уважаются.",
+	"",
+	"Язык: спрашивается один раз и помнится в ~/.digitable/digitdisk/settings.conf;",
+	"  DIGITDISK_LANG=ru|en и --lang перекрывают его, --json не переводится.",
+	"",
+	"Подробно: man digitdisk",
+}

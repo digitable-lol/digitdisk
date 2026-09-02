@@ -101,3 +101,30 @@ func sttyOn(f *os.File, args ...string) ([]byte, error) {
 	cmd.Stderr = nil
 	return cmd.Output()
 }
+
+// IsInteractive reports whether f is a terminal a person could answer a
+// question at.
+//
+// It is a weaker question than IsTerminal, and deliberately so: drawing a
+// screen needs a width, answering «1 or 2» does not.  A terminal that reports
+// no size — a pty opened by a program rather than by a terminal emulator, a
+// serial line, a session under script(1) — can still carry a question and an
+// answer, and refusing to ask there would send a person to a settings file
+// they have never heard of.
+//
+// What it will not accept is a file, a pipe or /dev/null: the first two have
+// no terminal behind them and the third would swallow the question and answer
+// end-of-file, which is how a tool comes to hang in somebody's build.
+func IsInteractive(f *os.File) bool {
+	if f == nil {
+		return false
+	}
+	fi, err := f.Stat()
+	if err != nil || fi.Mode()&os.ModeCharDevice == 0 {
+		return false
+	}
+	// `stty -g` answers only for a real terminal: /dev/null carries the
+	// character-device bit and fails here.
+	_, err = sttyOn(f, "-g")
+	return err == nil
+}

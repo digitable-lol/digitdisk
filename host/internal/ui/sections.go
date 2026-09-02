@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"digitdisk/internal/cli"
+	"digitdisk/internal/lang"
 	"digitdisk/internal/report"
 	"digitdisk/internal/sysinfo"
 )
@@ -17,21 +19,31 @@ import (
 // printed report, in the printed order, with an opening page that gathers the
 // gauges; no reading appears here that `digitdisk status` does not print.
 type section struct {
-	title  string
+	// title is the name in the strip at the top, asked for in the language
+	// the screen is being drawn in.
+	//
+	// It is a call and not a string on purpose.  A field holding «ОБЗОР»
+	// would be Russian sitting outside the dictionary — the reader of the
+	// source could not tell that this name is ever translated, and the
+	// check that walks the source would be right to call it a leak.  Written
+	// as l.T("ОБЗОР") the wording stands where it is looked up, and the name
+	// is translated at the moment it is shown rather than at start-up, so
+	// the key that switches the language switches the strip with it.
+	title  func(lang.Lang) string
 	render func(*screen) []string
 }
 
 var sections = []section{
-	{"ОБЗОР", (*screen).overview},
-	{"СИСТЕМА", (*screen).system},
-	{"ЗАГРУЗКА", (*screen).load},
-	{"ПАМЯТЬ", (*screen).memory},
-	{"ПРОЦЕССЫ", (*screen).processes},
-	{"ДИСКИ", (*screen).disks},
-	{"СЕТЬ", (*screen).network},
-	{"ТЕМПЕРАТУРА", (*screen).sensors},
-	{"ВИДЕОКАРТЫ", (*screen).gpus},
-	{"НЕ ПРОЧИТАНО", (*screen).missing},
+	{func(l lang.Lang) string { return l.T("ОБЗОР") }, (*screen).overview},
+	{func(l lang.Lang) string { return l.T("СИСТЕМА") }, (*screen).system},
+	{func(l lang.Lang) string { return l.T("ЗАГРУЗКА") }, (*screen).load},
+	{func(l lang.Lang) string { return l.T("ПАМЯТЬ") }, (*screen).memory},
+	{func(l lang.Lang) string { return l.T("ПРОЦЕССЫ") }, (*screen).processes},
+	{func(l lang.Lang) string { return l.T("ДИСКИ") }, (*screen).disks},
+	{func(l lang.Lang) string { return l.T("СЕТЬ") }, (*screen).network},
+	{func(l lang.Lang) string { return l.T("ТЕМПЕРАТУРА") }, (*screen).sensors},
+	{func(l lang.Lang) string { return l.T("ВИДЕОКАРТЫ") }, (*screen).gpus},
+	{func(l lang.Lang) string { return l.T("НЕ ПРОЧИТАНО") }, (*screen).missing},
 }
 
 // dash is the mark of a reading the system did not publish.  It is the mark
@@ -57,7 +69,7 @@ func (s *screen) note(text string) string {
 }
 
 func (s *screen) waiting() []string {
-	return []string{"", s.note("замер идёт…")}
+	return []string{"", s.note(s.l.T("замер идёт…"))}
 }
 
 func text(v string) string {
@@ -101,9 +113,9 @@ func (s *screen) overview() []string {
 	out := []string{""}
 
 	if st.Load.BusyPercent != nil {
-		out = append(out, t.gauge("ЦП занято", 12, *st.Load.BusyPercent/100, percent(*st.Load.BusyPercent/100), bw))
+		out = append(out, t.gauge(s.l.T("ЦП занято"), 12, *st.Load.BusyPercent/100, s.l.Pct(*st.Load.BusyPercent, 1), bw))
 	} else {
-		out = append(out, t.gaugeUnmeasured("ЦП занято", 12, "замер не делался", bw))
+		out = append(out, t.gaugeUnmeasured(s.l.T("ЦП занято"), 12, s.l.T("замер не делался"), bw))
 	}
 	out = append(out, s.sparkLine(12, s.cpuHist))
 	// The same share spread across the processors, on one line: a machine
@@ -115,20 +127,20 @@ func (s *screen) overview() []string {
 
 	if st.Memory.Total > 0 {
 		f := pctOf(st.Memory.Used, st.Memory.Total)
-		out = append(out, t.gauge("Память", 12, f, s.reading(
-			fmt.Sprintf("%s из %s  (%s)", report.UBytes(st.Memory.Used), report.UBytes(st.Memory.Total), percent(f)),
-			percent(f)), bw))
+		out = append(out, t.gauge(s.l.T("Память"), 12, f, s.reading(
+			s.l.F("%s из %s  (%s)", s.l.UBytes(st.Memory.Used), s.l.UBytes(st.Memory.Total), s.l.Pct(f*100, 1)),
+			s.l.Pct(f*100, 1)), bw))
 		out = append(out, s.sparkLine(12, s.memHist))
 	} else {
-		out = append(out, t.gaugeUnmeasured("Память", 12, dash, bw))
+		out = append(out, t.gaugeUnmeasured(s.l.T("Память"), 12, dash, bw))
 	}
 
 	if st.Memory.SwapTotal > 0 {
 		f := pctOf(st.Memory.SwapUsed, st.Memory.SwapTotal)
-		out = append(out, t.gauge("Своп", 12, f, fmt.Sprintf("%s из %s",
-			report.UBytes(st.Memory.SwapUsed), report.UBytes(st.Memory.SwapTotal)), bw))
+		out = append(out, t.gauge(s.l.T("Своп"), 12, f, s.l.F("%s из %s",
+			s.l.UBytes(st.Memory.SwapUsed), s.l.UBytes(st.Memory.SwapTotal)), bw))
 	} else {
-		out = append(out, t.gaugeUnmeasured("Своп", 12, "нет", bw))
+		out = append(out, t.gaugeUnmeasured(s.l.T("Своп"), 12, s.l.T("нет"), bw))
 	}
 
 	if len(st.GPUs) > 0 {
@@ -137,33 +149,33 @@ func (s *screen) overview() []string {
 	}
 
 	out = append(out, "")
-	out = append(out, s.kv("средняя", fmt.Sprintf("%.2f / %.2f / %.2f   (1/5/15 мин, ядер %s)",
-		st.Load.One, st.Load.Five, st.Load.Fifteen, count(st.Load.CPUCount))))
-	out = append(out, s.kv("процессы", strings.Join(report.ProcessCounts(st), ", ")))
-	out = append(out, s.kv("время работы", text(st.Host.UptimeHuman)))
+	out = append(out, s.kv(s.l.T("средняя"), s.l.F("%s / %s / %s   (1/5/15 мин, ядер %s)",
+		s.l.Dec(st.Load.One, 2), s.l.Dec(st.Load.Five, 2), s.l.Dec(st.Load.Fifteen, 2), count(st.Load.CPUCount))))
+	out = append(out, s.kv(s.l.T("процессы"), strings.Join(report.ProcessCounts(s.l, st), ", ")))
+	out = append(out, s.kv(s.l.T("время работы"), text(s.l.Uptime(st.Host.UptimeSeconds))))
 
 	if len(st.Disks) > 0 {
-		out = append(out, "", s.caption("ДИСКИ"))
+		out = append(out, "", s.caption(s.l.T("ДИСКИ")))
 		shown := st.Disks
 		if len(shown) > 6 {
 			shown = shown[:6]
 		}
 		for _, d := range shown {
 			if d.Error != "" {
-				out = append(out, t.gaugeUnmeasured(d.MountPoint, 20, "ошибка: "+d.Error, bw))
+				out = append(out, t.gaugeUnmeasured(d.MountPoint, 20, s.l.F("ошибка: %s", d.Error), bw))
 				continue
 			}
 			out = append(out, t.gauge(d.MountPoint, 20, d.UsePercent/100, s.reading(
-				fmt.Sprintf("%s свободно из %s", report.UBytes(d.AvailableBytes), report.UBytes(d.TotalBytes)),
-				report.UBytes(d.AvailableBytes)+" своб."), bw))
+				s.l.F("%s свободно из %s", s.l.UBytes(d.AvailableBytes), s.l.UBytes(d.TotalBytes)),
+				s.l.F("%s своб.", s.l.UBytes(d.AvailableBytes))), bw))
 		}
 		if len(st.Disks) > len(shown) {
-			out = append(out, s.note(fmt.Sprintf("…и ещё %d — раздел ДИСКИ", len(st.Disks)-len(shown))))
+			out = append(out, s.note(s.l.F("…и ещё %d — раздел ДИСКИ", len(st.Disks)-len(shown))))
 		}
 	}
 
 	if len(st.Missing) > 0 {
-		out = append(out, "", s.note(fmt.Sprintf("не прочитано источников: %d — раздел НЕ ПРОЧИТАНО", len(st.Missing))))
+		out = append(out, "", s.note(s.l.F("не прочитано источников: %d — раздел НЕ ПРОЧИТАНО", len(st.Missing))))
 	}
 	return out
 }
@@ -173,7 +185,7 @@ func (s *screen) overview() []string {
 func (s *screen) sparkLine(nameWidth int, history []float64) string {
 	t := s.t
 	var r row
-	r.add("  "+fit("история", nameWidth)+" ", func(x string) string { return t.Fg(t.P.Subtle, x) })
+	r.add("  "+fit(s.l.T("история"), nameWidth)+" ", func(x string) string { return t.Fg(t.P.Subtle, x) })
 	w := s.barWidth()
 	r.plain(t.spark(history, w))
 	r.w += w
@@ -190,26 +202,38 @@ func count(n int) string {
 // СИСТЕМА is drawn in hardware.go: the mark of the system and the facts a
 // person recognises a machine by.
 
+// takenAt is the moment of the snapshot, written the way this language writes
+// a moment.  The stamp itself is ISO-8601 and stays that way in the JSON; a
+// stamp this tool cannot read is shown as it came rather than guessed at.
+func (s *screen) takenAt() string {
+	if t, err := time.Parse(time.RFC3339, s.st.TakenAt); err == nil {
+		return s.l.DateTime(t)
+	}
+	return text(s.st.TakenAt)
+}
+
 func (s *screen) load() []string {
 	if !s.haveSt {
 		return s.waiting()
 	}
-	t, l := s.t, s.st.Load
+	t, ld := s.t, s.st.Load
 	bw := s.barWidth()
 	out := []string{""}
 	out = append(out,
-		s.kv("средняя", fmt.Sprintf("%.2f / %.2f / %.2f  (1/5/15 мин)", l.One, l.Five, l.Fifteen)),
-		s.kv("ядер", count(l.CPUCount)),
+		s.kv(s.l.T("средняя"), s.l.F("%s / %s / %s  (1/5/15 мин)",
+			s.l.Dec(ld.One, 2), s.l.Dec(ld.Five, 2), s.l.Dec(ld.Fifteen, 2))),
+		s.kv(s.l.T("ядер"), count(ld.CPUCount)),
 	)
-	if l.TotalEntities > 0 {
-		out = append(out, s.kv("в очереди", fmt.Sprintf("%d из %d", l.Runnable, l.TotalEntities)))
+	if ld.TotalEntities > 0 {
+		out = append(out, s.kv(s.l.T("в очереди"), s.l.F("%d из %d", ld.Runnable, ld.TotalEntities)))
 	}
 	out = append(out, "")
-	if l.BusyPercent != nil {
-		f := *l.BusyPercent / 100
-		out = append(out, t.gauge("занято ЦП", 12, f, fmt.Sprintf("%s (замер %d мс)", percent(f), l.SampleMillis), bw))
+	if ld.BusyPercent != nil {
+		f := *ld.BusyPercent / 100
+		out = append(out, t.gauge(s.l.T("занято ЦП"), 12, f,
+			s.l.F("%s (замер %d мс)", s.l.Pct(*ld.BusyPercent, 1), ld.SampleMillis), bw))
 	} else {
-		out = append(out, t.gaugeUnmeasured("занято ЦП", 12, "замер не делался", bw))
+		out = append(out, t.gaugeUnmeasured(s.l.T("занято ЦП"), 12, s.l.T("замер не делался"), bw))
 	}
 	out = append(out, s.sparkLine(12, s.cpuHist))
 	// The same window, processor by processor.  It lives on this page and
@@ -232,23 +256,23 @@ func (s *screen) memory() []string {
 	f := pctOf(m.Used, m.Total)
 	out := []string{""}
 	out = append(out,
-		t.gauge("занято", 12, f, s.reading(
-			fmt.Sprintf("%s из %s  (%s)", report.UBytes(m.Used), report.UBytes(m.Total), percent(f)),
-			percent(f)), bw),
-		s.note("занято = всего − доступно, как в free(1)"),
+		t.gauge(s.l.T("занято"), 12, f, s.reading(
+			s.l.F("%s из %s  (%s)", s.l.UBytes(m.Used), s.l.UBytes(m.Total), s.l.Pct(f*100, 1)),
+			s.l.Pct(f*100, 1)), bw),
+		s.note(s.l.T("занято = всего − доступно, как в free(1)")),
 		"",
-		s.kv("всего", report.UBytes(m.Total)),
-		s.kv("свободно", report.UBytes(m.Free)),
-		s.kv("доступно", report.UBytes(m.Available)),
-		s.kv("кэш/буферы", fmt.Sprintf("%s  (в т.ч. разделяемая %s)", report.UBytes(m.BuffCache), report.UBytes(m.Shared))),
+		s.kv(s.l.T("всего"), s.l.UBytes(m.Total)),
+		s.kv(s.l.T("свободно"), s.l.UBytes(m.Free)),
+		s.kv(s.l.T("доступно"), s.l.UBytes(m.Available)),
+		s.kv(s.l.T("кэш/буферы"), s.l.F("%s  (в т.ч. разделяемая %s)", s.l.UBytes(m.BuffCache), s.l.UBytes(m.Shared))),
 	)
 	out = append(out, "")
 	if m.SwapTotal > 0 {
 		sf := pctOf(m.SwapUsed, m.SwapTotal)
-		out = append(out, t.gauge("своп", 12, sf, fmt.Sprintf("%s из %s занято",
-			report.UBytes(m.SwapUsed), report.UBytes(m.SwapTotal)), bw))
+		out = append(out, t.gauge(s.l.T("своп"), 12, sf, s.l.F("%s из %s занято",
+			s.l.UBytes(m.SwapUsed), s.l.UBytes(m.SwapTotal)), bw))
 	} else {
-		out = append(out, t.gaugeUnmeasured("своп", 12, "нет", bw))
+		out = append(out, t.gaugeUnmeasured(s.l.T("своп"), 12, s.l.T("нет"), bw))
 	}
 	out = append(out, "", s.sparkLine(12, s.memHist))
 	return out
@@ -259,12 +283,12 @@ func (s *screen) processes() []string {
 		return s.waiting()
 	}
 	t, pr := s.t, s.st.Processes
-	out := []string{"", s.kv("процессы", strings.Join(report.ProcessCounts(s.st), ", "))}
+	out := []string{"", s.kv(s.l.T("процессы"), strings.Join(report.ProcessCounts(s.l, s.st), ", "))}
 
 	cmdWidth := maxInt(10, s.cols-38)
 	head := func(what string) string {
 		var r row
-		r.add("    "+right("PID", 7)+"  "+fit("владелец", 12)+" "+right(what, 9)+"  "+fit("команда", cmdWidth),
+		r.add("    "+right("PID", 7)+"  "+fit(s.l.T("владелец"), 12)+" "+right(what, 9)+"  "+fit(s.l.T("команда"), cmdWidth),
 			func(x string) string { return t.Fg(t.P.Border, x) })
 		return r.String()
 	}
@@ -280,17 +304,17 @@ func (s *screen) processes() []string {
 	}
 
 	if len(pr.TopByMemory) > 0 {
-		out = append(out, "", s.caption("ПО ПАМЯТИ"), head("память"))
+		out = append(out, "", s.caption(s.l.T("ПО ПАМЯТИ")), head(s.l.T("память")))
 		for _, p := range pr.TopByMemory {
-			out = append(out, line(p, report.Bytes(p.RSSBytes)))
+			out = append(out, line(p, s.l.Bytes(p.RSSBytes)))
 		}
 	}
 	if len(pr.TopByCPU) > 0 {
-		out = append(out, "", s.caption("ПО ПРОЦЕССОРУ"), head("ЦП"))
+		out = append(out, "", s.caption(s.l.T("ПО ПРОЦЕССОРУ")), head(s.l.T("ЦП")))
 		for _, p := range pr.TopByCPU {
 			v := dash
 			if p.CPUPercent != nil {
-				v = fmt.Sprintf("%.1f%%", *p.CPUPercent)
+				v = s.l.Pct(*p.CPUPercent, 1)
 			}
 			out = append(out, line(p, v))
 		}
@@ -310,44 +334,44 @@ func (s *screen) disks() []string {
 	bw := maxInt(8, minInt(20, s.cols-mount-42))
 	out := []string{""}
 	var h row
-	h.add("  "+fit("точка монтирования", mount)+" "+right("размер", 10)+" "+right("занято", 10)+" "+
-		right("свободно", 10)+"  "+fit("", bw)+" "+right("занят", 6),
+	h.add("  "+fit(s.l.T("точка монтирования"), mount)+" "+right(s.l.T("размер"), 10)+" "+right(s.l.T("занято"), 10)+" "+
+		right(s.l.T("свободно"), 10)+"  "+fit("", bw)+" "+right(s.l.T("занят"), 6),
 		func(x string) string { return t.Fg(t.P.Border, x) })
 	out = append(out, h.String())
 	for _, d := range s.st.Disks {
 		var r row
 		r.add("  "+fit(d.MountPoint, mount)+" ", func(x string) string { return t.Fg(t.P.Foreground, x) })
 		if d.Error != "" {
-			r.add("ошибка: "+d.Error, func(x string) string { return t.Fg(t.P.Red, x) })
+			r.add(s.l.F("ошибка: %s", d.Error), func(x string) string { return t.Fg(t.P.Red, x) })
 			out = append(out, r.String())
 			continue
 		}
 		f := d.UsePercent / 100
-		r.add(right(report.UBytes(d.TotalBytes), 10)+" ", func(x string) string { return t.Fg(t.P.Muted, x) })
-		r.add(right(report.UBytes(d.UsedBytes), 10)+" ", func(x string) string { return t.Fg(t.P.Muted, x) })
-		r.add(right(report.UBytes(d.AvailableBytes), 10)+"  ", func(x string) string { return t.Fg(t.P.Foreground, x) })
+		r.add(right(s.l.UBytes(d.TotalBytes), 10)+" ", func(x string) string { return t.Fg(t.P.Muted, x) })
+		r.add(right(s.l.UBytes(d.UsedBytes), 10)+" ", func(x string) string { return t.Fg(t.P.Muted, x) })
+		r.add(right(s.l.UBytes(d.AvailableBytes), 10)+"  ", func(x string) string { return t.Fg(t.P.Foreground, x) })
 		r.plain(t.bar(f, bw))
 		r.w += bw
-		r.add(" "+right(fmt.Sprintf("%.1f%%", d.UsePercent), 6), func(x string) string { return t.Fg(t.level(f), x) })
+		r.add(" "+right(s.l.Pct(d.UsePercent, 1), 6), func(x string) string { return t.Fg(t.level(f), x) })
 		out = append(out, r.String())
-		out = append(out, t.Fg(t.P.Subtle, "  "+fit("  "+text(d.Source)+"  ·  "+text(d.FSType)+readOnly(d.ReadOnly)+inodes(d),
-			maxInt(1, s.cols-3))))
+		out = append(out, t.Fg(t.P.Subtle, "  "+fit("  "+text(d.Source)+"  ·  "+text(d.FSType)+
+			readOnly(s.l, d.ReadOnly)+inodes(s.l, d), maxInt(1, s.cols-3))))
 	}
 	return out
 }
 
-func readOnly(ro bool) string {
+func readOnly(l lang.Lang, ro bool) string {
 	if ro {
-		return "  ·  только чтение"
+		return l.T("  ·  только чтение")
 	}
 	return ""
 }
 
-func inodes(d sysinfo.Disk) string {
+func inodes(l lang.Lang, d sysinfo.Disk) string {
 	if d.InodesTotal == 0 {
 		return ""
 	}
-	return fmt.Sprintf("  ·  inode %d свободно из %d", d.InodesFree, d.InodesTotal)
+	return l.F("  ·  inode %s свободно из %s", l.UNum(d.InodesFree), l.UNum(d.InodesTotal))
 }
 
 func (s *screen) network() []string {
@@ -360,20 +384,20 @@ func (s *screen) network() []string {
 	}
 	out := []string{""}
 	var h row
-	h.add("  "+fit("интерфейс", 14)+" "+fit("состоян.", 9)+" "+right("принято", 12)+" "+
-		right("передано", 12)+" "+right("пак. вх.", 11)+" "+right("пак. исх.", 11),
+	h.add("  "+fit(s.l.T("интерфейс"), 14)+" "+fit(s.l.T("состоян."), 9)+" "+right(s.l.T("принято"), 12)+" "+
+		right(s.l.T("передано"), 12)+" "+right(s.l.T("пак. вх."), 13)+" "+right(s.l.T("пак. исх."), 13),
 		func(x string) string { return t.Fg(t.P.Border, x) })
 	out = append(out, h.String())
 	for _, n := range s.st.Network {
 		var r row
 		r.add("  "+fit(n.Name, 14)+" ", func(x string) string { return t.Fg(t.P.Foreground, x) })
 		r.add(fit(text(n.OperState), 9)+" ", func(x string) string { return t.Fg(stateColour(t, n.OperState), x) })
-		r.add(right(report.UBytes(n.RxBytes), 12)+" ", func(x string) string { return t.Fg(t.P.Muted, x) })
-		r.add(right(report.UBytes(n.TxBytes), 12)+" ", func(x string) string { return t.Fg(t.P.Muted, x) })
-		r.add(right(fmt.Sprint(n.RxPackets), 11)+" ", func(x string) string { return t.Fg(t.P.Subtle, x) })
-		r.add(right(fmt.Sprint(n.TxPackets), 11), func(x string) string { return t.Fg(t.P.Subtle, x) })
+		r.add(right(s.l.UBytes(n.RxBytes), 12)+" ", func(x string) string { return t.Fg(t.P.Muted, x) })
+		r.add(right(s.l.UBytes(n.TxBytes), 12)+" ", func(x string) string { return t.Fg(t.P.Muted, x) })
+		r.add(right(s.l.UNum(n.RxPackets), 13)+" ", func(x string) string { return t.Fg(t.P.Subtle, x) })
+		r.add(right(s.l.UNum(n.TxPackets), 13), func(x string) string { return t.Fg(t.P.Subtle, x) })
 		out = append(out, r.String())
-		if extra := ifaceExtra(n); extra != "" {
+		if extra := ifaceExtra(s.l, n); extra != "" {
 			out = append(out, t.Fg(t.P.Subtle, "  "+fit("  "+extra, maxInt(1, s.cols-3))))
 		}
 	}
@@ -392,7 +416,7 @@ func stateColour(t Theme, state string) slot {
 	return t.P.Yellow
 }
 
-func ifaceExtra(n sysinfo.Iface) string {
+func ifaceExtra(l lang.Lang, n sysinfo.Iface) string {
 	var parts []string
 	if len(n.Addresses) > 0 {
 		parts = append(parts, strings.Join(n.Addresses, ", "))
@@ -404,10 +428,10 @@ func ifaceExtra(n sysinfo.Iface) string {
 		parts = append(parts, fmt.Sprintf("MTU %d", n.MTU))
 	}
 	if n.SpeedMbit > 0 {
-		parts = append(parts, fmt.Sprintf("%d Мбит/с", n.SpeedMbit))
+		parts = append(parts, l.F("%d Мбит/с", n.SpeedMbit))
 	}
 	if n.RxErrors+n.TxErrors+n.RxDropped+n.TxDropped > 0 {
-		parts = append(parts, fmt.Sprintf("ошибок %d/%d, потеряно %d/%d",
+		parts = append(parts, l.F("ошибок %d/%d, потеряно %d/%d",
 			n.RxErrors, n.TxErrors, n.RxDropped, n.TxDropped))
 	}
 	return strings.Join(parts, "  ·  ")
@@ -419,7 +443,7 @@ func (s *screen) sensors() []string {
 	}
 	t := s.t
 	if len(s.st.Sensors) == 0 {
-		return []string{"", s.note("— (датчиков не нашлось)")}
+		return []string{"", s.note(s.l.T("— (датчиков не нашлось)"))}
 	}
 	bw := s.barWidth()
 	out := []string{""}
@@ -432,11 +456,12 @@ func (s *screen) sensors() []string {
 		// published one, and against 100 °C when it did not.  Which of the
 		// two was used is said on the line, so the bar is never a guess
 		// dressed as a measurement.
-		limit, against := 100.0, "из 100 °C"
+		limit, against := 100.0, s.l.T("из 100 °C")
 		if sn.CritC > 0 {
-			limit, against = sn.CritC, fmt.Sprintf("критич. %.1f °C", sn.CritC)
+			limit, against = sn.CritC, s.l.F("критич. %s °C", s.l.Dec(sn.CritC, 1))
 		}
-		out = append(out, t.gauge(name, 26, sn.Celsius/limit, fmt.Sprintf("%.1f °C  %s", sn.Celsius, against), bw))
+		out = append(out, t.gauge(name, 26, sn.Celsius/limit,
+			fmt.Sprintf("%s °C  %s", s.l.Dec(sn.Celsius, 1), against), bw))
 	}
 	return out
 }
@@ -447,7 +472,7 @@ func (s *screen) missing() []string {
 	}
 	t := s.t
 	if len(s.st.Missing) == 0 {
-		return []string{"", s.note("прочитано всё, чего ждали")}
+		return []string{"", s.note(s.l.T("прочитано всё, чего ждали"))}
 	}
 	// Go walks a map in a different order every time.  Sorting keeps the
 	// section still between redraws instead of reshuffling once a second.
@@ -457,11 +482,11 @@ func (s *screen) missing() []string {
 	}
 	sort.Strings(keys)
 
-	out := []string{"", s.note("источник назван вместе с причиной; нулём его отсутствие не притворяется"), ""}
+	out := []string{"", s.note(s.l.T("источник назван вместе с причиной; нулём его отсутствие не притворяется")), ""}
 	for _, k := range keys {
 		var r row
-		r.add("  "+fit(k, 24)+"  ", func(x string) string { return t.Fg(t.P.Yellow, x) })
-		r.add(fit(s.st.Missing[k], maxInt(1, s.cols-r.w-1)), func(x string) string {
+		r.add("  "+fit(s.l.Word(k), 24)+"  ", func(x string) string { return t.Fg(t.P.Yellow, x) })
+		r.add(fit(s.st.Missing[k].In(s.l), maxInt(1, s.cols-r.w-1)), func(x string) string {
 			return t.Fg(t.P.Muted, strings.TrimRight(x, " "))
 		})
 		out = append(out, r.String())
@@ -496,17 +521,18 @@ func minInt(a, b int) int {
 // the commands need a path the keyboard has not been given anyway.
 func (s *screen) commandsPage() []string {
 	t := s.t
-	out := []string{"", s.caption("КОМАНДЫ"), ""}
+	out := []string{"", s.caption(s.l.T("КОМАНДЫ")), ""}
 	for _, c := range cli.Commands {
 		var r row
-		r.add("  "+fit(c.Call(), 20), func(x string) string { return t.Bold(t.P.AccentSoft, x) })
-		r.add(fit(c.Gloss, maxInt(1, s.cols-r.w-1)), func(x string) string {
+		r.add("  "+fit(c.Call(s.l), 20), func(x string) string { return t.Bold(t.P.AccentSoft, x) })
+		r.add(fit(s.l.T(c.Gloss), maxInt(1, s.cols-r.w-1)), func(x string) string {
 			return t.Fg(t.P.Foreground, strings.TrimRight(x, " "))
 		})
 		out = append(out, r.String())
 	}
 	out = append(out, "",
-		s.note("Экран ничего не запускает: команды набираются в оболочке."),
-		s.note("Ключи: digitdisk --help.  Подробно: man digitdisk"))
+		s.note(s.l.T("l — язык вывода (ru ⇄ en), выбор запоминается")),
+		s.note(s.l.T("Экран ничего не запускает: команды набираются в оболочке.")),
+		s.note(s.l.T("Ключи: digitdisk --help.  Подробно: man digitdisk")))
 	return out
 }

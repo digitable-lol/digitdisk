@@ -33,6 +33,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"digitdisk/internal/lang"
 )
 
 // Card is one video card as the system describes it.
@@ -73,12 +75,12 @@ type Card struct {
 type Result struct {
 	Cards []Card
 	// NoCards says why the list is empty, when it is.
-	NoCards string
+	NoCards lang.Phrase
 	// NoNumbers says why the cards that were found carry no load or memory.
-	NoNumbers string
+	NoNumbers lang.Phrase
 	// NoPower says why a card that publishes a power file has no watts
 	// beside it — see wattsFrom.
-	NoPower string
+	NoPower lang.Phrase
 }
 
 // Reader reads the cards from a set of roots.
@@ -171,13 +173,13 @@ func (r Reader) Read() Result {
 	}
 
 	if len(out.Cards) == 0 {
-		out.NoCards = "в " + filepath.Join(r.Sys, "class/drm") + " и на шине PCI видеокарт не нашлось"
+		out.NoCards = lang.Say("в %s и на шине PCI видеокарт не нашлось", filepath.Join(r.Sys, "class/drm"))
 	} else if silent := silentDrivers(out.Cards); len(silent) > 0 {
 		out.NoNumbers = mute(silent, r.Tool)
 	}
 	if oddPower {
-		out.NoPower = "драйвер отдаёт мощность карты не в микроваттах, как обещает документация hwmon: " +
-			"полученное число меньше полуватта, то есть единица измерения у него другая — такое число мы не печатаем"
+		out.NoPower = lang.Say("драйвер отдаёт мощность карты не в микроваттах, как обещает документация hwmon: " +
+			"полученное число меньше полуватта, то есть единица измерения у него другая — такое число мы не печатаем")
 	}
 	return out
 }
@@ -208,16 +210,16 @@ func silentDrivers(cards []Card) []string {
 
 // mute is the one sentence that explains the cards with no numbers beside
 // them.  It is written here and printed only by `--why`.
-func mute(silent []string, tool bool) string {
+func mute(silent []string, tool bool) lang.Phrase {
 	for _, d := range silent {
 		if d == "nvidia" && !tool {
-			return "драйвер nvidia не публикует ни загрузки, ни памяти, ни температуры карты в файлах — их знает только его собственная программа nvidia-smi, и запускается она лишь по ключу --gpu-tool"
+			return lang.Say("драйвер nvidia не публикует ни загрузки, ни памяти, ни температуры карты в файлах — их знает только его собственная программа nvidia-smi, и запускается она лишь по ключу --gpu-tool")
 		}
 	}
 	if len(silent) == 1 && silent[0] == "без драйвера" {
-		return "у найденной карты нет драйвера, а без него ядро не публикует о ней ничего, кроме имени"
+		return lang.Say("у найденной карты нет драйвера, а без него ядро не публикует о ней ничего, кроме имени")
 	}
-	return "драйвер " + strings.Join(silent, ", ") + " не публикует ни загрузки, ни памяти карты в файлах ядра"
+	return lang.Say("драйвер %s не публикует ни загрузки, ни памяти карты в файлах ядра", strings.Join(silent, ", "))
 }
 
 func indexByBus(cards []Card, bus string) int {

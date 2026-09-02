@@ -29,6 +29,7 @@ exactly as before. To say "leave this alone" there is the
 ```
 core/       the readings as a flang specification, plus the Go printed from it into core/out-go
 host/       the Go host: system calls, the command line, the output
+host/internal/lang/                the dictionary: what a person reads, in both languages
 host/internal/places/places.conf   the справочник of known places: data, not code
 packaging/  the Homebrew formula
 scripts/    the release build
@@ -64,6 +65,12 @@ machine and does not need a Go toolchain. Its source is
 [`packaging/homebrew/digitdisk.rb`](packaging/homebrew/digitdisk.rb); the copy
 Homebrew reads lives in
 [digitable-lol/homebrew-tap](https://github.com/digitable-lol/homebrew-tap).
+
+It also installs both manual pages, and into the two places `man` looks: the
+English one as `share/man/man1/digitdisk.1`, the Russian one as
+`share/man/ru/man1/digitdisk.1`. So `man digitdisk` answers in English and
+`LANG=ru_RU.UTF-8 man digitdisk` answers in Russian, with nothing to configure
+— `man` picks the translation by locale on its own.
 
 ### A released binary
 
@@ -208,13 +215,108 @@ and the same Go toolchain give the same archive, byte for byte.
 ./digitdisk history <path>   # what past cleanups under this root did
 ./digitdisk --version        # version, build hash, toolchain, decision layer
 ./digitdisk --help           # subcommands and flags, one line each
+./digitdisk status --lang ru # this run in Russian; every subcommand takes --lang ru|en
 man digitdisk                # the reference: subcommands, flags, files, examples, exit codes
+LANG=ru_RU.UTF-8 man digitdisk   # the same page in Russian
 ```
 
 All four readings take `--json`. None of them writes anything. A word that is
 not a subcommand is refused with code 2, never guessed at; a flag in place of a
 subcommand belongs to `status`, so `digitdisk --json` and `digitdisk status
 --json` are one command.
+
+### The language of the output
+
+digitdisk writes in Russian and in English, and everything a person reads is in
+both: the sections of the report, the labels, the units, the разряды and
+приговоры on the screen, `--help`, the refusals, `--why`, the list of commands
+on the live screen, and both manual pages.
+
+Who chooses, in the order they are asked:
+
+| | |
+|---|---|
+| `--lang ru\|en` | this run; every subcommand takes it |
+| `DIGITDISK_LANG=ru\|en` | this session |
+| `~/.digitable/digitdisk/settings.conf` | what was chosen before |
+| the question | asked once, on a first run at a terminal |
+| `LC_ALL`, `LC_MESSAGES`, `LANG` | the machine's locale, in that order |
+| nothing said | English |
+
+**The default is English, and the reason is POSIX rather than taste.** An unset
+locale, `C` and `POSIX` all name the portable locale, whose messages are
+English by definition. A machine that has said nothing about its language has
+not said "Russian" — it has said "the portable one" — and answering it in
+Russian would be a guess about the reader. Somebody who wants Russian either
+has a `ru` locale, or is asked once and says so.
+
+**Where there is no terminal, nothing is asked and nothing is written.** A
+pipe, a file, a script, a CI job, `--json`: no question, no settings file
+brought into being, and the language comes from the locale. Both ends of the
+conversation have to be a terminal for the question to happen at all — stdin
+and stderr — because a question written to a terminal whose answer would come
+from a pipe hangs forever, and a tool that hangs in somebody's build is worse
+than a tool in the wrong language.
+
+**Writing in a home directory is an action, and it is announced.** The one
+thing digitdisk stores there is the language, and only after a person answered
+the question with their own hands; it then says what it wrote and where, in one
+line on stderr — «язык сохранён: ~/.digitable/digitdisk/settings.conf». If the
+directory cannot be written — a read-only mount, a directory owned by somebody
+else — the run goes on in the language that was chosen and says plainly that it
+was not saved: refusing to look at a disk because a preference could not be
+stored would be answering a small problem with a big one. `digitdisk --version`
+names the language of the run and which of the six lines above decided it.
+
+Numbers and dates are written the way each language writes them: «12,3 ГиБ»
+against `12.3 GiB`, a non-breaking space against a comma between the thousands,
+`02.09.2026` against `2026-09-02`, `Б`/`КиБ`/`МиБ` against `B`/`KiB`/`MiB`,
+`дн` against `d`. That is not decoration. «12,3» read as English is twelve and
+three, and a report whose numbers change meaning with the reader is worse than
+a report in the wrong language, because the wrong language is obvious and a
+wrong number is not.
+
+### `--json` is not translated, byte for byte
+
+The keys and the machine values are the same in either language: a script that
+parses `digitdisk clean --json` must not care what language the person who ran
+it reads. Russian words do travel in that JSON as VALUES, and they stay exactly
+where they are — 33 fields carry one. `grep -rn 'json:"' host/internal
+host/*.go` lists every field there is; these are the two kinds among them.
+
+**20 of them are identifiers of the договор**, and are not text at all: разряд
+(`Кэш`, `Журнал`, `Сборка`, `Загрузка`, `Крупное`, `Неизвестное`), приговор
+(`МожноУбрать`, `Спросить`, `НеТрогать`), вид (`Файл`, `Каталог`, `Ссылка`),
+якорь (`ОтКорня`, `ГдеУгодно`, and the anchors a справочник row is written
+with), the `система` column of the справочник, and the kind of a protection
+rule (`путь`, `разряд`) — counting the places where they are the keys of
+`by_class` and `by_verdict` rather than a value. They may not change and need
+not: they are the names the layer in `core/` proves things about.
+
+**13 of them carry human text**: the refusals `отказ` and `не_сделано`, the
+notes `замечание` and `беда`, the map `missing` — whose KEYS are Russian too,
+being the names of the readings — `uptime_human` («5д 03:14»), the name of the
+decision layer (`решающий_слой` in three records, `decider` in a fourth), and
+where the справочник came from (`справочник`, `откуда`). Those are records of
+what happened, written once and read back later by `restore`, `purge` and
+`history`; rewriting a журнал to suit whoever opens it next would make it a
+worse record. `lang.Phrase` is what holds both properties at once — the Russian
+wording into the file, the reader's language onto the screen — so translating a
+refusal moves no byte of the JSON.
+
+For that second group there is a way forward that breaks nothing, and it is
+proposed here rather than done: a machine code beside the Russian value —
+`отказ_код` next to `отказ` — with the old field kept for good. A reader that
+has always matched on the Russian sentence goes on working, a new one matches
+the code, and nothing has to be guessed about which. None of it is written yet.
+
+**The names inside the flang core are not translated and will not be.**
+`МожноУбрать` and `Кэш` are identifiers of the layer in `core/`, proved there
+and named there. What is translated is the WORD THE SCREEN SHOWS for them, and
+that happens in the host, in `host/internal/lang`: the value that arrived is
+never touched, so the identifier goes on travelling in the JSON unchanged. That
+is where the border runs — `core/` does not know that a language exists, and
+not a letter of it moves when the output changes language.
 
 ### Cleaning, in three steps
 
@@ -274,7 +376,7 @@ list is data.
 It lives in
 [`host/internal/places/places.conf`](host/internal/places/places.conf), travels
 inside the binary as the default, and is replaced whole — by `--places` or by
-`~/.config/digitdisk/places.conf`. A row looks like this:
+`~/.digitable/digitdisk/places.conf`. A row looks like this:
 
 ```
 разряд | якорь | система | путь | переменная | имя | источник
@@ -318,7 +420,7 @@ How to say "do not touch this", by path and by разряд:
 ./digitdisk clean <path> --protect-file FILE         # a list from a file
 ```
 
-Without a flag, `~/.config/digitdisk/protect.conf` is read; a row there is
+Without a flag, `~/.digitable/digitdisk/protect.conf` is read; a row there is
 `путь|~/projects|why` or `разряд|Журнал|why`. A path written without a leading
 slash protects that chain of components at any depth.
 
@@ -335,6 +437,28 @@ own ЗАЩИЩЕНО section, with the rule and the file line, rather than quiet
 missing from the plan — and it is kept apart from ОТКАЗАНО, because a refusal
 means the two layers disagree and somebody should look at the rules, while a
 protection means the rules worked and a person overruled the answer.
+
+### One home for the settings
+
+```
+~/.digitable/digitdisk/settings.conf   the language, and nothing else
+~/.digitable/digitdisk/places.conf     a справочник of one's own
+~/.digitable/digitdisk/protect.conf    the защитный список
+```
+
+There was one home already — `~/.config/digitdisk/` — and the language would
+have made a second. Two homes are two places to look for one answer, and every
+document would then have to say which of them holds what. So there is one, and
+it is not digitdisk's alone: `~/.digitable/` is the family's, and the tools
+beside this one keep their settings beside it.
+
+The old home is not broken and not deleted. `~/.config/digitdisk/places.conf`
+and `~/.config/digitdisk/protect.conf` are still READ where they are; a run
+that takes a file from there says so once and not at every start; and nothing
+is copied on anybody's behalf, because a tool that writes into a person's home
+unasked is the thing this tool exists to clean up after. A file lying in both
+homes is read from the new one: it was moved, and the copy left behind is not
+the one that was meant.
 
 ### The cleanup journal
 
@@ -456,10 +580,18 @@ and we will not guess. The reason is behind `--why`; the field is empty.
 In a terminal, `digitdisk` and `digitdisk status` open a live screen in the
 Digitable Focus palette: the sections of the printed report as pages that keep
 measuring themselves. `← →` and `Tab` move between them, `1`…`9` go straight to
-one, `↑ ↓` scroll a long one, `p` holds, `r` measures now, `?` lists the
-subcommands, `q` leaves. There are ten sections; the digits reach the first
-nine, and the tenth — НЕ ПРОЧИТАНО — sits to the left of the first, one `←`
-away from ОБЗОР.
+one, `↑ ↓` scroll a long one, `p` holds, `r` measures now, `l` switches the
+language, `?` lists the subcommands, `q` leaves. There are eleven sections; the
+digits reach the first nine, and the last two — ВИДЕОКАРТЫ and НЕ ПРОЧИТАНО —
+sit to the left of the first, one `←` away from ОБЗОР.
+
+
+`l` is the one key here that touches anything outside the screen: it turns the
+whole report into the other language where the reader is looking at it, and
+puts the new choice into `settings.conf`, so that the next run — and `digitdisk
+clean` tomorrow — speaks the same language. It says which file it wrote, on the
+screen, for the six seconds after; a program that silently rewrites a file in a
+home directory is the thing this tool is for cleaning up after.
 
 The `?` list only names the commands; it runs none of them. This screen is
 `status`, which reads and writes nothing, and `clean` moves files — a command
@@ -519,7 +651,8 @@ colour.
 | [`LICENSE-RU.md`](LICENSE-RU.md) | what that licence means, in plain Russian |
 | [`NOTICE`](NOTICE) | where the idea came from, what was deliberately not taken, and why |
 | [`AGENTS.md`](AGENTS.md) | the rules of this tree: write boundary, no GPL, where removal may live, the order of the checks |
-| [`digitdisk.1`](digitdisk.1) | the manual page: subcommands, every flag, files, examples, exit codes |
+| [`digitdisk.en.1`](digitdisk.en.1) | the manual page: subcommands, every flag, files, examples, exit codes |
+| [`digitdisk.1`](digitdisk.1) | the same page in Russian; the formula puts it where `man` looks for a translation |
 
 ## Checks
 
@@ -528,10 +661,26 @@ flang io tools/licensing.flang      # no copyleft; SPDX headers; removal only in
 flang check core/disk-inventory.flang && flang test core/disk-inventory.flang
 make -C core                        # check, emit to Go and C, cross-check the two emissions
 cd host && go vet ./... && go test -count=1 ./...
+cd host && go test ./internal/lang/  # every line a person reads has a pair
 cd host && GOOS=darwin GOARCH=arm64 go build ./... && GOOS=darwin GOARCH=amd64 go build ./...
 cd host && GOOS=darwin go vet ./...  # the macOS host, checked from a machine that is not one
 scripts/build-release.sh            # release archives, sums, formula; verifies the build repeats
 ```
+
+The translation is checked by a run and not promised in a document.
+`go test ./internal/lang/` reads the host's own source, finds every line that
+reaches a person, and fails on one with no pair in the other language; it fails
+separately on Cyrillic printed past the dictionary out of `main`, `report`,
+`ui` or `cli`, on a dictionary entry nobody ever asks for, and on
+`%`-placeholders that disagree between the two halves of one entry. What it
+covered is printed by the run itself —
+
+```bash
+cd host && go test ./internal/lang/ -v -run 'Пары|Заполнители|Договор'
+```
+
+— which at the moment reports 419 lines in the source, 488 entries in the
+dictionary, and 29 names of the договор translated as words.
 
 The licensing guard and the emission cross-check are written in flang, not in
 Python or JavaScript: neither is present in this tree. The flang compiler is a
@@ -542,8 +691,9 @@ single binary that needs only a C compiler (`brew install flang`, `asdf`, or
 
 The tree is complete and installable: the licences and the gate, the flang core
 printed into `core/out-go`, the Go host with `status`, `analyze`, `places`,
-`history` and the three steps of `clean` / `restore` / `purge`, and the release path — [`scripts/build-release.sh`](scripts/build-release.sh), the
-Homebrew formula, and the tag-driven workflow in
+`history` and the three steps of `clean` / `restore` / `purge`, in Russian and
+in English, and the release path — [`scripts/build-release.sh`](scripts/build-release.sh),
+the Homebrew formula with both manual pages, and the tag-driven workflow in
 [`.github/workflows/release.yml`](.github/workflows/release.yml). The version
 lives in one place, [`VERSION`](VERSION); the build stamps it into the binary,
 and the workflow refuses a tag that disagrees with it.

@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/lang"
 )
 
 // Метки выпуска. Их проставляет компоновщик из scripts/build-release.sh:
@@ -66,28 +67,32 @@ func shortHash(h string) string {
 // этот двоичный файл. Последнее — не украшение: сборка без признака
 // `flangcore` считает, но не решает, и человек обязан видеть это до того, как
 // удивится пустому разбору по разрядам.
-func printVersion(w io.Writer) {
+func printVersion(w io.Writer, l lang.Lang) {
 	hash, when, dirty := buildStamp()
 	if hash == "" {
-		hash = "неизвестен"
+		hash = l.T("неизвестен")
 	} else {
 		hash = shortHash(hash)
 		if dirty {
-			hash += " (дерево с правками)"
+			hash += " " + l.T("(дерево с правками)")
 		}
 	}
 	if when == "" {
-		when = "неизвестно"
+		when = l.T("неизвестно")
 	}
 
-	d := chosenDecider()
-	layer := d.Name()
+	d := chosenDecider(l)
+	layer := l.Word(d.Name())
 	if !d.Ready() {
-		layer += " — собрано без признака flangcore"
+		layer += " " + l.T("— собрано без признака flangcore")
 	}
 
 	fmt.Fprintf(w, "digitdisk %s\n", version)
-	fmt.Fprintf(w, "сборка          %s, %s\n", hash, when)
-	fmt.Fprintf(w, "инструментарий  %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
-	fmt.Fprintf(w, "решающий слой   %s, договор версии %d\n", layer, core.ContractVersion)
+	fmt.Fprintf(w, l.T("сборка          %s, %s")+"\n", hash, when)
+	fmt.Fprintf(w, l.T("инструментарий  %s %s/%s")+"\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	fmt.Fprintf(w, l.T("решающий слой   %s, договор версии %d")+"\n", layer, core.ContractVersion)
+	// The language of this run and who chose it.  A person who wonders why
+	// the tool is speaking the language it is speaking asks this, and the
+	// answer names the file to edit.
+	fmt.Fprintf(w, l.T("язык            %s (%s)")+"\n", l.Name(), l.Word(string(langChoice.Source)))
 }

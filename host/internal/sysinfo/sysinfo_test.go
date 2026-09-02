@@ -3,7 +3,11 @@
 
 package sysinfo
 
-import "testing"
+import (
+	"testing"
+
+	"digitdisk/internal/lang"
+)
 
 // The tests that hold on every system.  The ones that build a fake /proc are
 // in sysinfo_linux_test.go, next to the collector that reads it.
@@ -28,9 +32,9 @@ func TestHumanDuration(t *testing.T) {
 }
 
 func TestUnmeasuredNamesTheFactAndTheReason(t *testing.T) {
-	st := Status{Missing: map[string]string{FactCPUBusy: "нужен Mach"}}
+	st := Status{Missing: map[string]lang.Phrase{FactCPUBusy: lang.Say("нужен Mach")}}
 	why, ok := st.Unmeasured(FactCPUBusy)
-	if !ok || why != "нужен Mach" {
+	if !ok || why.String() != "нужен Mach" {
 		t.Errorf("Unmeasured(%q) = %q, %v", FactCPUBusy, why, ok)
 	}
 	if _, ok := st.Unmeasured(FactSensors); ok {

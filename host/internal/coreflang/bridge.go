@@ -24,10 +24,10 @@
 package coreflang
 
 import (
-	"fmt"
 	"sync"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/lang"
 
 	"flangprogram/flang"
 	rt "flangprogram/flangrt"
@@ -65,7 +65,7 @@ func (b *Bridge) UsePlaces(places []core.Place) error {
 	for _, p := range places {
 		class, ok := classVariant(p.Class)
 		if !ok {
-			return fmt.Errorf("справочник: разряд %q решающему слою не известен", p.Class)
+			return lang.Errorf("справочник: разряд %q решающему слою не известен", p.Class)
 		}
 		anchor := flang.VariantOtKornya()
 		switch p.Anchor {
@@ -73,7 +73,7 @@ func (b *Bridge) UsePlaces(places []core.Place) error {
 		case core.AnchorAnywhere:
 			anchor = flang.VariantGdeUgodno()
 		default:
-			return fmt.Errorf("справочник: якорь %q решающему слою не известен", p.Anchor)
+			return lang.Errorf("справочник: якорь %q решающему слою не известен", p.Anchor)
 		}
 		values = append(values, flang.SozdatMesto(class, anchor, rt.Text(p.Chain)))
 	}
@@ -81,11 +81,10 @@ func (b *Bridge) UsePlaces(places []core.Place) error {
 
 	ok, err := flang.SpravochnikOgranichen(b.ctx, list)
 	if err != nil {
-		return fmt.Errorf("решающий слой не смог проверить справочник: %w", err)
+		return lang.Errorf("решающий слой не смог проверить справочник: %s", err)
 	}
 	if !ok.Flag {
-		return fmt.Errorf("решающий слой отверг справочник: у какого-то места цепь не ограничена косыми с обеих сторон, " +
-			"а без них сверка перестала бы быть сверкой по составляющим")
+		return lang.Errorf("решающий слой отверг справочник: у какого-то места цепь не ограничена косыми с обеих сторон, а без них сверка перестала бы быть сверкой по составляющим")
 	}
 	b.places = list
 	return nil

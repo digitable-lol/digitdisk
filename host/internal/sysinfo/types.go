@@ -17,6 +17,7 @@ package sysinfo
 
 import (
 	"digitdisk/internal/gpuinfo"
+	"digitdisk/internal/lang"
 	"digitdisk/internal/procfs"
 )
 
@@ -39,7 +40,7 @@ type Status struct {
 	// fact this system does not publish at all (keyed by one of the Fact
 	// constants below).  The reason is meant for a reader, and the report
 	// prints it where the number would have been.
-	Missing map[string]string `json:"missing,omitempty"`
+	Missing map[string]lang.Phrase `json:"missing,omitempty"`
 }
 
 // Host is identity and lifetime.

@@ -100,7 +100,7 @@ func TestProcessesAreMeasured(t *testing.T) {
 			seen = true
 		}
 	}
-	if !seen && st.Missing[FactProcessArgs] != "" {
+	if !seen && !st.Missing[FactProcessArgs].Empty() {
 		t.Errorf("command lines were not published: %s", st.Missing[FactProcessArgs])
 	}
 }

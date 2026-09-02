@@ -4,10 +4,13 @@
 package places
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
+	"unicode"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/lang"
 )
 
 func env(m map[string]string) func(string) string {
@@ -183,6 +186,95 @@ func TestBadRowsAreRefused(t *testing.T) {
 		if _, err := parse(bad, "проба", opt); err == nil {
 			t.Errorf("строка %q принята, а должна быть отвергнута", bad)
 		}
+	}
+}
+
+// TestBuiltinNamesAreBilingual closes the hole the second language left.  Every
+// other line a person reads has its pair in the словарь, but the имя of a place
+// is DATA: it is written in the file, not in the source, so the pair has to be
+// written in the file beside it.  A row without an English имя is not an error —
+// a reader's own справочник may still have seven fields — but the shipped one is
+// ours, and a half-translated screen is worse than an untranslated one: the
+// reader cannot tell what was not shown to them.
+func TestBuiltinNamesAreBilingual(t *testing.T) {
+	d, err := Load(Options{Home: "/home/u", GOOS: "linux", Getenv: env(nil), Config: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	named := 0
+	for _, e := range d.Entries {
+		if e.NameEN == "" {
+			t.Errorf("строка %d, место %q: английского имени нет — на английском экране оно останется русским", e.Line, e.Name)
+			continue
+		}
+		named++
+		if i := strings.IndexFunc(e.NameEN, isCyrillic); i >= 0 {
+			t.Errorf("строка %d: английское имя %q написано кириллицей — это не второй язык, а первый", e.Line, e.NameEN)
+		}
+		if e.DisplayName(lang.EN) != e.NameEN || e.DisplayName(lang.RU) != e.Name {
+			t.Errorf("строка %d: имя показывается не на том языке: en=%q ru=%q", e.Line, e.DisplayName(lang.EN), e.DisplayName(lang.RU))
+		}
+	}
+	if named != len(d.Entries) {
+		t.Errorf("с английским именем %d мест из %d", named, len(d.Entries))
+	}
+	t.Logf("мест с английским именем: %d из %d", named, len(d.Entries))
+}
+
+func isCyrillic(r rune) bool { return unicode.Is(unicode.Cyrillic, r) }
+
+// TestSevenFieldsStillRead is the promise to a reader who wrote their own
+// справочник before the eighth field existed: their file goes on being read,
+// their place goes on being named, and the JSON of their row does not grow a key
+// for a fact nobody wrote.  The восьмое поле is the only optional one, and this
+// is what "optional" has to mean.
+func TestSevenFieldsStillRead(t *testing.T) {
+	opt := Options{Home: "/home/u", GOOS: "linux", Getenv: env(nil)}
+	body := strings.Join([]string{
+		"кэш|дом|все|.npm//_cacache||npm: кэш загрузок|https://x/",
+		"журнал|дом|все|.npm//_logs||npm: журналы прогонов|https://x/|npm: run logs",
+	}, "\n")
+	d, err := parse(body, "проба", opt)
+	if err != nil {
+		t.Fatalf("строка на семь полей не прочиталась: %v", err)
+	}
+	if len(d.Entries) != 2 {
+		t.Fatalf("мест %d, ждали 2", len(d.Entries))
+	}
+
+	seven, eight := d.Entries[0], d.Entries[1]
+	if seven.NameEN != "" {
+		t.Errorf("у строки на семь полей взялось английское имя %q", seven.NameEN)
+	}
+	if seven.DisplayName(lang.EN) != seven.Name || seven.DisplayName(lang.RU) != seven.Name {
+		t.Errorf("без английского имени показывать нечего, кроме русского: %q", seven.DisplayName(lang.EN))
+	}
+	if eight.NameEN != "npm: run logs" {
+		t.Errorf("восьмое поле не прочиталось: %q", eight.NameEN)
+	}
+	if got := eight.DisplayName(lang.EN); got != "npm: run logs" {
+		t.Errorf("по-английски показано %q", got)
+	}
+	if got := eight.DisplayName(lang.RU); got != "npm: журналы прогонов" {
+		t.Errorf("по-русски показано %q", got)
+	}
+
+	// The JSON of a row without the eighth field must be the JSON it was:
+	// a script reading `places --json` gets a new key only where a new fact
+	// was written.
+	body7, err := json.Marshal(seven)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body7), "имя_en") {
+		t.Errorf("в JSON строки без английского имени завёлся ключ имя_en: %s", body7)
+	}
+	body8, err := json.Marshal(eight)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body8), "имя_en") {
+		t.Errorf("в JSON строки с английским именем ключа имя_en нет: %s", body8)
 	}
 }
 

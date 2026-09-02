@@ -5,12 +5,13 @@ package clean
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"digitdisk/internal/lang"
 )
 
 // Journal is the record of one корзина: what was moved into it, from where,
@@ -60,7 +61,7 @@ func (j *Journal) Moved() (n int, bytes int64) {
 func (j *Journal) Failed() []Item {
 	var out []Item
 	for _, it := range j.Items {
-		if it.MovedAt == "" && it.Failed != "" {
+		if it.MovedAt == "" && !it.Failed.Empty() {
 			out = append(out, it)
 		}
 	}
@@ -133,7 +134,7 @@ func ReadJournal(boxPath string) (*Journal, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("в %s нет %s — это не корзина digitdisk", abs, JournalName)
+			return nil, lang.Errorf("в %s нет %s — это не корзина digitdisk", abs, JournalName)
 		}
 		return nil, err
 	}
@@ -145,20 +146,20 @@ func ReadJournal(boxPath string) (*Journal, error) {
 	}
 	var j Journal
 	if err := json.Unmarshal(body, &j); err != nil {
-		return nil, fmt.Errorf("%s не читается как журнал: %w", file, err)
+		return nil, lang.Errorf("%s не читается как журнал: %s", file, err)
 	}
 	if j.Version != JournalVersion {
-		return nil, fmt.Errorf("%s: версия журнала %d, а этот digitdisk понимает %d — "+
-			"работать с непонятым журналом опаснее, чем отказаться", file, j.Version, JournalVersion)
+		return nil, lang.Errorf("%s: версия журнала %d, а этот digitdisk понимает %d — работать с непонятым журналом опаснее, чем отказаться",
+			file, j.Version, JournalVersion)
 	}
 	if j.Box != abs {
-		return nil, fmt.Errorf("корзина лежит в %s, а журнал записан для %s.\n"+
-			"Возврат кладёт файлы по абсолютным путям, записанным при переносе;\n"+
-			"из перемещённой копии он писал бы в исходное дерево, а не туда, где копия",
+		return nil, lang.Errorf(`корзина лежит в %s, а журнал записан для %s.
+Возврат кладёт файлы по абсолютным путям, записанным при переносе;
+из перемещённой копии он писал бы в исходное дерево, а не туда, где копия`,
 			abs, j.Box)
 	}
 	if j.Root == "" {
-		return nil, fmt.Errorf("%s: в журнале нет корня", file)
+		return nil, lang.Errorf("%s: в журнале нет корня", file)
 	}
 	j.path = file
 	return &j, nil
@@ -171,7 +172,7 @@ func (j *Journal) boxRel() (string, error) {
 		return "", err
 	}
 	if rel == "." || strings.HasPrefix(rel, "..") {
-		return "", fmt.Errorf("корзина %s вне корня %s", j.Box, j.Root)
+		return "", lang.Errorf("корзина %s вне корня %s", j.Box, j.Root)
 	}
 	return filepath.ToSlash(rel), nil
 }

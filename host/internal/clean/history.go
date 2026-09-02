@@ -5,11 +5,12 @@ package clean
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
+
+	"digitdisk/internal/lang"
 	"time"
 )
 
@@ -46,7 +47,7 @@ type Entry struct {
 
 	// Problem is why this корзина could not be read.  A корзина that is
 	// there and unreadable is a fact worth printing, not a row to drop.
-	Problem string `json:"беда,omitempty"`
+	Problem lang.Phrase `json:"беда,omitzero"`
 }
 
 // Restorable reports whether anything in this корзина can still be put back.
@@ -80,7 +81,7 @@ func ReadHistory(root string) (*History, error) {
 		return nil, err
 	}
 	if !info.IsDir() {
-		return nil, fmt.Errorf("%s — не каталог", abs)
+		return nil, lang.Errorf("%s — не каталог", abs)
 	}
 
 	// One корзина named directly.
@@ -132,7 +133,7 @@ func entryOf(box string) Entry {
 	e := Entry{Box: box}
 	j, err := ReadJournal(box)
 	if err != nil {
-		e.Problem = err.Error()
+		e.Problem = phraseOf(err)
 		return e
 	}
 	e.Root, e.Tool, e.Decider, e.StartedAt = j.Root, j.Tool, j.Decider, j.StartedAt

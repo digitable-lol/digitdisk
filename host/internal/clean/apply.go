@@ -4,11 +4,12 @@
 package clean
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"time"
+
+	"digitdisk/internal/lang"
 )
 
 // Apply moves every item of a plan into a fresh корзина and writes the journal.
@@ -29,13 +30,13 @@ import (
 //  5. lstat the destination and check the inode is the one that was moved.
 func Apply(p Plan, opt Options) (*Journal, error) {
 	if !p.DeciderReady {
-		return nil, fmt.Errorf("решающий слой — %s.\n"+
-			"Он не выносит приговора «%s» ни одной записи, поэтому убирать нечего и не по чему.\n"+
-			"Собери хозяина с признаком flangcore: go build -tags flangcore -o digitdisk ./host",
+		return nil, lang.Errorf(`решающий слой — %s.
+Он не выносит приговора «%s» ни одной записи, поэтому убирать нечего и не по чему.
+Собери хозяина с признаком flangcore: go build -tags flangcore -o digitdisk ./host`,
 			p.Decider, "МожноУбрать")
 	}
 	if len(p.Items) == 0 {
-		return nil, fmt.Errorf("убирать нечего: ядро не пометило «%s» ни одного файла под %s", "МожноУбрать", p.Root)
+		return nil, lang.Errorf("убирать нечего: ядро не пометило «%s» ни одного файла под %s", "МожноУбрать", p.Root)
 	}
 
 	now := opt.Now
@@ -77,27 +78,27 @@ func Apply(p Plan, opt Options) (*Journal, error) {
 
 	journalRel := path.Join(boxRelPath, JournalName)
 	if err := root.MkdirAll(boxRelPath, 0o700); err != nil {
-		return nil, fmt.Errorf("корзина %s не создаётся: %w", boxAbs, err)
+		return nil, lang.Errorf("корзина %s не создаётся: %s", boxAbs, err)
 	}
 	// The journal goes down first, listing every intended move with no
 	// outcome.  A crash from here on leaves a корзина `restore` can empty.
 	if err := j.write(root, journalRel); err != nil {
-		return nil, fmt.Errorf("журнал %s не записывается: %w", filepath.Join(boxAbs, JournalName), err)
+		return nil, lang.Errorf("журнал %s не записывается: %s", filepath.Join(boxAbs, JournalName), err)
 	}
 	j.path = filepath.Join(boxAbs, JournalName)
 
 	for i := range j.Items {
 		it := &j.Items[i]
 		if err := move(root, it, now); err != nil {
-			it.Failed = err.Error()
+			it.Failed = phraseOf(err)
 			continue
 		}
 	}
 
 	j.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	if err := j.write(root, journalRel); err != nil {
-		return j, fmt.Errorf("файлы перенесены, но журнал %s не переписан: %w.\n"+
-			"Первая запись журнала на месте и возврат по ней работает", j.path, err)
+		return j, lang.Errorf(`файлы перенесены, но журнал %s не переписан: %s.
+Первая запись журнала на месте и возврат по ней работает`, j.path, err)
 	}
 	return j, nil
 }
@@ -108,38 +109,38 @@ func move(root *os.Root, it *Item, now time.Time) error {
 	info, err := root.Lstat(it.Rel)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("исчез между обходом и переносом")
+			return lang.Errorf("исчез между обходом и переносом")
 		}
-		return fmt.Errorf("не читается: %v", err)
+		return lang.Errorf("не читается: %v", err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("перестал быть обычным файлом (стал %v)", info.Mode())
+		return lang.Errorf("перестал быть обычным файлом (стал %v)", info.Mode())
 	}
 	current := identityOf(info)
 	if !it.Before.Same(current) {
-		return fmt.Errorf("%s — не убран", it.Before.Differs(current))
+		return lang.Errorf("%s — не убран", it.Before.Differs(current))
 	}
 
 	if err := root.MkdirAll(path.Dir(it.TrashRel), 0o700); err != nil {
-		return fmt.Errorf("каталог в корзине не создаётся: %v", err)
+		return lang.Errorf("каталог в корзине не создаётся: %v", err)
 	}
 	if _, err := root.Lstat(it.TrashRel); err == nil {
-		return fmt.Errorf("в корзине уже есть %s — перезаписывать не будем", it.TrashRel)
+		return lang.Errorf("в корзине уже есть %s — перезаписывать не будем", it.TrashRel)
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("корзина не проверяется: %v", err)
+		return lang.Errorf("корзина не проверяется: %v", err)
 	}
 
 	if err := root.Rename(it.Rel, it.TrashRel); err != nil {
-		return fmt.Errorf("не переносится: %v", err)
+		return lang.Errorf("не переносится: %v", err)
 	}
 
 	after, err := root.Lstat(it.TrashRel)
 	if err != nil {
-		return fmt.Errorf("перенесён, но в корзине не находится: %v", err)
+		return lang.Errorf("перенесён, но в корзине не находится: %v", err)
 	}
 	id := identityOf(after)
 	if id.Ino != it.Before.Ino || id.Dev != it.Before.Dev {
-		return fmt.Errorf("в корзине оказался не тот файл (узел %d:%d вместо %d:%d)",
+		return lang.Errorf("в корзине оказался не тот файл (узел %d:%d вместо %d:%d)",
 			id.Dev, id.Ino, it.Before.Dev, it.Before.Ino)
 	}
 	it.After = &id

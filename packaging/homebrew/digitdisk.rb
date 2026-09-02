@@ -69,10 +69,17 @@ class Digitdisk < Formula
 
   def install
     bin.install "digitdisk"
-    # man1 — то место, где `man digitdisk` страницу и ищет: Homebrew кладёт
-    # свой share/man в MANPATH сам. Отдельной настройки от поставившего это
-    # не требует, и проверяется ниже, в test do.
-    man1.install "digitdisk.1"
+    # СТРАНИЦ ДВЕ, И КЛАДУТСЯ ОНИ В РАЗНЫЕ МЕСТА. man ищет перевод по локали
+    # сам: сперва <man>/<язык>/man1, потом <man>/man1. Поэтому английская
+    # страница — базовая, в man1, а русская — в ru/man1, и тогда
+    #
+    #     man digitdisk                       → английская
+    #     LANG=ru_RU.UTF-8 man digitdisk      → русская
+    #
+    # Отдельной настройки от поставившего это не требует: свой share/man
+    # Homebrew кладёт в MANPATH сам. Проверяется ниже, в test do — обе.
+    man1.install "digitdisk.en.1" => "digitdisk.1"
+    (man/"ru/man1").install "digitdisk.1"
     doc.install "README.md", "README.ru.md", "NOTICE", "LICENSE"
   end
 
@@ -82,7 +89,15 @@ class Digitdisk < Formula
         digitdisk --version
         digitdisk            # снимок системы: то же, что digitdisk status
         digitdisk analyze ~
-        man digitdisk        # ключи, файлы, примеры
+        man digitdisk        # ключи, файлы, примеры (по-английски)
+        LANG=ru_RU.UTF-8 man digitdisk   # та же страница по-русски
+
+      Язык вывода digitdisk спросит один раз, при первом запуске в терминале, и
+      запомнит ответ в ~/.digitable/digitdisk/settings.conf. Не терминал (труба,
+      скрипт, CI) или --json — ничего не спрашивается и ничего не заводится:
+      язык берётся из LC_ALL/LC_MESSAGES/LANG, а без них — английский. На один
+      запуск: digitdisk --lang en. На живом экране язык переключает клавиша «l».
+      Вывод --json от языка не зависит: его читают скрипты.
 
       status и analyze только читают. Уборка — отдельная команда и три шага:
         digitdisk clean <путь>                 план, ничего не тронуто
@@ -128,12 +143,43 @@ class Digitdisk < Formula
     справка = shell_output("#{bin}/digitdisk --help")
     refute_match(/--(delete|remove|clean|force)/, справка)
 
-    # 6. Страница руководства поставлена туда, где её ищет man, и это
-    #    проверяется файлом, а не верой в install. Формула ставит двоичный
-    #    файл; страница едет с ним в том же архиве и без этой строки молча
-    #    осталась бы в нём.
-    страница = man1/"digitdisk.1"
-    assert_path_exists страница
-    assert_match "DIGITDISK 1", страница.read
+    # 6. Обе страницы руководства поставлены туда, где их ищет man, и это
+    #    проверяется файлами, а не верой в install. Формула ставит двоичный
+    #    файл; страницы едут с ним в том же архиве и без этих строк молча
+    #    остались бы в нём.
+    английская = man1/"digitdisk.1"
+    русская = man/"ru/man1/digitdisk.1"
+    assert_path_exists английская
+    assert_path_exists русская
+    assert_match "DIGITDISK 1", английская.read
+    assert_match "DIGITDISK 1", русская.read
+    # Та, что в man1, обязана быть английской, а та, что в ru/man1, — русской.
+    # Перепутать их местами — это `man digitdisk` по-русски у того, кто
+    # русского не знает, и наоборот; файл на месте, а толку нет.
+    refute_match(/[А-Яа-яЁё]{4}/, английская.read.lines.grep(/^\.Nd /).join)
+    assert_match(/[А-Яа-яЁё]{4}/, русская.read.lines.grep(/^\.Nd /).join)
+
+    # 7. Инструмент говорит на двух языках, и это тоже обещание, а не
+    #    намерение: две одинаковые справки — непереведённая справка.
+    ru_help = shell_output("#{bin}/digitdisk --lang ru --help")
+    en_help = shell_output("#{bin}/digitdisk --lang en --help")
+    refute_equal ru_help, en_help
+    assert_match "Подкоманды:", ru_help
+    assert_match "Subcommands:", en_help
+
+    # 8. А `--json` языка не знает: его читают скрипты, и байты в нём одни и
+    #    те же, на каком бы языке ни говорил тот, кто запустил. Два прогона —
+    #    это два разных момента времени, поэтому из сравнения снимаются те
+    #    поля, которые меняются сами: длительность обхода и возраст файла.
+    сам_по_себе = /duration_seconds|возраст_дней/
+    ru_json = shell_output("#{bin}/digitdisk --lang ru analyze #{testpath}/дерево --json")
+                .lines.grep_v(сам_по_себе)
+    en_json = shell_output("#{bin}/digitdisk --lang en analyze #{testpath}/дерево --json")
+                .lines.grep_v(сам_по_себе)
+    assert_equal ru_json, en_json
+    # И имена решающего слоя в нём остались собой: их читают скрипты, и
+    # английский вывод на экране их не трогает.
+    assert_match(/"разряд": "[А-ЯЁ]/, en_json.join)
+    assert_match(/"приговор": "[А-ЯЁ]/, en_json.join)
   end
 end

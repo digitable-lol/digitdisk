@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"digitdisk/internal/cli"
+	"digitdisk/internal/lang"
 )
 
 // Здесь сверяется не поведение, а то, что три перечня — код, справка и
@@ -19,7 +20,14 @@ import (
 // страницу, и ключ, обещанный страницей и не заведённый в коде, — обе беды
 // одинаково молчаливы, и обе ловятся здесь.
 
-const manPage = "../digitdisk.1"
+// manPages — обе страницы руководства. Их две, и сверка идёт по обеим:
+// страница, отставшая от кода, одинаково молчалива на любом языке, а страница,
+// отставшая от ВТОРОЙ страницы, — это ещё и две разные правды об одном
+// инструменте. Ставятся они так:
+//
+//	digitdisk.en.1 → share/man/man1/digitdisk.1     — её находит `man digitdisk`
+//	digitdisk.1    → share/man/ru/man1/digitdisk.1  — её находит `LANG=ru_RU… man digitdisk`
+var manPages = []string{"../digitdisk.1", "../digitdisk.en.1"}
 
 // registered находит ключи, заведённые в main.go, — там, где они и заводятся,
 // а не там, где о них рассказано.
@@ -63,14 +71,10 @@ func longFlags(text string) map[string]bool {
 
 // manFlags собирает ключи со страницы руководства: и записанные макросом
 // (`.Fl -json`), и набранные в примерах как есть (`--json`).
-func manFlags(t *testing.T) map[string]bool {
+func manFlags(t *testing.T, manPage string) map[string]bool {
 	t.Helper()
-	page, err := os.ReadFile(manPage)
-	if err != nil {
-		t.Fatalf("%s не читается: %v", manPage, err)
-	}
-	out := longFlags(string(page))
-	for _, m := range regexp.MustCompile(`(?:^|[ .])Fl (-?[A-Za-z][a-z0-9-]*)`).FindAllStringSubmatch(string(page), -1) {
+	out := longFlags(readPage(t, manPage))
+	for _, m := range regexp.MustCompile(`(?:^|[ .])Fl (-?[A-Za-z][a-z0-9-]*)`).FindAllStringSubmatch(readPage(t, manPage), -1) {
 		out["-"+m[1]] = true
 	}
 	return out
@@ -99,7 +103,7 @@ func missing(have, want map[string]bool) []string {
 
 func TestКлючиКодаИСправкиСовпадают(t *testing.T) {
 	code := registered(t)
-	help := longFlags(cli.Usage())
+	help := longFlags(cli.Usage(lang.RU) + cli.Usage(lang.EN))
 	if lost := missing(code, help); len(lost) > 0 {
 		t.Errorf("ключи заведены в коде, но не названы в справке: %v", lost)
 	}
@@ -110,8 +114,14 @@ func TestКлючиКодаИСправкиСовпадают(t *testing.T) {
 }
 
 func TestКлючиКодаИСтраницыСовпадают(t *testing.T) {
+	for _, manPage := range manPages {
+		ключиСтраницы(t, manPage)
+	}
+}
+
+func ключиСтраницы(t *testing.T, manPage string) {
 	code := registered(t)
-	page := manFlags(t)
+	page := manFlags(t, manPage)
 	// Короткие написания разбирает run, и страница обязана их назвать.
 	for _, short := range []string{"-h", "-V"} {
 		if !page[short] {
@@ -129,11 +139,19 @@ func TestКлючиКодаИСтраницыСовпадают(t *testing.T) {
 }
 
 func TestПодкомандыОдниИТеЖеВезде(t *testing.T) {
-	page, err := os.ReadFile(manPage)
-	if err != nil {
-		t.Fatalf("%s не читается: %v", manPage, err)
+	for _, l := range []lang.Lang{lang.RU, lang.EN} {
+		if help := cli.Usage(l); !strings.Contains(help, "digitdisk") {
+			t.Fatalf("справка на %s пуста", l)
+		}
 	}
-	help := cli.Usage()
+	for _, manPage := range manPages {
+		подкомандыСтраницы(t, manPage)
+	}
+}
+
+func подкомандыСтраницы(t *testing.T, manPage string) {
+	page := []byte(readPage(t, manPage))
+	help := cli.Usage(lang.RU) + cli.Usage(lang.EN)
 	for _, c := range cli.Commands {
 		if _, ok := handlers[c.Name]; !ok {
 			t.Errorf("подкоманда %q объявлена в internal/cli, но не разобрана в main", c.Name)
@@ -154,7 +172,7 @@ func TestПодкомандыОдниИТеЖеВезде(t *testing.T) {
 		}
 	}
 	// Обратная сторона: страница не называет подкоманд, которых нет.
-	re := regexp.MustCompile(`(?m)^\.It Cm ([a-z]+)$`)
+	re := regexp.MustCompile("(?m)^\\.It Cm ([a-z]+)")
 	for _, m := range re.FindAllStringSubmatch(string(page), -1) {
 		if !cli.Known(m[1]) {
 			t.Errorf("%s описывает подкоманду %q, которой нет в коде", manPage, m[1])
@@ -170,7 +188,7 @@ func TestГолыйВызовЭтоУмолчание(t *testing.T) {
 	if _, ok := handlers[cli.Default]; !ok {
 		t.Fatalf("умолчание %q не разобрано в main", cli.Default)
 	}
-	if !strings.Contains(cli.Usage(), "без подкоманды — "+cli.Default) {
+	if !strings.Contains(cli.Usage(lang.RU), "без подкоманды — "+cli.Default) {
 		t.Error("справка не называет подкоманду по умолчанию")
 	}
 }
@@ -198,4 +216,90 @@ func runQuiet(t *testing.T, args []string) int {
 	os.Stdout, os.Stderr = null, null
 	defer func() { os.Stdout, os.Stderr = outWas, errWas }()
 	return run(args)
+}
+
+// readPage читает страницу руководства и роняет прогон, если её нет: страница,
+// которой нет, — это не «перевод ещё не написан», а обещание формулы, которое
+// некому выполнить.
+func readPage(t *testing.T, manPage string) string {
+	t.Helper()
+	body, err := os.ReadFile(manPage)
+	if err != nil {
+		t.Fatalf("%s не читается: %v", manPage, err)
+	}
+	return string(body)
+}
+
+// TestОбеСтраницыОписываютОдноИТоЖе сверяет две редакции руководства между
+// собой, а не только каждую с кодом.
+//
+// Расхождение в фактах хуже отсутствующего перевода: читатель английской
+// страницы не знает, что русская обещает другое, и узнаёт об этом от машины,
+// которая повела себя иначе. Поэтому сверяется состав: те же подкоманды, те же
+// ключи, те же файлы.
+func TestОбеСтраницыОписываютОдноИТоЖе(t *testing.T) {
+	ru, en := readPage(t, manPages[0]), readPage(t, manPages[1])
+
+	ruFlags, enFlags := manFlags(t, manPages[0]), manFlags(t, manPages[1])
+	if lost := missing(ruFlags, enFlags); len(lost) > 0 {
+		t.Errorf("русская страница называет ключи, которых нет в английской: %v", lost)
+	}
+	if lost := missing(enFlags, ruFlags); len(lost) > 0 {
+		t.Errorf("английская страница называет ключи, которых нет в русской: %v", lost)
+	}
+
+	// Имя подкоманды на строке .It — с доводом за ним или без: обе
+	// страницы пишут его одинаково, но довод у них на своём языке.
+	subs := regexp.MustCompile("(?m)^\\.It Cm ([a-z]+)")
+	names := func(page string) map[string]bool {
+		out := map[string]bool{}
+		for _, m := range subs.FindAllStringSubmatch(page, -1) {
+			out[m[1]] = true
+		}
+		return out
+	}
+	ruNames, enNames := names(ru), names(en)
+	if lost := missing(ruNames, enNames); len(lost) > 0 {
+		t.Errorf("подкоманды есть на русской странице и нет на английской: %v", lost)
+	}
+	if lost := missing(enNames, ruNames); len(lost) > 0 {
+		t.Errorf("подкоманды есть на английской странице и нет на русской: %v", lost)
+	}
+	t.Logf("страниц %d, подкоманд на каждой %d, ключей на каждой %d", len(manPages), len(ruNames), len(ruFlags))
+}
+
+// TestКлючЯзыкаЗаведёнИНазван — тот самый ключ, ради которого всё это.
+func TestКлючЯзыкаЗаведёнИНазван(t *testing.T) {
+	if !registered(t)["--lang"] {
+		t.Fatal("ключ --lang не заведён ни в одной подкоманде")
+	}
+	for _, l := range []lang.Lang{lang.RU, lang.EN} {
+		if !strings.Contains(cli.Usage(l), "--lang") {
+			t.Errorf("справка на %s не называет --lang", l)
+		}
+	}
+	for _, manPage := range manPages {
+		if !strings.Contains(readPage(t, manPage), "-lang") {
+			t.Errorf("%s не называет --lang", manPage)
+		}
+	}
+}
+
+// TestСправкаЕстьНаОбоихЯзыках: пустой или одинаковый вывод на двух языках —
+// это непереведённая справка, притворившаяся переведённой.
+func TestСправкаЕстьНаОбоихЯзыках(t *testing.T) {
+	ru, en := cli.Usage(lang.RU), cli.Usage(lang.EN)
+	if ru == en {
+		t.Fatal("справка на двух языках вышла одинаковой")
+	}
+	for _, c := range cli.Commands {
+		if !strings.Contains(en, c.Name) {
+			t.Errorf("английская справка не называет подкоманду %q", c.Name)
+		}
+	}
+	ruLines, enLines := strings.Count(ru, "\n"), strings.Count(en, "\n")
+	if ruLines != enLines {
+		t.Errorf("строк в справке: по-русски %d, по-английски %d — редакции разъехались", ruLines, enLines)
+	}
+	t.Logf("строк в справке %d на каждом языке", ruLines)
 }

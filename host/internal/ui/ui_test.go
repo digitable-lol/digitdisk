@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"digitdisk/internal/cli"
+	"digitdisk/internal/lang"
 	"digitdisk/internal/procfs"
 	"digitdisk/internal/sysinfo"
 )
@@ -338,14 +339,16 @@ func filled() sysinfo.Status {
 			{Chip: "coretemp", Label: "Package id 0", Celsius: 55.5, CritC: 100},
 			{Chip: "acpi", Celsius: 40},
 		},
-		Missing: map[string]string{"я": "нет доступа", "б": "нет файла", "а": "не разобрано"},
+		Missing: map[string]lang.Phrase{
+			"я": lang.Raw("нет доступа"), "б": lang.Raw("нет файла"), "а": lang.Raw("не разобрано"),
+		},
 	}
 }
 
 // newTestScreen builds a screen without a terminal: the sections are pure
 // functions of a snapshot and are tested as such.
 func newTestScreen(st sysinfo.Status, have bool, cols int) *screen {
-	s := &screen{t: Theme{P: Carbon, d: depthTrue}, rows: 30, cols: cols}
+	s := &screen{t: Theme{P: Carbon, d: depthTrue}, rows: 30, cols: cols, l: lang.RU}
 	s.st, s.haveSt = st, have
 	s.taken, s.took = time.Now(), 1900*time.Millisecond
 	s.o.Interval = 2 * time.Second
@@ -370,7 +373,7 @@ func TestEverySectionDrawsWithinTheTerminal(t *testing.T) {
 				s.tab, s.scroll = i, 0
 				for _, line := range s.frame() {
 					if w := plainWidth(s.t.clip(line, cols)); w > cols {
-						t.Errorf("%s / %s / %d колонок: строка в %d ячеек", st.name, sec.title, cols, w)
+						t.Errorf("%s / %s / %d колонок: строка в %d ячеек", st.name, sec.title(s.l), cols, w)
 					}
 				}
 			}
@@ -383,8 +386,10 @@ func TestEmptySnapshotNeverInventsAZero(t *testing.T) {
 	for i, sec := range sections {
 		s.tab, s.scroll = i, 0
 		body := plain(strings.Join(sec.render(s), "\n"))
-		if strings.Contains(body, "0.0%") || strings.Contains(body, "0 Б из 0 Б") {
-			t.Errorf("раздел %s выдал измеренный ноль там, где ничего не читали:\n%s", sec.title, body)
+		// «0,0%» по-русски и «0.0%» по-английски — один и тот же
+		// придуманный ноль, записанный двумя разделителями.
+		if strings.Contains(body, "0.0%") || strings.Contains(body, "0,0%") || strings.Contains(body, "0 Б из 0 Б") {
+			t.Errorf("раздел %s выдал измеренный ноль там, где ничего не читали:\n%s", sec.title(s.l), body)
 		}
 	}
 	// The CPU share was never sampled, so the gauge must say so.
@@ -436,8 +441,8 @@ func TestSectionsAreTheSectionsOfThePrintedReport(t *testing.T) {
 		t.Fatalf("разделов %d, ждали %d", len(sections), len(want))
 	}
 	for i, w := range want {
-		if sections[i].title != w {
-			t.Errorf("раздел %d = %q, ждали %q", i, sections[i].title, w)
+		if got := sections[i].title(lang.RU); got != w {
+			t.Errorf("раздел %d = %q, ждали %q", i, got, w)
 		}
 	}
 	// The keys did not change, so what the digits reach did not either: 1…9
@@ -447,10 +452,10 @@ func TestSectionsAreTheSectionsOfThePrintedReport(t *testing.T) {
 	// ПРОЧИТАНО, which is named on the opening page and is one ← away from
 	// it.  A section list longer than this one would leave a reading behind
 	// a key nobody can guess.
-	if len(sections) > 10 {
-		t.Error("разделов больше десяти — до последних клавишами 1…9 уже не добраться")
+	if len(sections) > 11 {
+		t.Error("разделов больше одиннадцати — до последних клавишами 1…9 уже не добраться")
 	}
-	if sections[len(sections)-1].title != "НЕ ПРОЧИТАНО" {
+	if sections[len(sections)-1].title(lang.RU) != "НЕ ПРОЧИТАНО" {
 		t.Error("без цифры остался не тот раздел: последним должен быть НЕ ПРОЧИТАНО")
 	}
 }
@@ -583,7 +588,7 @@ func TestFrameIsExactlyTheHeightOfTheTerminal(t *testing.T) {
 		for i := range sections {
 			s.tab, s.scroll = i, 0
 			if got := len(s.frame()); got != rows {
-				t.Errorf("раздел %s на %d строк дал кадр в %d", sections[i].title, rows, got)
+				t.Errorf("раздел %s на %d строк дал кадр в %d", sections[i].title(s.l), rows, got)
 			}
 		}
 	}
@@ -613,7 +618,7 @@ func TestRunNeedsACollector(t *testing.T) {
 func TestSensorGaugeSaysWhatItIsMeasuredAgainst(t *testing.T) {
 	s := newTestScreen(filled(), true, 120)
 	got := plain(strings.Join(s.sensors(), "\n"))
-	if !strings.Contains(got, "критич. 100.0 °C") {
+	if !strings.Contains(got, "критич. 100,0 °C") {
 		t.Errorf("датчик с критической точкой не назвал её:\n%s", got)
 	}
 	if !strings.Contains(got, "из 100 °C") {
@@ -639,7 +644,7 @@ func TestDiskErrorIsShownAsAnError(t *testing.T) {
 func TestScreenDoesNotInventProcessCounts(t *testing.T) {
 	st := sysinfo.Status{
 		Processes: sysinfo.Processes{Total: 906, Running: 5, Threads: 1487, WithDetail: 214},
-		Missing:   map[string]string{sysinfo.FactBlocked: "система не различает такие процессы"},
+		Missing:   map[string]lang.Phrase{sysinfo.FactBlocked: lang.Raw("система не различает такие процессы")},
 	}
 	s := newTestScreen(st, true, 120)
 	for _, got := range []string{
@@ -704,5 +709,119 @@ func TestQuestionMarkOpensTheCommandsAndEscBacksOut(t *testing.T) {
 	}
 	if !s.handle(key{kind: keyEsc}, ch) {
 		t.Error("Esc вне списка не закрыл экран")
+	}
+}
+
+// Экран рисуется на обоих языках и на обоих остаётся в своих колонках.
+//
+// Английская подпись длиннее русской — не опечатка в словаре, а поехавшая
+// вёрстка: полоса разделов не помещается в строку, заголовок таблицы уезжает
+// из-под чисел. Поэтому оба языка проходят ту же проверку ширины, что и один.
+func TestScreenDrawsInBothLanguages(t *testing.T) {
+	for _, l := range []lang.Lang{lang.RU, lang.EN} {
+		for _, cols := range []int{40, 60, 80, 120, 200} {
+			s := newTestScreen(filled(), true, cols)
+			s.l = l
+			for i, sec := range sections {
+				s.tab, s.scroll = i, 0
+				for _, line := range s.frame() {
+					if w := plainWidth(s.t.clip(line, cols)); w > cols {
+						t.Errorf("%s / %s / %d колонок: строка в %d ячеек", l, sec.title(l), cols, w)
+					}
+				}
+			}
+			s.tab, s.scroll, s.menu = 0, 0, true
+			for _, line := range s.frame() {
+				if w := plainWidth(s.t.clip(line, cols)); w > cols {
+					t.Errorf("%s / список команд / %d колонок: строка в %d ячеек", l, cols, w)
+				}
+			}
+		}
+	}
+
+	// Английский экран должен быть английским: имена разделов и подвал
+	// приходят из словаря, а не остаются русскими.
+	if got := sections[0].title(lang.EN); got != "OVERVIEW" {
+		t.Errorf("первый раздел по-английски = %q", got)
+	}
+	s := newTestScreen(filled(), true, 120)
+	s.l = lang.EN
+	if got := plain(s.footer("")); !strings.Contains(got, "q quit") {
+		t.Errorf("английский подвал не назвал выход: %q", got)
+	}
+	// Подписи — не значения: имя узла, команда процесса и причина отказа
+	// приходят из снимка и по-английски выглядят так же, как по-русски.
+	// Поэтому ищутся слова, которые бывают только подписью.
+	labels := []string{"занято", "свободно", "доступно", "владелец", "интерфейс",
+		"точка монтирования", "история", "средняя", "прочитано всё"}
+	for _, sec := range sections {
+		body := plain(strings.Join(sec.render(s), "\n"))
+		for _, ru := range labels {
+			if strings.Contains(body, ru) {
+				t.Errorf("раздел %s по-английски оставил подпись %q:\n%s", sec.title(lang.RU), ru, body)
+			}
+		}
+	}
+	if got := plain(strings.Join(s.memory(), "\n")); !strings.Contains(got, "available") {
+		t.Errorf("английская MEMORY без английских подписей:\n%s", got)
+	}
+}
+
+// Клавиша языка переключает экран и просит запомнить выбор — ровно один раз на
+// нажатие, потому что запись в домашний каталог не должна случаться дважды за
+// одно движение пальцем.
+func TestLanguageKeySwitchesTheScreenAndIsRemembered(t *testing.T) {
+	s := newTestScreen(filled(), true, 100)
+	ch := make(chan sample, 1)
+	var asked []lang.Lang
+	s.o.Remember = func(l lang.Lang) lang.Phrase {
+		asked = append(asked, l)
+		return lang.Raw("язык сохранён")
+	}
+	// Обе раскладки: «l» и «д» — одна и та же клавиша.
+	for _, k := range []rune{'l', 'L', 'д', 'Д'} {
+		was := s.l
+		if s.handle(key{kind: keyRune, r: k}, ch) {
+			t.Fatalf("клавиша %q закрыла экран", string(k))
+		}
+		if s.l != was.Other() {
+			t.Errorf("клавиша %q дала язык %q, а из %q ждали %q", string(k), s.l, was, was.Other())
+		}
+	}
+	if len(asked) != 4 {
+		t.Fatalf("Remember позвали %d раз(а), ждали 4 — по разу на нажатие", len(asked))
+	}
+	if asked[0] != lang.EN || asked[1] != lang.RU {
+		t.Errorf("Remember просили запомнить %v", asked)
+	}
+
+	// Ответ хранилища живёт в подвале несколько секунд: заметка, которая
+	// никогда не уходит, перестаёт читаться.
+	if got := plain(strings.Join(s.frame(), "\n")); !strings.Contains(got, "язык сохранён") {
+		t.Errorf("ответ о сохранении не показан:\n%s", got)
+	}
+	s.saidAt = time.Now().Add(-time.Minute)
+	if got := plain(strings.Join(s.frame(), "\n")); strings.Contains(got, "язык сохранён") {
+		t.Error("ответ о сохранении остался в подвале навсегда")
+	}
+}
+
+// Запоминать выбор может быть некуда — тогда клавиша всё равно переключает
+// язык, и экран об этом молчит, а не падает.
+func TestLanguageKeyWorksWithNowhereToRememberIt(t *testing.T) {
+	s := newTestScreen(filled(), true, 100)
+	s.o.Remember = nil
+	ch := make(chan sample, 1)
+	if s.handle(key{kind: keyRune, r: 'l'}, ch) {
+		t.Fatal("клавиша языка закрыла экран")
+	}
+	if s.l != lang.EN {
+		t.Errorf("без Remember язык не переключился: %q", s.l)
+	}
+	if !s.said.Empty() {
+		t.Error("без Remember в подвале появилась запись о сохранении")
+	}
+	if got := len(s.frame()); got != s.rows {
+		t.Errorf("после переключения языка кадр стал %d строк при экране в %d", got, s.rows)
 	}
 }

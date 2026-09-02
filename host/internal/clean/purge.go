@@ -4,12 +4,13 @@
 package clean
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"sort"
 	"strings"
 	"time"
+
+	"digitdisk/internal/lang"
 )
 
 // Purge erases the contents of a корзина.  This is the one operation in
@@ -38,15 +39,14 @@ func Purge(j *Journal, confirm int, now time.Time) (*Journal, error) {
 	}
 	inBox, bytes := j.Moved()
 	if confirm < 0 {
-		return nil, fmt.Errorf("--confirm не может быть отрицательным")
+		return nil, lang.Errorf("--confirm не может быть отрицательным")
 	}
 	if confirm != inBox {
-		return nil, fmt.Errorf("в корзине %d файлов (%d Б), а --confirm назвал %d — ничего не стёрто.\n"+
-			"Запусти `digitdisk purge %s` без ключа: он напечатает, что будет стёрто, и число для --confirm",
+		return nil, lang.Errorf("в корзине %d файлов (%d Б), а --confirm назвал %d — ничего не стёрто.\nЗапусти `digitdisk purge %s` без ключа: он напечатает, что будет стёрто, и число для --confirm",
 			inBox, bytes, confirm, j.Box)
 	}
 	if inBox == 0 {
-		return nil, fmt.Errorf("корзина %s пуста — стирать нечего", j.Box)
+		return nil, lang.Errorf("корзина %s пуста — стирать нечего", j.Box)
 	}
 
 	root, err := openRoot(j.Root)
@@ -66,9 +66,9 @@ func Purge(j *Journal, confirm int, now time.Time) (*Journal, error) {
 		if it.MovedAt == "" || it.RestoredAt != "" || it.PurgedAt != "" {
 			continue
 		}
-		it.Failed = ""
+		it.Failed = lang.Phrase{}
 		if err := purgeOne(root, it, now); err != nil {
-			it.Failed = err.Error()
+			it.Failed = phraseOf(err)
 			continue
 		}
 		erased++
@@ -84,7 +84,7 @@ func Purge(j *Journal, confirm int, now time.Time) (*Journal, error) {
 		j.PurgedAt = now.UTC().Format(time.RFC3339Nano)
 	}
 	if err := j.write(root, path.Join(boxRel, JournalName)); err != nil {
-		return j, fmt.Errorf("стёрто %d файлов, но журнал %s не переписан: %w", erased, j.path, err)
+		return j, lang.Errorf("стёрто %d файлов, но журнал %s не переписан: %s", erased, j.path, err)
 	}
 	return j, nil
 }
@@ -93,22 +93,22 @@ func purgeOne(root *os.Root, it *Item, now time.Time) error {
 	info, err := root.Lstat(it.TrashRel)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("в корзине его уже нет")
+			return lang.Errorf("в корзине его уже нет")
 		}
-		return fmt.Errorf("в корзине не читается: %v", err)
+		return lang.Errorf("в корзине не читается: %v", err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("в корзине это не обычный файл (%v) — стирать не будем", info.Mode())
+		return lang.Errorf("в корзине это не обычный файл (%v) — стирать не будем", info.Mode())
 	}
 	want := it.Before
 	if it.After != nil {
 		want = *it.After
 	}
 	if got := identityOf(info); !want.Same(got) {
-		return fmt.Errorf("в корзине его правили: %s — не стёрт", want.Differs(got))
+		return lang.Errorf("в корзине его правили: %s — не стёрт", want.Differs(got))
 	}
 	if err := root.Remove(it.TrashRel); err != nil {
-		return fmt.Errorf("не стирается: %v", err)
+		return lang.Errorf("не стирается: %v", err)
 	}
 	it.PurgedAt = now.UTC().Format(time.RFC3339Nano)
 	return nil
