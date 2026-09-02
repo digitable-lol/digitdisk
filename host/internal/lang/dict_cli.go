@@ -54,8 +54,19 @@ func init() {
 		"  --dry-run         restore: показать, что вернулось бы, и не возвращать":        "  --dry-run         restore: show what would come back, restore nothing",
 		"  --confirm N       purge: подтвердить стирание ровно N файлов":                  "  --confirm N       purge: confirm erasing exactly N files",
 
-		"Экран status: ← → разделы (их десять), 1…9 раздел сразу, ↑ ↓ PgUp/PgDn прокрутка,": "status screen: ← → the ten sections, 1…9 a section at once, ↑ ↓ PgUp/PgDn scroll,",
-		"  p пауза, r замер, l язык, ? команды, q выход.":                                   "  p pause, r sample, l language, ? commands, q quit.",
+		"Экран status: раздел КОМАНДЫ не только называет — ↑ ↓ и 1…7 выбирают,":       "status screen: the COMMANDS section does more than name — ↑ ↓ and 1…7 choose,",
+		"  Enter запускает; analyze и clean спросят путь, предложив текущий каталог.": "  Enter runs; analyze and clean ask for a path, offering the current directory.",
+		"  Разделы: ← → (их одиннадцать), 1…9 сразу, ↑ ↓ PgUp/PgDn прокрутка,":        "  Sections: ← → (eleven of them), 1…9 at once, ↑ ↓ PgUp/PgDn scroll,",
+		"  p пауза, r замер, l язык, ? сразу к КОМАНДАМ, q выход.":                    "  p pause, r sample, l language, ? straight to COMMANDS, q quit.",
+
+		// Живой экран запустил подкоманду и ждёт, пока прочитают её вывод.
+		"— Enter возвращает на экран состояния": "— Enter goes back to the status screen",
+
+		// Куда экран посылает за подкомандой, которую сам не запускает
+		// (cli.Command.Instead). Тоже данные: их печатает раздел КОМАНДЫ.
+		"Enter на корзине в разделе ЖУРНАЛ экрана analyze":   "Enter on a trash in the JOURNAL section of the analyze screen",
+		"из оболочки — это единственный необратимый шаг":     "from the shell only — the one irreversible step",
+		"раздел ЖУРНАЛ экрана analyze, по обойденному корню": "the JOURNAL section of the analyze screen, for the walked root",
 
 		// Экран обхода. Он длиннее строкой, потому что делает больше: по
 		// найденному ходят и из него убирают, и обе эти клавиши надо назвать

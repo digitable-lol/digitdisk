@@ -348,10 +348,11 @@ func filled() sysinfo.Status {
 // newTestScreen builds a screen without a terminal: the sections are pure
 // functions of a snapshot and are tested as such.
 func newTestScreen(st sysinfo.Status, have bool, cols int) *screen {
-	s := &screen{t: Theme{P: Carbon, d: depthTrue}, rows: 30, cols: cols, l: lang.RU}
+	s := &screen{t: Theme{P: Carbon, d: depthTrue}, rows: 30, cols: cols, l: lang.RU, tab: openTab}
 	s.st, s.haveSt = st, have
 	s.taken, s.took = time.Now(), 1900*time.Millisecond
 	s.o.Interval = 2 * time.Second
+	s.o.Collect = func() sysinfo.Status { return st }
 	s.cpuHist = []float64{0.1, 0.5, -1, 0.9}
 	s.memHist = []float64{0.3, 0.4}
 	return s
@@ -434,9 +435,11 @@ func TestMissingSectionIsSortedSoTheScreenDoesNotShuffle(t *testing.T) {
 }
 
 func TestSectionsAreTheSectionsOfThePrintedReport(t *testing.T) {
-	// The screen is a second view of the same report, not a second tool.
-	want := []string{"ОБЗОР", "СИСТЕМА", "ЗАГРУЗКА", "ПАМЯТЬ", "ПРОЦЕССЫ", "ДИСКИ", "СЕТЬ",
-		"ТЕМПЕРАТУРА", "ВИДЕОКАРТЫ", "НЕ ПРОЧИТАНО"}
+	// The screen is a second view of the same report, plus the one page the
+	// report has no equivalent of: the list of commands, which is where the
+	// работа starts and which therefore stands FIRST.
+	want := []string{"КОМАНДЫ", "ОБЗОР", "СИСТЕМА", "ЗАГРУЗКА", "ПАМЯТЬ", "ПРОЦЕССЫ", "ДИСКИ",
+		"СЕТЬ", "ТЕМПЕРАТУРА", "ВИДЕОКАРТЫ", "НЕ ПРОЧИТАНО"}
 	if len(sections) != len(want) {
 		t.Fatalf("разделов %d, ждали %d", len(sections), len(want))
 	}
@@ -445,18 +448,28 @@ func TestSectionsAreTheSectionsOfThePrintedReport(t *testing.T) {
 			t.Errorf("раздел %d = %q, ждали %q", i, got, w)
 		}
 	}
-	// The keys did not change, so what the digits reach did not either: 1…9
-	// are the first nine sections.  The section added since — ВИДЕОКАРТЫ —
-	// went in as the ninth, after the last one the report prints, so every
-	// section the report has still has a digit; and the tenth is НЕ
-	// ПРОЧИТАНО, which is named on the opening page and is one ← away from
-	// it.  A section list longer than this one would leave a reading behind
-	// a key nobody can guess.
-	if len(sections) > 10 {
-		t.Error("разделов больше десяти — до последних клавишами 1…9 уже не добраться")
+	if sections[menuTab].title(lang.RU) != "КОМАНДЫ" {
+		t.Error("КОМАНДЫ не первый раздел — человек, открывший экран, читает полосу слева")
 	}
-	if sections[len(sections)-1].title(lang.RU) != "НЕ ПРОЧИТАНО" {
-		t.Error("без цифры остался не тот раздел: последним должен быть НЕ ПРОЧИТАНО")
+	if sections[openTab].title(lang.RU) != "ОБЗОР" {
+		t.Error("экран открывается не на ОБЗОРЕ: `digitdisk` — это status, а status — чтение")
+	}
+	// Цифры достают до первых девяти. Одиннадцатый раздел — тот, что
+	// добавился, — сдвинул за предел цифр два чтения: ВИДЕОКАРТЫ и НЕ
+	// ПРОЧИТАНО. Оба стоят СЛЕВА от КОМАНД по кольцу, то есть в одном и
+	// двух нажатиях ← от раздела, у которого цифра 1, и на ОБЗОРЕ про НЕ
+	// ПРОЧИТАНО сказано прямо. Раздел длиннее этого списка оставил бы
+	// чтение за клавишей, которую не угадать.
+	if len(sections) > 11 {
+		t.Error("разделов больше одиннадцати — до последних уже не добраться ни цифрой, ни одним ←")
+	}
+	for i, w := range map[int]string{len(sections) - 1: "НЕ ПРОЧИТАНО", len(sections) - 2: "ВИДЕОКАРТЫ"} {
+		if sections[i].title(lang.RU) != w {
+			t.Errorf("без цифры остался не тот раздел %d: ждали %q", i, w)
+		}
+	}
+	if prevTab(menuTab, len(sections)) != len(sections)-1 {
+		t.Error("← с КОМАНД ведёт не на последний раздел")
 	}
 }
 
@@ -487,11 +500,15 @@ func TestKeysMoveBetweenSectionsAndOut(t *testing.T) {
 	s := newTestScreen(filled(), true, 100)
 	ch := make(chan sample, 1)
 
-	if s.handle(key{kind: keyRight}, ch); s.tab != 1 {
+	if s.handle(key{kind: keyRight}, ch); s.tab != openTab+1 {
 		t.Errorf("вправо дало раздел %d", s.tab)
 	}
-	if s.handle(key{kind: keyLeft}, ch); s.tab != 0 {
+	if s.handle(key{kind: keyLeft}, ch); s.tab != openTab {
 		t.Errorf("влево дало раздел %d", s.tab)
+	}
+	// Влево с ОБЗОРА — на КОМАНДЫ: список стоит перед чтениями.
+	if s.handle(key{kind: keyLeft}, ch); s.tab != menuTab {
+		t.Errorf("влево с ОБЗОРА дало раздел %d, ждали КОМАНДЫ", s.tab)
 	}
 	// Left from the first section wraps to the last rather than going nowhere.
 	if s.handle(key{kind: keyLeft}, ch); s.tab != len(sections)-1 {
@@ -500,6 +517,9 @@ func TestKeysMoveBetweenSectionsAndOut(t *testing.T) {
 	if s.handle(key{kind: keyRight}, ch); s.tab != 0 {
 		t.Errorf("вправо с последнего не завернуло: раздел %d", s.tab)
 	}
+	// Цифра выбирает раздел везде, КРОМЕ раздела КОМАНДЫ: там она выбирает
+	// команду, и это проверяется отдельно.
+	s.handle(key{kind: keyRight}, ch)
 	if s.handle(key{kind: keyRune, r: '5'}, ch); s.tab != 4 {
 		t.Errorf("клавиша 5 дала раздел %d", s.tab)
 	}
@@ -568,9 +588,23 @@ func TestRussianLetterArrivesWhole(t *testing.T) {
 	}
 }
 
+// tabOf finds a section by its Russian name.  Номер раздела — не уговор, а
+// следствие порядка полосы, и проверка, знающая номер наизусть, ломается на
+// первом же новом разделе, ничего при этом не поймав.
+func tabOf(t *testing.T, title string) int {
+	t.Helper()
+	for i, sec := range sections {
+		if sec.title(lang.RU) == title {
+			return i
+		}
+	}
+	t.Fatalf("раздела %q на экране нет", title)
+	return 0
+}
+
 func TestScrollStopsAtTheEndOfTheSection(t *testing.T) {
 	s := newTestScreen(filled(), true, 100)
-	s.tab = 5 // ДИСКИ
+	s.tab = tabOf(t, "ДИСКИ")
 	s.scroll = 10000
 	lines := s.frame()
 	if len(lines) != s.rows {
@@ -599,18 +633,18 @@ func TestRunRefusesWhereThereIsNoTerminal(t *testing.T) {
 	r, w, _ := os.Pipe()
 	defer r.Close()
 	defer w.Close()
-	err := Run(Options{Out: w, Collect: func() sysinfo.Status { return filled() }})
-	if err != ErrNoTerminal {
-		t.Errorf("Run в трубу вернул %v, ждали ErrNoTerminal", err)
+	req, err := Run(Options{Out: w, Collect: func() sysinfo.Status { return filled() }})
+	if err != ErrNoTerminal || req != nil {
+		t.Errorf("Run в трубу вернул %v / %v, ждали ErrNoTerminal и никакой команды", req, err)
 	}
 	t.Setenv("TERM", "dumb")
-	if err := Run(Options{Out: os.Stdout, Collect: func() sysinfo.Status { return filled() }}); err != ErrNoTerminal {
+	if _, err := Run(Options{Out: os.Stdout, Collect: func() sysinfo.Status { return filled() }}); err != ErrNoTerminal {
 		t.Errorf("Run при TERM=dumb вернул %v, ждали ErrNoTerminal", err)
 	}
 }
 
 func TestRunNeedsACollector(t *testing.T) {
-	if err := Run(Options{Out: os.Stdout}); err == nil {
+	if _, err := Run(Options{Out: os.Stdout}); err == nil {
 		t.Error("Run без сборщика не пожаловался")
 	}
 }
@@ -664,19 +698,24 @@ func TestScreenDoesNotInventProcessCounts(t *testing.T) {
 // страница руководства. Если он разойдётся, разойдутся все три.
 func TestCommandsPageNamesEveryCommand(t *testing.T) {
 	s := newTestScreen(filled(), true, 100)
-	s.menu = true
-	page := strings.Join(s.frame(), "\n")
+	s.tab = menuTab
+	page := plain(strings.Join(s.frame(), "\n"))
 	for _, c := range cli.Commands {
-		if !strings.Contains(plain(page), c.Name) {
+		if !strings.Contains(page, c.Name) {
 			t.Errorf("экран не называет подкоманду %q", c.Name)
 		}
 	}
-	if !strings.Contains(plain(page), "ничего не запускает") {
-		t.Error("экран не говорит, что список только называет команды")
+	// Строка «Экран ничего не запускает» снята, и не как формулировка: под
+	// списком стоит то, что сделает Enter на выбранной строке.
+	if strings.Contains(page, "ничего не запускает") {
+		t.Error("экран всё ещё говорит, что ничего не запускает")
+	}
+	if !strings.Contains(page, "Enter") {
+		t.Error("список не говорит, что делает Enter")
 	}
 	for _, cols := range []int{40, 60, 80, 120, 200} {
 		s := newTestScreen(filled(), true, cols)
-		s.menu = true
+		s.tab = menuTab
 		for _, line := range s.frame() {
 			if w := plainWidth(s.t.clip(line, cols)); w > cols {
 				t.Errorf("список команд на %d колонках: строка в %d ячеек", cols, w)
@@ -685,30 +724,128 @@ func TestCommandsPageNamesEveryCommand(t *testing.T) {
 	}
 }
 
-// «?» открывает и закрывает список, Esc из списка возвращает на экран, а не
+// Список виден без подсказки: он назван в полосе разделов на любой ширине, от
+// сорока колонок и выше, и в подвале тоже. Клавиша «?» осталась, но знать её
+// больше не нужно — и это единственное требование, которое здесь проверяется.
+func TestCommandsAreNamedOnEveryWidth(t *testing.T) {
+	for _, l := range []lang.Lang{lang.RU, lang.EN} {
+		name := sections[menuTab].title(l)
+		for _, cols := range []int{40, 60, 80, 120, 200} {
+			s := newTestScreen(filled(), true, cols)
+			s.l = l
+			frame := s.frame()
+			strip, foot := plain(frame[1]), plain(frame[len(frame)-1])
+			if !strings.Contains(strip, name) {
+				t.Errorf("%s / %d колонок: КОМАНДЫ нет в полосе разделов: %q", l, cols, strip)
+			}
+			if !strings.Contains(foot, name) && !strings.Contains(foot, "1 ") {
+				t.Errorf("%s / %d колонок: подвал не зовёт в КОМАНДЫ: %q", l, cols, foot)
+			}
+		}
+	}
+}
+
+// «?» и цифра 1 ведут в раздел КОМАНДЫ, Esc из него возвращает на чтение, а не
 // закрывает программу.
-func TestQuestionMarkOpensTheCommandsAndEscBacksOut(t *testing.T) {
+func TestQuestionMarkAndDigitOpenTheCommands(t *testing.T) {
 	s := newTestScreen(filled(), true, 100)
 	ch := make(chan sample, 1)
-	if s.handle(key{kind: keyRune, r: '?'}, ch); !s.menu {
-		t.Fatal("«?» не открыла список команд")
+	if s.handle(key{kind: keyRune, r: '?'}, ch); s.tab != menuTab {
+		t.Fatal("«?» не привела в раздел КОМАНДЫ")
 	}
 	if s.handle(key{kind: keyEsc}, ch) {
-		t.Error("Esc из списка закрыл экран, а должен был вернуть на снимок")
+		t.Error("Esc из списка закрыл экран, а должен был вернуть на чтение")
 	}
-	if s.menu {
-		t.Error("Esc не закрыл список")
+	if s.tab != openTab {
+		t.Errorf("Esc из списка привёл в раздел %d, ждали ОБЗОР", s.tab)
 	}
-	s.handle(key{kind: keyRune, r: '?'}, ch)
-	if s.handle(key{kind: keyRune, r: '?'}, ch); s.menu {
-		t.Error("повторная «?» не закрыла список")
+	if s.handle(key{kind: keyRune, r: '1'}, ch); s.tab != menuTab {
+		t.Fatal("цифра 1 не привела в раздел КОМАНДЫ")
 	}
-	s.handle(key{kind: keyRune, r: '?'}, ch)
-	if s.handle(key{kind: keyRight}, ch); s.menu {
-		t.Error("переход к разделу оставил список открытым")
+	if s.handle(key{kind: keyLeft}, ch); s.tab == menuTab {
+		t.Error("← не вывела из списка")
 	}
-	if !s.handle(key{kind: keyEsc}, ch) {
-		t.Error("Esc вне списка не закрыл экран")
+	s.tab = menuTab
+	if !s.handle(key{kind: keyRune, r: 'q'}, ch) {
+		t.Error("q из списка не закрыла экран")
+	}
+}
+
+// Стрелки и цифры выбирают строку, и курсор не заворачивается: «вниз до
+// упора» не должно означать «наверх».
+func TestArrowsAndDigitsChooseACommand(t *testing.T) {
+	s := newTestScreen(filled(), true, 100)
+	s.tab = menuTab
+	ch := make(chan sample, 1)
+	if s.handle(key{kind: keyDown}, ch); s.pick != 1 {
+		t.Errorf("вниз дало строку %d", s.pick)
+	}
+	if s.handle(key{kind: keyRune, r: '3'}, ch); s.pick != 2 {
+		t.Errorf("цифра 3 дала строку %d", s.pick)
+	}
+	if s.tab != menuTab {
+		t.Error("цифра на списке сменила раздел, а должна была выбрать команду")
+	}
+	for i := 0; i < len(cli.Commands)+5; i++ {
+		s.handle(key{kind: keyUp}, ch)
+	}
+	if s.pick != 0 {
+		t.Errorf("курсор ушёл выше первой строки: %d", s.pick)
+	}
+	for i := 0; i < len(cli.Commands)+5; i++ {
+		s.handle(key{kind: keyDown}, ch)
+	}
+	if s.pick != len(cli.Commands)-1 {
+		t.Errorf("курсор ушёл ниже последней строки: %d", s.pick)
+	}
+	// Курсор на строке, которую видно: на низком терминале список длиннее
+	// тела раздела, и невидимый курсор запускает не то, что выбирали.
+	short := newTestScreen(filled(), true, 100)
+	short.rows, short.tab = 12, menuTab
+	for i := 0; i < len(cli.Commands); i++ {
+		short.handle(key{kind: keyDown}, ch)
+	}
+	line := commandsHead + short.pick
+	if line < short.scroll || line >= short.scroll+short.bodyHeight() {
+		t.Errorf("курсор на строке %d не попал в окно [%d, %d)",
+			line, short.scroll, short.scroll+short.bodyHeight())
+	}
+}
+
+// Enter запускает — и ровно то, что объявлено в internal/cli рядом с
+// подкомандой. Ничего не запускает только purge: он необратим.
+func TestEnterStartsWhatTheListPromises(t *testing.T) {
+	for i, c := range cli.Commands {
+		s := newTestScreen(filled(), true, 100)
+		s.tab, s.pick = menuTab, i
+		ch := make(chan sample, 1)
+		closed := s.handle(key{kind: keyEnter}, ch)
+		switch c.Start {
+		case cli.StartRun, cli.StartPath:
+			if !closed || s.req == nil || s.req.Command != c.Name {
+				t.Errorf("%s: Enter не заказал подкоманду (закрыт %v, заказ %v)", c.Name, closed, s.req)
+			}
+		case cli.StartHere:
+			if closed || s.req != nil {
+				t.Errorf("%s: Enter закрыл экран, а подкоманда — сам этот экран", c.Name)
+			}
+			if s.tab != openTab {
+				t.Errorf("%s: Enter не показал новый замер: раздел %d", c.Name, s.tab)
+			}
+		default:
+			if closed || s.req != nil {
+				t.Errorf("%s: экран взялся запускать то, что запускать не должен", c.Name)
+			}
+			if s.said.Empty() {
+				t.Errorf("%s: Enter промолчал, а должен был сказать, где эта команда живёт", c.Name)
+			}
+		}
+	}
+	// purge — тот единственный, что не запускается ниоткуда.
+	for _, c := range cli.Commands {
+		if c.Name == "purge" && c.Start != cli.StartElsewhere {
+			t.Error("purge стал запускаться с экрана — необратимый шаг вышел из-под руки")
+		}
 	}
 }
 
@@ -730,10 +867,12 @@ func TestScreenDrawsInBothLanguages(t *testing.T) {
 					}
 				}
 			}
-			s.tab, s.scroll, s.menu = 0, 0, true
-			for _, line := range s.frame() {
-				if w := plainWidth(s.t.clip(line, cols)); w > cols {
-					t.Errorf("%s / список команд / %d колонок: строка в %d ячеек", l, cols, w)
+			for _, pick := range []int{0, len(cli.Commands) - 1} {
+				s.tab, s.scroll, s.pick = menuTab, 0, pick
+				for _, line := range s.frame() {
+					if w := plainWidth(s.t.clip(line, cols)); w > cols {
+						t.Errorf("%s / список команд / %d колонок: строка в %d ячеек", l, cols, w)
+					}
 				}
 			}
 		}
@@ -741,8 +880,11 @@ func TestScreenDrawsInBothLanguages(t *testing.T) {
 
 	// Английский экран должен быть английским: имена разделов и подвал
 	// приходят из словаря, а не остаются русскими.
-	if got := sections[0].title(lang.EN); got != "OVERVIEW" {
-		t.Errorf("первый раздел по-английски = %q", got)
+	if got := sections[openTab].title(lang.EN); got != "OVERVIEW" {
+		t.Errorf("раздел чтения по-английски = %q", got)
+	}
+	if got := sections[menuTab].title(lang.EN); got != "COMMANDS" {
+		t.Errorf("список команд по-английски = %q", got)
 	}
 	s := newTestScreen(filled(), true, 120)
 	s.l = lang.EN

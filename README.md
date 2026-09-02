@@ -604,9 +604,33 @@ In a terminal, `digitdisk` and `digitdisk status` open a live screen in the
 Digitable Focus palette: the sections of the printed report as pages that keep
 measuring themselves. `← →` and `Tab` move between them, `1`…`9` go straight to
 one, `↑ ↓` scroll a long one, `p` holds, `r` measures now, `l` switches the
-language, `?` lists the subcommands, `q` leaves. There are ten sections; the
-digits reach the first nine, and the tenth — НЕ ПРОЧИТАНО — sits to the left of
-the first, one `←` away from ОБЗОР.
+language, `q` leaves. There are eleven sections; the digits reach the first
+nine, and the last two — ВИДЕОКАРТЫ and НЕ ПРОЧИТАНО — sit to the left of the
+first, one and two `←` away from it.
+
+The first section is **КОМАНДЫ** (COMMANDS), and it does more than name. It is
+the same list of subcommands `--help` and the man page are built from, except
+that here the chosen line **runs**: `↑ ↓` and `1`…`7` choose, `Enter` starts.
+It is named in the section strip and in the footer at every width from forty
+columns up — no key has to be known in advance; `?` still leads there too.
+
+`analyze` and `clean` ask for a path on the same input line `digitdisk analyze`
+without a path already opens: it offers the **current directory**, completes on
+`Tab` and lists the matching subdirectories. Agreeing is one keystroke, so the
+line says what that costs: walking a home directory is millions of entries and
+minutes. The numbers move from the first second, and `q` stops the walk.
+
+Cleaning from the screen goes **the same road** as `digitdisk clean`: the
+core's verdict, the plan with its breakdown by разряд and its trash, and the
+exact number of files typed out by hand. `purge` is started from no screen
+under any condition — it is the one irreversible step, and it is typed out in
+the shell in full; `restore` and `history` live in the ЖУРНАЛ section of the
+`analyze` screen, and the list says so on the line under it.
+
+A subcommand run from the screen prints as it always prints, and `Enter` brings
+the status screen back. The program does not restart in between: the terminal
+passes from screen to screen, while the process, the chosen language and
+everything else stay as they were.
 
 
 `l` is the one key here that touches anything outside the screen: it turns the
@@ -615,10 +639,6 @@ puts the new choice into `settings.conf`, so that the next run — and `digitdis
 clean` tomorrow — speaks the same language. It says which file it wrote, on the
 screen, for the six seconds after; a program that silently rewrites a file in a
 home directory is the thing this tool is for cleaning up after.
-
-The `?` list only names the commands; it runs none of them. This screen is
-`status`, which reads and writes nothing, and `clean` moves files — a command
-that changes the disk is not put one keystroke away from a reading.
 
 Everywhere else it prints, exactly as it always has. A pipe, a file,
 `/dev/null`, `--json`, `TERM=dumb` and an empty `TERM` all receive the text

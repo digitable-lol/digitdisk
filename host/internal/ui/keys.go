@@ -6,8 +6,64 @@ package ui
 import (
 	"bufio"
 	"os"
+	"sync"
 	"unicode/utf8"
 )
+
+// ОДНА КЛАВИАТУРА НА ВЕСЬ ПРОЦЕСС.
+//
+// Экранов теперь два и они сменяют друг друга: с экрана состояния
+// запускается analyze, из него — возврат обратно. Пока каждый экран открывал
+// свой /dev/tty и заводил своё чтение, смена стоила читателю НАЖАТИЙ, и не
+// одного: чтение предыдущего экрана остаётся висеть в read(2) на том же
+// терминале — закрытие файла его не будит, — и первым получает всё, что
+// набрано дальше. Экран, которому это предназначалось, не получает ничего и
+// выглядит зависшим.
+//
+// Поэтому терминал открывается один раз и читается одной горутиной, а экраны
+// берут её канал по очереди. Сырой режим по-прежнему у каждого свой: его
+// ставят и снимают вокруг отрисовки, и это к чтению отношения не имеет.
+//
+// Набранное между экранами не пропадает, а лежит в канале: читатель, набравший
+// вперёд, получает своё нажатие на следующем экране, а не в никуда.
+var (
+	kbdOnce sync.Once
+	kbdTTY  *os.File
+	kbdKeys chan key
+	kbdErr  error
+)
+
+// keyboard hands out the process's one terminal and the keys read from it.
+func keyboard() (*os.File, <-chan key, error) {
+	kbdOnce.Do(func() {
+		f, err := openInput()
+		if err != nil {
+			kbdErr = err
+			return
+		}
+		kbdTTY, kbdKeys = f, make(chan key, 64)
+		go readKeys(f, kbdKeys)
+	})
+	return kbdTTY, kbdKeys, kbdErr
+}
+
+// WaitKey holds printed output on the terminal until the reader has read it,
+// and answers on the first key they press.
+//
+// It reads through the same one keyboard the screens read through, and that is
+// the whole reason it lives here rather than in the caller: a second reader of
+// the same terminal loses keys to the first — see above.  With no terminal to
+// read it returns at once, which is right: nobody is watching.
+func WaitKey(out *os.File, prompt string) {
+	_, keys, err := keyboard()
+	if err != nil {
+		return
+	}
+	if prompt != "" {
+		_, _ = out.WriteString(prompt)
+	}
+	<-keys
+}
 
 // kind is what a keypress turned out to be.
 type kind int

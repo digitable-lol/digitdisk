@@ -37,12 +37,16 @@ func init() {
 		"  замер %s назад · каждые %s":             "  sampled %s ago · every %s",
 		"  замер %s назад":                         "  sampled %s ago",
 
-		"← → разделы · ↑ ↓ прокрутка · p пауза · r замер · l язык · ? команды · q выход ": "← → sections · ↑ ↓ scroll · p pause · r sample · l lang · ? commands · q quit ",
-		"← → разделы · p пауза · r замер · l язык · ? команды · q выход ":                 "← → sections · p pause · r sample · l lang · ? commands · q quit ",
-		"← → · p · r · l язык · ? команды · q выход ":                                     "← → · p · r · l lang · ? commands · q quit ",
-		"← → · p · r · l · q выход ":                                                      "← → · p · r · l · q quit ",
-		"↑ ↓ прокрутка · ? или Esc назад · q выход ":                                      "↑ ↓ scroll · ? or Esc back · q quit ",
-		"? назад · q выход ": "? back · q quit ",
+		"← → разделы · ↑ ↓ прокрутка · p пауза · r замер · l язык · 1 КОМАНДЫ · q выход ": "← → sections · ↑ ↓ scroll · p pause · r sample · l lang · 1 COMMANDS · q quit ",
+		"← → разделы · p пауза · r замер · l язык · 1 КОМАНДЫ · q выход ":                 "← → sections · p pause · r sample · l lang · 1 COMMANDS · q quit ",
+		"← → · p · r · l язык · 1 КОМАНДЫ · q выход ":                                     "← → · p · r · l lang · 1 COMMANDS · q quit ",
+		"1 КОМАНДЫ · q выход ": "1 COMMANDS · q quit ",
+
+		// Подвал раздела КОМАНДЫ: там клавиши другие — выбор и запуск.
+		"↑ ↓ и 1…7 выбрать · Enter запустить · ← → разделы · l язык · q выход ": "↑ ↓ 1…7 choose · Enter runs · ← → sections · l lang · q quit ",
+		"↑ ↓ выбрать · Enter запустить · ← → разделы · q выход ":                "↑ ↓ choose · Enter runs · ← → sections · q quit ",
+		"↑ ↓ · Enter запустить · q выход ":                                      "↑ ↓ · Enter runs · q quit ",
+		"Enter запустить · q выход ":                                            "Enter runs · q quit ",
 
 		// Обзор.
 		"замер идёт…":       "sampling…",
@@ -124,11 +128,14 @@ func init() {
 		"прочитано всё, чего ждали": "everything expected was read",
 		"источник назван вместе с причиной; нулём его отсутствие не притворяется": "the source is named with its reason; its absence never poses as a zero",
 
-		// Список команд по «?».
+		// Раздел КОМАНДЫ: он же список, он же место, откуда работают.
 		"КОМАНДЫ": "COMMANDS",
-		"l — язык вывода (ru ⇄ en), выбор запоминается":             "l — output language (ru ⇄ en), the choice is kept",
-		"Экран ничего не запускает: команды набираются в оболочке.": "The screen runs nothing: commands are typed in the shell.",
-		"Ключи: digitdisk --help.  Подробно: man digitdisk":         "Flags: digitdisk --help.  In full: man digitdisk",
+		"l — язык вывода (ru ⇄ en), выбор запоминается":                                "l — output language (ru ⇄ en), the choice is kept",
+		"Ключи: digitdisk --help.  Подробно: man digitdisk":                            "Flags: digitdisk --help.  In full: man digitdisk",
+		"Enter — новый замер: этот экран и есть status":                                "Enter — a fresh sample: this screen IS status",
+		"Enter — выполнить `digitdisk %s` и вернуться сюда":                            "Enter — run `digitdisk %s` and come back here",
+		"Enter — спросить путь (предложит текущий каталог) и выполнить `digitdisk %s`": "Enter — ask for a path (the current directory offered) and run `digitdisk %s`",
+		"не отсюда: %s": "not from here: %s",
 
 		// Отказы живого экрана.
 		"вывод не в терминал: живой экран невозможен": "output is not a terminal: no live screen",

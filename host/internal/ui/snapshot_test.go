@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"digitdisk/internal/cli"
 	"digitdisk/internal/lang"
 )
 
@@ -49,11 +50,13 @@ func TestSnapshotDump(t *testing.T) {
 				for _, l := range []lang.Lang{lang.RU, lang.EN} {
 					for tab := 0; tab < len(sections); tab++ {
 						for _, scroll := range []int{0, 1, 7, 999} {
-							for _, menu := range []bool{false, true} {
+							// Курсор списка команд — часть кадра: он
+							// красит строку и двигает прокрутку.
+							for _, pick := range []int{0, 3, len(cli.Commands) - 1} {
 								s := snapScreen(dep.d, rows, cols, l)
-								s.tab, s.scroll, s.menu = tab, scroll, menu
-								fmt.Fprintf(&b, "== цвет=%s кол=%d строк=%d язык=%v вкладка=%d прокрутка=%d список=%v\n",
-									dep.name, cols, rows, l, tab, scroll, menu)
+								s.tab, s.scroll, s.pick = tab, scroll, pick
+								fmt.Fprintf(&b, "== цвет=%s кол=%d строк=%d язык=%v вкладка=%d прокрутка=%d строка=%d\n",
+									dep.name, cols, rows, l, tab, scroll, pick)
 								// draw() обрезает каждую строку по ширине окна —
 								// это часть раскладки, и она входит в снимок.
 								for i, line := range s.frame() {
