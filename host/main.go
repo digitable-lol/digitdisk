@@ -7,12 +7,17 @@
 //
 // Subcommands:
 //
-//	digitdisk status [--json] [--top N] [--sample MS]
+//	digitdisk status [--json] [--top N] [--sample MS] [--live|--plain] [--interval MS]
 //	digitdisk analyze <путь> [--json] [--top N] [--cross-device] [--max-depth N]
+//
+// `status` draws a live screen when it is talking to a terminal and prints the
+// same snapshot as text when it is not, so a pipe, a file and a script see
+// exactly what they always saw.
 package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -21,14 +26,17 @@ import (
 	"digitdisk/internal/report"
 	"digitdisk/internal/scan"
 	"digitdisk/internal/sysinfo"
+	"digitdisk/internal/ui"
 )
 
 const usage = `digitdisk — снимок системы и разбор дерева каталогов (только чтение).
 
 Использование:
-  digitdisk status  [--json] [--top N] [--sample MS]
+  digitdisk status  [--json] [--top N] [--sample MS] [--live|--plain] [--interval MS]
       Снимок системы из /proc и /sys: ядро и дистрибутив, время работы,
       загрузка, память, процессы, диски, сеть, температура.
+      В терминале — живой экран, который обновляется сам; в трубу, в файл и
+      под --json — та же печать текстом, что и всегда.
 
   digitdisk analyze <путь> [--json] [--top N] [--cross-device] [--max-depth N]
       Обход дерева через lstat: символические ссылки не раскрываются,
@@ -41,6 +49,17 @@ const usage = `digitdisk — снимок системы и разбор дер�
   --sample MS      окно замера загрузки ЦП, мс (status, по умолчанию 200)
   --cross-device   заходить на смонтированные другие файловые системы
   --max-depth N    предел глубины обхода (0 — без предела)
+  --live           живой экран; без терминала — ошибка, а не тихая печать
+  --plain          печать одним снимком, даже когда вывод в терминал
+  --interval MS    период обновления живого экрана, мс (по умолчанию 2000)
+
+Живой экран (status):
+  ← →, Tab      предыдущий и следующий раздел      1…9  раздел сразу
+  ↑ ↓, PgUp/Dn  прокрутка длинного раздела         p    пауза
+  r             замер сейчас                       q    выход
+
+  Палитра — Digitable Focus. DIGITDISK_PALETTE=carbon|paper|signal выбирает
+  вариант (по умолчанию carbon); NO_COLOR и TERM=dumb уважаются.
 
 Удаления нет ни в каком виде: digitdisk только смотрит и считает.
 `
@@ -74,6 +93,9 @@ func cmdStatus(args []string) error {
 	asJSON := fs.Bool("json", false, "машиночитаемый вывод")
 	top := fs.Int("top", 10, "сколько процессов в каждом списке")
 	sample := fs.Int("sample", 200, "окно замера загрузки ЦП, мс")
+	live := fs.Bool("live", false, "живой экран, даже если о терминале не спрашивали")
+	plain := fs.Bool("plain", false, "печать одним снимком, без живого экрана")
+	interval := fs.Int("interval", 2000, "период обновления живого экрана, мс")
 	rest, err := parseFlags(fs, args)
 	if err != nil {
 		return err
@@ -85,12 +107,36 @@ func cmdStatus(args []string) error {
 	c := sysinfo.New()
 	c.Top = *top
 	c.SampleWindow = time.Duration(*sample) * time.Millisecond
-	st := c.Collect()
 
+	// A machine reader is answered first and never gets the screen: --json is
+	// how scripts call this tool, and its output must not depend on where it
+	// is pointed.
 	if *asJSON {
-		return writeJSON(st)
+		return writeJSON(c.Collect())
 	}
-	report.Status(os.Stdout, st)
+
+	// The screen is the default only when there is a terminal to draw it on.
+	// A pipe, a file, /dev/null, TERM=dumb and an empty TERM all fall through
+	// to the printed report, which is what they have always received.
+	if *live || (!*plain && ui.Available(os.Stdout)) {
+		err := ui.Run(ui.Options{
+			Out:      os.Stdout,
+			Interval: time.Duration(*interval) * time.Millisecond,
+			Palette:  ui.PaletteByName(os.Getenv("DIGITDISK_PALETTE")),
+			Collect:  c.Collect,
+		})
+		switch {
+		case err == nil:
+			return nil
+		case !errors.Is(err, ui.ErrNoTerminal):
+			return err
+		case *live:
+			return fmt.Errorf("%w; без --live тот же снимок печатается текстом", err)
+		}
+		// The terminal went away between the question and the answer.  Print.
+	}
+
+	report.Status(os.Stdout, c.Collect())
 	return nil
 }
 
