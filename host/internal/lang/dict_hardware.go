@@ -69,7 +69,7 @@ func init() {
 
 		// ── Ключ --gpu-tool: справка и пояснение самого flag ─────────
 		"спросить о видеокартах программу их драйвера (nvidia-smi)":                "ask the driver's own program (nvidia-smi) about the video cards",
-		"  --gpu-tool        status: спросить о видеокартах чужую программу":       "  --gpu-tool        status: ask an outside program about the video cards",
+		"  --gpu-tool        status, run: спросить о видеокартах чужую программу":  "  --gpu-tool        status, run: ask an outside program about the cards",
 		"                    (nvidia-smi) — то, чего драйвер не публикует файлами": "                    (nvidia-smi) — what the driver publishes in no file",
 
 		// ── Причины неизмеренного: печатает только --why ─────────────

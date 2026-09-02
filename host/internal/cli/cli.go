@@ -30,7 +30,8 @@ type Command struct {
 
 // Commands is the list.  The order is the order everything shows it: reading
 // first, then the three steps of removal, then the two that look at what has
-// been decided and done.
+// been decided and done, and last the one that does not look at the disk at
+// all — it runs somebody else's command and says what it cost.
 var Commands = []Command{
 	{"status", "", "снимок системы: ЦП, память, диски, сеть; в терминале — живой экран"},
 	{"analyze", "<путь>", "обход дерева: каталоги по размеру и самые крупные файлы"},
@@ -39,6 +40,7 @@ var Commands = []Command{
 	{"purge", "<корзина>", "стереть корзину: необратимо, требует --confirm N"},
 	{"places", "", "справочник известных мест и что из него есть на этой машине"},
 	{"history", "<путь>", "чем кончались прошлые уборки под этим корнем"},
+	{"run", "<команда>", "запустить команду и показать, во что она обошлась"},
 }
 
 // Default is the subcommand a bare `digitdisk` runs.  Reading is the frequent
@@ -54,6 +56,12 @@ var (
 	HelpArgs    = []string{"-h", "--help", "help"}
 	VersionArgs = []string{"-V", "--version", "version"}
 )
+
+// RunArgs is the short spelling of the подкоманда run: `digitdisk -c make
+// -j8` and `digitdisk run make -j8` are one command.  It is a list here for
+// the reason HelpArgs is: main parses it itself, before any подкоманда looks
+// at anything, and the страница руководства promises exactly this spelling.
+var RunArgs = []string{"-c"}
 
 // Is reports whether arg is one of list.
 func Is(list []string, arg string) bool {
@@ -109,17 +117,22 @@ func Usage(l lang.Lang) string {
 var keys = []string{
 	"",
 	"Ключи:",
+	"  -c <команда>      короткий вид run: всё после -c принадлежит команде,",
+	"                    свои ключи ставятся до неё; одна строка с пробелами",
+	"                    и метасимволами исполняется оболочкой ($SHELL)",
 	"  --json            машиночитаемый вывод; принимают все подкоманды",
 	"  --lang ЯЗЫК       ru или en на этот запуск; принимают все подкоманды",
 	"  --top N           строк в списках: status 10, analyze и clean 15,",
 	"                    places 40, history 20; 0 — без предела",
 	"  --why             status: что не измерено и почему",
 	"  --sample MS       status: окно замера загрузки ЦП, по умолчанию 200",
-	"  --gpu-tool        status: спросить о видеокартах чужую программу",
+	"  --gpu-tool        status, run: спросить о видеокартах чужую программу",
 	"                    (nvidia-smi) — то, чего драйвер не публикует файлами",
 	"  --live            status, analyze: живой экран; без терминала — ошибка",
-	"  --plain           status, analyze: печать без экрана, даже в терминале",
-	"  --interval MS     status: период обновления живого экрана, 2000",
+	"  --plain           status, analyze: печать без экрана; run: без строки",
+	"                    состояния — и то и другое даже в терминале",
+	"  --interval MS     status: период обновления живого экрана, 2000;",
+	"                    run: период обновления строки состояния, 1000",
 	"  --cross-device    analyze, clean: заходить на другие файловые системы",
 	"  --max-depth N     analyze, clean: предел глубины обхода; 0 — без предела",
 	"  --places ФАЙЛ     analyze, clean, places: свой справочник известных мест",
@@ -134,6 +147,11 @@ var keys = []string{
 	"",
 	"Экран status: ← → разделы (их десять), 1…9 раздел сразу, ↑ ↓ PgUp/PgDn прокрутка,",
 	"  p пауза, r замер, l язык, ? команды, q выход.",
+	"",
+	"Строка состояния run: последняя строка терминала, вывод команды её не",
+	"  задевает; в трубу и в файл её нет вовсе. Полноэкранная программа (vim,",
+	"  ssh, less) забирает терминал — строка уходит и возвращается сама.",
+	"  Код возврата и сигнал — команды, не обёртки. Сводка идёт в поток ошибок.",
 	"",
 	"Экран analyze: пока идёт обход — растущие числа и чем наполняется дерево;",
 	"  перечень помечен ПРЕДВАРИТЕЛЬНО, пока он догадка, q прерывает обход.",

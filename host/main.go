@@ -36,8 +36,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"digitdisk/internal/clean"
@@ -51,6 +54,11 @@ import (
 	"digitdisk/internal/settings"
 	"digitdisk/internal/sysinfo"
 	"digitdisk/internal/ui"
+
+	// The package is named for what it does; the import is renamed because
+	// this file already has a run of its own — the one that dispatches a
+	// command line.
+	wrap "digitdisk/internal/run"
 )
 
 func main() {
@@ -68,6 +76,7 @@ var handlers = map[string]func([]string) error{
 	"purge":   cmdPurge,
 	"places":  cmdPlaces,
 	"history": cmdHistory,
+	"run":     cmdRun,
 }
 
 // run dispatches one command line and returns the code the process exits
@@ -97,7 +106,15 @@ func run(args []string) int {
 	}
 
 	name, rest := cli.Default, args
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+	switch i := runSplit(args); {
+	case i >= 0:
+		// `digitdisk -c make -j8` is `digitdisk run make -j8`.  The -c
+		// itself is dropped and the two halves are joined: what stood
+		// before it is ours, what stands after it is the command's, and
+		// нашими ключами команда не распоряжается.
+		name = "run"
+		rest = append(append([]string{}, args[:i]...), args[i+1:]...)
+	case len(args) > 0 && !strings.HasPrefix(args[0], "-"):
 		if !cli.Known(args[0]) {
 			l := langOnly(args)
 			fmt.Fprintf(os.Stderr, "digitdisk: "+l.T("неизвестная подкоманда %q")+"\n\n%s", args[0], cli.Usage(l))
@@ -114,12 +131,77 @@ func run(args []string) int {
 		return 2
 	}
 	if err := h(rest); err != nil {
+		// A wrapped command's own код возврата travels out as an error
+		// nobody prints: `digitdisk run false` must be `false` in a
+		// script, and a wrapper that turned every ending into 1 could
+		// not be put into one.
+		var st exitStatus
+		if errors.As(err, &st) {
+			if st.err != nil {
+				fmt.Fprintf(os.Stderr, "digitdisk: %s\n", lang.InLang(st.err, langChoice.Lang))
+			}
+			return st.code
+		}
 		// The refusal is rendered here and nowhere else: it was built four
 		// levels down, where nobody knows what language the reader has.
 		fmt.Fprintf(os.Stderr, "digitdisk: %s\n", lang.InLang(err, langChoice.Lang))
 		return 1
 	}
 	return 0
+}
+
+// exitStatus carries a код возврата out of a подкоманда without a word being
+// printed about it.  Only run uses it, and only because the ending it has to
+// report is not its own.
+//
+// Its Error text is never read by anybody: run() answers exitStatus before it
+// prints anything, and the message a person sees, when there is one, is the
+// wrapped err — which is a lang.Error and speaks their language.
+type exitStatus struct {
+	code int
+	err  error
+}
+
+func (e exitStatus) Error() string { return "exit status " + strconv.Itoa(e.code) }
+
+func (e exitStatus) Unwrap() error { return e.err }
+
+// runSplit finds the -c that says «everything after this is the command».
+//
+// The rule is the one env(1), nice(1) and time(1) settled on long ago, and it
+// is the only rule under which `digitdisk -c make -j8` can work at all: OUR
+// keys stand before the command, the command's keys stand after it, and -c is
+// the line between them.  Otherwise --json in `digitdisk -c ls --json` would
+// belong to whichever of the two asked for it more loudly.
+//
+// The search stops at the first word that is not a key of ours: `digitdisk
+// clean ~ -c` is clean's business, and `digitdisk фигня -c ls` is a mistake to
+// be refused rather than a command to be run.
+func runSplit(args []string) int {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if cli.Is(cli.RunArgs, a) {
+			return i
+		}
+		if !strings.HasPrefix(a, "-") {
+			return -1
+		}
+		if takesValue(a) {
+			i++
+		}
+	}
+	return -1
+}
+
+// takesValue reports whether one of run's own keys is followed by its value
+// as a separate word, so that `digitdisk --interval 500 -c make` finds the -c
+// behind the 500.
+func takesValue(a string) bool {
+	name := strings.TrimLeft(a, "-")
+	if strings.ContainsRune(name, '=') {
+		return false
+	}
+	return name == langFlagName || name == "interval"
 }
 
 func cmdStatus(args []string) error {
@@ -616,6 +698,125 @@ func cmdHistory(args []string) error {
 	}
 	report.History(os.Stdout, l, h, time.Now(), *top)
 	return nil
+}
+
+// cmdRun starts somebody else's command and says what it cost.
+//
+// It is the one подкоманда that prints nothing to standard output: that
+// descriptor is the command's, and everything of ours — the строка состояния
+// while it runs, the сводка after it, and the сводка under --json too — goes
+// to standard error.  `digitdisk run make | tee log` has to be `make | tee
+// log` byte for byte, and there is no other way to promise that.
+//
+// Ключи ставятся ДО команды, её собственные — после: `digitdisk run --json ls
+// --json` gives the first --json to us and the second to ls.  With the short
+// spelling the line between the two is -c itself.
+func cmdRun(args []string) error {
+	mine := ourArgs(args)
+	l := chooseLang(peekLang(mine), !peekJSON(mine))
+	fs := flag.NewFlagSet("run", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, l.T("машиночитаемый вывод"))
+	_ = fs.String("lang", "", l.T("язык вывода на этот запуск: ru или en"))
+	plain := fs.Bool("plain", false, l.T("без строки состояния, даже в терминале"))
+	interval := fs.Int("interval", 1000, l.T("период обновления строки состояния, мс"))
+	gpuTool := fs.Bool("gpu-tool", false, l.T("спросить о видеопамяти программу драйвера (nvidia-smi)"))
+	// Not parseFlags: it resumes parsing after a positional argument, and
+	// here the first positional argument is the command — after which every
+	// word belongs to the command and to nothing else.
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	rest := fs.Args()
+	if len(rest) == 0 {
+		return lang.Errorf("нужна команда: digitdisk run <команда> [доводы]")
+	}
+
+	res, err := wrap.Run(wrap.Options{
+		Args:     rest,
+		Shell:    shellFor(rest),
+		In:       os.Stdin,
+		Out:      os.Stdout,
+		Err:      os.Stderr,
+		Interval: time.Duration(*interval) * time.Millisecond,
+		Plain:    *plain,
+		GPUTool:  *gpuTool,
+		Lang:     l,
+	})
+	if err != nil {
+		// 127 and 126 are what a shell answers for «нет такой команды» and
+		// «не запускается», and a wrapper that answered anything else
+		// would break the scripts that already test for them.
+		return exitStatus{code: wrap.StartCode(err), err: err}
+	}
+
+	if *asJSON {
+		enc := json.NewEncoder(os.Stderr)
+		enc.SetEscapeHTML(false)
+		if err := enc.Encode(res); err != nil {
+			return err
+		}
+	} else {
+		for _, line := range wrap.Lines(l, res) {
+			fmt.Fprintf(os.Stderr, "digitdisk: %s\n", line)
+		}
+	}
+
+	if res.SignalNumber != 0 {
+		return raise(res)
+	}
+	return exitStatus{code: res.Code}
+}
+
+// raise ends this process the way the command ended: with the same signal.
+//
+// A код возврата of 128+N looks the same to a shell script, but it is not the
+// same thing to a shell: `digitdisk run sleep 60` interrupted from the
+// keyboard must leave the shell's own «^C» behaviour intact, and that happens
+// only if the process really dies of the signal.  If it does not — a signal
+// that stops instead of killing, a signal somebody blocked — the number is
+// what is left, and that is what is returned.
+func raise(res wrap.Result) error {
+	s := syscall.Signal(res.SignalNumber)
+	signal.Reset(s)
+	_ = syscall.Kill(os.Getpid(), s)
+	return exitStatus{code: res.Code}
+}
+
+// ourArgs is the part of a run command line that belongs to digitdisk: the
+// keys before the command's name, and the value of a key that takes one.
+//
+// It exists because --lang and --json are looked for before the flags are
+// parsed — see peekLang — and a wrapped `ls --lang` must not be mistaken for
+// a request to speak Latvian.
+func ourArgs(args []string) []string {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--" || !strings.HasPrefix(a, "-") {
+			return args[:i]
+		}
+		if takesValue(a) {
+			i++
+		}
+	}
+	return args
+}
+
+// shellFor decides whether what was typed is a line for a shell rather than
+// the name of a program.
+//
+// `digitdisk -c 'make && make test'` is what a person writes by habit, and -c
+// in every shell means «a line to interpret».  One argument holding spaces or
+// metacharacters is that line and is handed to $SHELL; anything else is a
+// program and its arguments, and is started directly, without a shell
+// standing between the wrapper and the thing being measured.
+func shellFor(args []string) string {
+	if len(args) != 1 || !strings.ContainsAny(args[0], " \t\n|&;<>()$`\"'*?") {
+		return ""
+	}
+	if sh := os.Getenv("SHELL"); sh != "" {
+		return sh
+	}
+	return "/bin/sh"
 }
 
 // ЯЗЫК ВЫВОДА

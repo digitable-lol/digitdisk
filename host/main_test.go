@@ -122,8 +122,11 @@ func TestКлючиКодаИСтраницыСовпадают(t *testing.T) {
 func ключиСтраницы(t *testing.T, manPage string) {
 	code := registered(t)
 	page := manFlags(t, manPage)
-	// Короткие написания разбирает run, и страница обязана их назвать.
-	for _, short := range []string{"-h", "-V"} {
+	// Короткие написания разбирает сам run (функция, не подкоманда), и
+	// страница обязана их назвать. -c приходит из cli.RunArgs, а не списком
+	// здесь: перечень написаний один, и он там же, где перечень подкоманд.
+	shorts := append([]string{"-h", "-V"}, cli.RunArgs...)
+	for _, short := range shorts {
 		if !page[short] {
 			t.Errorf("%s не называет короткий ключ %s", manPage, short)
 		}
@@ -302,4 +305,99 @@ func TestСправкаЕстьНаОбоихЯзыках(t *testing.T) {
 		t.Errorf("строк в справке: по-русски %d, по-английски %d — редакции разъехались", ruLines, enLines)
 	}
 	t.Logf("строк в справке %d на каждом языке", ruLines)
+}
+
+// TestКороткийВидRunРазбираетсяПоПравилуEnv — те два спорных случая, ради
+// которых правило вообще понадобилось.
+//
+// `digitdisk -c make -j8`: чей -j8? `digitdisk -c ls --json`: чей --json?
+// Ответ один и тот же, и он тот, на котором сошлись env(1), nice(1) и time(1):
+// всё после имени команды принадлежит команде, свои ключи ставятся до неё.
+// Здесь это проверяется на разборе, а не на глаз.
+func TestКороткийВидRunРазбираетсяПоПравилуEnv(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		at   int
+	}{
+		{[]string{"-c", "make", "-j8"}, 0},
+		{[]string{"--json", "-c", "ls", "--json"}, 1},
+		{[]string{"--interval", "500", "-c", "make"}, 2},
+		{[]string{"--lang", "en", "-c", "ls"}, 2},
+		{[]string{"clean", "~", "-c"}, -1},  // ключ подкоманды clean
+		{[]string{"analyze", "-c"}, -1},     // и её же
+		{[]string{"фигня", "-c", "ls"}, -1}, // слово, которого нет, — отказ
+		{[]string{"run", "make", "-c"}, -1}, // -c внутри команды не наш
+		{[]string{"status", "--json"}, -1},  // обычная подкоманда
+	} {
+		if at := runSplit(c.args); at != c.at {
+			t.Errorf("runSplit(%q) = %d, ожидалось %d", c.args, at, c.at)
+		}
+	}
+}
+
+// TestНашиКлючиОтделеныОтКомандных проверяет вторую половину того же правила:
+// то, что стоит до команды, обёртка забирает себе, а то, что после, не трогает
+// даже когда написано так же.
+func TestНашиКлючиОтделеныОтКомандных(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		ours []string
+	}{
+		{[]string{"--json", "ls", "--json"}, []string{"--json"}},
+		{[]string{"ls", "--lang", "ru"}, nil},
+		{[]string{"--interval", "500", "make", "-j8"}, []string{"--interval", "500"}},
+		{[]string{"--plain", "--", "ls"}, []string{"--plain"}},
+	} {
+		got := ourArgs(c.args)
+		if len(got) != len(c.ours) {
+			t.Errorf("ourArgs(%q) = %q, ожидалось %q", c.args, got, c.ours)
+			continue
+		}
+		for i := range got {
+			if got[i] != c.ours[i] {
+				t.Errorf("ourArgs(%q) = %q, ожидалось %q", c.args, got, c.ours)
+				break
+			}
+		}
+	}
+}
+
+// TestОболочкаТолькоДляОднойСтрокиСМетасимволами: `digitdisk -c 'a && b'` —
+// это строка для оболочки, `digitdisk -c make -j8` — программа и её доводы, и
+// перепутать их значит либо не выполнить «&&», либо завести лишний процесс
+// между обёрткой и тем, что она мерит.
+func TestОболочкаТолькоДляОднойСтрокиСМетасимволами(t *testing.T) {
+	t.Setenv("SHELL", "/bin/sh")
+	for _, c := range []struct {
+		args  []string
+		shell bool
+	}{
+		{[]string{"make"}, false},
+		{[]string{"make", "-j8"}, false},
+		{[]string{"make && make test"}, true},
+		{[]string{"ls -la"}, true},
+		{[]string{"go build ./..."}, true},
+		{[]string{"/usr/bin/true"}, false},
+	} {
+		if got := shellFor(c.args) != ""; got != c.shell {
+			t.Errorf("shellFor(%q) через оболочку = %v, ожидалось %v", c.args, got, c.shell)
+		}
+	}
+}
+
+// TestКодВозвратаЭтоКодКоманды — обёртка, которая не умеет вернуть чужой код,
+// в сценарий не ставится.
+func TestКодВозвратаЭтоКодКоманды(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		code int
+	}{
+		{[]string{"-c", "true"}, 0},
+		{[]string{"-c", "sh", "-c", "exit 3"}, 3},
+		{[]string{"-c", "нетакойкоманды-digitdisk"}, 127},
+	} {
+		if code := runQuiet(t, c.args); code != c.code {
+			t.Errorf("digitdisk %q вернул %d, ожидался %d", c.args, code, c.code)
+		}
+	}
 }
