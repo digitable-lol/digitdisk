@@ -34,6 +34,7 @@ type section struct {
 }
 
 var sections = []section{
+	{func(l lang.Lang) string { return l.T("КОМАНДЫ") }, (*screen).commandsPage},
 	{func(l lang.Lang) string { return l.T("ОБЗОР") }, (*screen).overview},
 	{func(l lang.Lang) string { return l.T("СИСТЕМА") }, (*screen).system},
 	{func(l lang.Lang) string { return l.T("ЗАГРУЗКА") }, (*screen).load},
@@ -45,6 +46,23 @@ var sections = []section{
 	{func(l lang.Lang) string { return l.T("ВИДЕОКАРТЫ") }, (*screen).gpus},
 	{func(l lang.Lang) string { return l.T("НЕ ПРОЧИТАНО") }, (*screen).missing},
 }
+
+const (
+	// menuTab is where КОМАНДЫ stands in the strip: FIRST, before every
+	// reading.  A person who has just opened the tool reads the strip left
+	// to right, and the word they meet first has to be the one that says
+	// the screen is a place to work from.  It also gets the digit 1.
+	menuTab = 0
+	// openTab is the section the screen opens on.  It is ОБЗОР and not
+	// КОМАНДЫ: a bare `digitdisk` is `status`, and `status` is a reading.
+	// The list is one ← , one 1 and one ? away, and it is named in the
+	// strip and in the подвал at every width this screen draws.
+	openTab = 1
+	// commandsHead is how many lines the КОМАНДЫ section draws above the
+	// list itself — пустая, заголовок, пустая.  The cursor line is
+	// commandsHead + pick, and that is what showPick scrolls to.
+	commandsHead = 3
+)
 
 // dash is the mark of a reading the system did not publish.  It is the mark
 // the printed report uses, and it is never a zero.
@@ -508,31 +526,69 @@ func minInt(a, b int) int {
 	return b
 }
 
-// commandsPage is the list of subcommands, shown over the body by «?».
+// commandsPage is the list of subcommands — the FIRST section of the screen,
+// and the one the work starts from.
 //
 // It comes from internal/cli, the same list the справка and digitdisk.1 are
 // built from, so the screen cannot come to name a command the tool does not
-// have or miss one it does.
+// have or miss one it does.  What each line DOES when it is chosen comes from
+// the same place: cli.Command.Start, beside the command, not beside the
+// drawing.
 //
-// It SHOWS and does not RUN, on purpose.  This screen is `status`, which reads
-// and writes nothing; a choice here that ran clean would put a command that
-// moves files one keystroke away from a read-only view, and past the --apply
-// and the --confirm that stand in front of removal everywhere else.  Two of
-// the commands need a path the keyboard has not been given anyway.
+// It RUNS now, and the rule that used to forbid it survives where it belongs.
+// The old rule was «этот экран читает, а clean пишет — значит экран не
+// запускает ничего», and it was too wide by six commands: analyze, places and
+// history change nothing, and hiding them behind leaving the program bought no
+// safety at all.  What the rule was actually protecting is still protected:
+//
+//   - clean chosen here does NOT move a file.  It opens the walk screen, and
+//     removal there goes down the road it always went — приговор ядра, план,
+//     точное число файлов, набранное руками.
+//   - purge is not started from any screen.  It is the one irreversible step,
+//     and it stays a thing a person types out in full.
 func (s *screen) commandsPage() []string {
 	t := s.t
 	out := []string{"", s.caption(s.l.T("КОМАНДЫ")), ""}
-	for _, c := range cli.Commands {
+	for i, c := range cli.Commands {
 		var r row
-		r.add("  "+fit(c.Call(s.l), 20), func(x string) string { return t.Bold(t.P.AccentSoft, x) })
+		mark, paint := "   ", func(x string) string { return t.Bold(t.P.AccentSoft, x) }
+		if i == s.pick {
+			mark, paint = " ▶ ", func(x string) string { return t.Bold(t.P.Accent, x) }
+		}
+		r.add(mark, func(x string) string { return t.Fg(t.P.Accent, x) })
+		r.add(fit(c.Call(s.l), 19), paint)
 		r.add(fit(s.l.T(c.Gloss), maxInt(1, s.cols-r.w-1)), func(x string) string {
 			return t.Fg(t.P.Foreground, strings.TrimRight(x, " "))
 		})
 		out = append(out, r.String())
 	}
+	// Цвет строки — это её смысл: что запускается, тем же цветом, что и
+	// остальные подсказки; что не запускается — красным, чтобы «не отсюда»
+	// читалось раньше, чем дочитана строка.
+	chosen := cli.Commands[s.pick]
+	tone := t.P.AccentSoft
+	if chosen.Start == cli.StartElsewhere {
+		tone = t.P.Red
+	}
+	out = append(out, "", t.Fg(tone, "  "+fit(s.startLine(chosen), maxInt(1, s.cols-3))))
 	out = append(out, "",
+		s.note(s.l.T("уборка с экрана идёт тем же путём, что `digitdisk clean`: приговор ядра, план, подтверждение числом.")),
 		s.note(s.l.T("l — язык вывода (ru ⇄ en), выбор запоминается")),
-		s.note(s.l.T("Экран ничего не запускает: команды набираются в оболочке.")),
 		s.note(s.l.T("Ключи: digitdisk --help.  Подробно: man digitdisk")))
 	return out
+}
+
+// startLine is what Enter on this line will do, said in one sentence.  It is
+// built from cli.Command.Start, so a command whose fate changes says the new
+// thing without this file being touched.
+func (s *screen) startLine(c cli.Command) string {
+	switch c.Start {
+	case cli.StartHere:
+		return s.l.T("Enter — новый замер: этот экран и есть status")
+	case cli.StartRun:
+		return s.l.F("Enter — выполнить `digitdisk %s` и вернуться сюда", c.Name)
+	case cli.StartPath:
+		return s.l.F("Enter — спросить путь (предложит текущий каталог) и выполнить `digitdisk %s`", c.Name)
+	}
+	return s.l.F("не отсюда: %s", s.l.T(c.Instead))
 }

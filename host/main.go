@@ -60,14 +60,25 @@ func main() {
 // handlers is the other half of cli.Commands: a name there and a function
 // here.  A map rather than a switch so the two lists can be compared by a
 // test instead of by eye.
-var handlers = map[string]func([]string) error{
-	"status":  cmdStatus,
-	"analyze": cmdAnalyze,
-	"clean":   cmdClean,
-	"restore": cmdRestore,
-	"purge":   cmdPurge,
-	"places":  cmdPlaces,
-	"history": cmdHistory,
+//
+// It is filled in init and not where it is declared because the живой экран
+// dispatches through it too — cmdStatus draws the screen, the screen names a
+// подкоманда, runFromScreen looks it up here — and a map literal naming
+// cmdStatus while cmdStatus reaches the map is a cycle Go refuses at compile
+// time.  Filling it in init says the same thing and is allowed to be circular,
+// which this is: one dispatch table, entered twice.
+var handlers map[string]func([]string) error
+
+func init() {
+	handlers = map[string]func([]string) error{
+		"status":  cmdStatus,
+		"analyze": cmdAnalyze,
+		"clean":   cmdClean,
+		"restore": cmdRestore,
+		"purge":   cmdPurge,
+		"places":  cmdPlaces,
+		"history": cmdHistory,
+	}
 }
 
 // run dispatches one command line and returns the code the process exits
@@ -165,14 +176,7 @@ func cmdStatus(args []string) error {
 	// A pipe, a file, /dev/null, TERM=dumb and an empty TERM all fall through
 	// to the printed report, which is what they have always received.
 	if *live || (!*plain && ui.Available(os.Stdout)) {
-		err := ui.Run(ui.Options{
-			Out:      os.Stdout,
-			Interval: time.Duration(*interval) * time.Millisecond,
-			Palette:  ui.PaletteByName(os.Getenv("DIGITDISK_PALETTE")),
-			Collect:  c.Collect,
-			Lang:     l,
-			Remember: rememberLang,
-		})
+		err := statusScreen(c.Collect, time.Duration(*interval)*time.Millisecond)
 		switch {
 		case err == nil:
 			return nil
@@ -188,7 +192,95 @@ func cmdStatus(args []string) error {
 	return nil
 }
 
+// statusScreen draws the live screen, runs what the reader chose from its
+// КОМАНДЫ section, and draws it again.
+//
+// THIS LOOP IS THE WHOLE OF «вернуться, не выходя из программы».  The process
+// never restarts: what changes hands is the terminal.  Every screen this tool
+// draws puts the terminal into raw mode and takes the signals for its own
+// lifetime — so the экран состояния closes and hands the terminal back exactly
+// as it found it, the подкоманда runs (for analyze that is the walk screen,
+// which owns the terminal in its turn), and the экран состояния opens again.
+// The keyboard itself is not handed back and forth: internal/ui reads it once
+// for the whole process, and that is what keeps a keypress from falling
+// between two screens.
+//
+// The language chosen along the way is carried across in langChoice, so a
+// reader who switched to English inside analyze comes back to an English экран
+// состояния.
+//
+// What a подкоманда PRINTED stays on the terminal until the reader has read
+// it: the screen would otherwise cover its own output with its first frame.
+func statusScreen(collect func() sysinfo.Status, interval time.Duration) error {
+	for {
+		req, err := ui.Run(ui.Options{
+			Out:      os.Stdout,
+			Interval: interval,
+			Palette:  ui.PaletteByName(os.Getenv("DIGITDISK_PALETTE")),
+			Collect:  collect,
+			Lang:     langChoice.Lang,
+			Remember: rememberLang,
+		})
+		if err != nil || req == nil {
+			return err
+		}
+		printed, err := runFromScreen(*req)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "digitdisk: %s\n", lang.InLang(err, langChoice.Lang))
+			printed = true
+		}
+		if printed {
+			waitForReader(langChoice.Lang)
+		}
+	}
+}
+
+// runFromScreen runs one подкоманда chosen on the живой экран and says whether
+// it left anything on the terminal to be read.
+//
+// There is no second dispatch here: analyze and clean are the SAME call
+// cmdAnalyze makes, with the same справочник, the same защитный список and the
+// same решающий слой, and everything else goes through the handlers map — the
+// one main dispatches the command line with.  Which подкоманды may arrive at
+// all is decided in internal/cli beside the подкоманда itself, so `purge`
+// cannot reach here: the screen never offers to start it.
+func runFromScreen(req ui.Request) (printed bool, err error) {
+	switch req.Command {
+	case "analyze":
+		return analyze(nil, ui.AfterNothing)
+	case "clean":
+		// Уборка с экрана — это обход, а затем ПЛАН, и ни одним шагом
+		// меньше: приговор ядра, разбивка по разрядам, корзина и точное
+		// число файлов, набранное руками. Печатный `clean` без --apply
+		// делает ровно это же и тоже ничего не двигает.
+		return analyze(nil, ui.AfterPlan)
+	}
+	h, ok := handlers[req.Command]
+	if !ok {
+		return false, lang.Errorf("подкоманда %q объявлена в internal/cli, но не разобрана в main", req.Command)
+	}
+	return true, h(nil)
+}
+
+// waitForReader holds printed output on the terminal until the reader says
+// they have read it.  Without it the экран состояния would draw its first
+// frame over the answer the reader just asked for.
+//
+// The waiting is done by internal/ui and not by a second reader of /dev/tty
+// opened here, for the reason that package spells out at length: one terminal
+// answers one reader, and a second one silently takes the keys of the first.
+func waitForReader(l lang.Lang) {
+	ui.WaitKey(os.Stdout, "\n"+l.T("— Enter возвращает на экран состояния")+" ")
+}
+
 func cmdAnalyze(args []string) error {
+	_, err := analyze(args, ui.AfterNothing)
+	return err
+}
+
+// analyze is `digitdisk analyze`, plus what the живой экран needs of it: what
+// to do when the walk finishes, and whether anything was printed.
+func analyze(args []string, after ui.After) (printed bool, err error) {
 	l := chooseLang(peekLang(args), !peekJSON(args))
 	fs := flag.NewFlagSet("analyze", flag.ExitOnError)
 	asJSON := fs.Bool("json", false, l.T("машиночитаемый вывод"))
@@ -205,18 +297,18 @@ func cmdAnalyze(args []string) error {
 	fs.Var(&protectArgs, "protect", l.T("не трогать: путь или «разряд:кэш»; можно повторять"))
 	rest, err := parseFlags(fs, args)
 	if err != nil {
-		return err
+		return false, err
 	}
 	// More than one path is a mistake; none of them is the screen being
 	// asked for a path, and only in a terminal — see below.
 	if len(rest) > 1 {
-		return lang.Errorf("нужен ровно один путь для обхода, получено %d", len(rest))
+		return false, lang.Errorf("нужен ровно один путь для обхода, получено %d", len(rest))
 	}
 
 	decider := chosenDecider(l)
 	dir, err := usePlaces(l, decider, places.Options{File: *placesFile, Off: *noPlaces})
 	if err != nil {
-		return err
+		return false, err
 	}
 	sayMoved(l, dir.Moved)
 
@@ -240,7 +332,7 @@ func cmdAnalyze(args []string) error {
 	if !*asJSON && (*live || (!*plain && ui.Available(os.Stdout))) {
 		guard, err := protect.Load(protect.Options{File: *protectFile, Args: protectArgs})
 		if err != nil {
-			return err
+			return false, err
 		}
 
 		// The report printed after the screen closes is printed in the
@@ -258,9 +350,14 @@ func cmdAnalyze(args []string) error {
 			Palette:  ui.PaletteByName(os.Getenv("DIGITDISK_PALETTE")),
 			Lang:     l,
 			Remember: remember,
-			Walk: func(root string, watch func(scan.Step)) (scan.Result, error) {
+			After:    after,
+			Walk: func(root string, watch func(scan.Step), stop func() bool) (scan.Result, error) {
 				o := opt
 				o.Root, o.Watch, o.Now = root, watch, time.Now()
+				// Экран отпустил обход — значит его никто не читает.
+				// Prune роняет всё, что ниже, и обход сворачивается за
+				// доли секунды вместо оставшихся минут.
+				o.Prune = func(string) bool { return stop() }
 				return scan.Walk(o)
 			},
 			// The screen acts through the same calls the subcommands make,
@@ -314,31 +411,31 @@ func cmdAnalyze(args []string) error {
 			if have {
 				report.Analyze(os.Stdout, shown, res)
 			}
-			return nil
+			return have, nil
 		case errors.Is(err, ui.ErrWalkStopped):
-			return err
+			return false, err
 		case !errors.Is(err, ui.ErrNoTerminal):
-			return err
+			return false, err
 		case *live:
-			return lang.Errorf("%s; без --live тот же обход печатается текстом", err)
+			return false, lang.Errorf("%s; без --live тот же обход печатается текстом", err)
 		}
 		// The terminal went away between the question and the answer.  Walk.
 	}
 
 	if opt.Root == "" {
-		return lang.Errorf("нужен ровно один путь для обхода, получено %d", 0)
+		return false, lang.Errorf("нужен ровно один путь для обхода, получено %d", 0)
 	}
 	opt.Now = time.Now()
 	res, err := scan.Walk(opt)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if *asJSON {
-		return writeJSON(res)
+		return true, writeJSON(res)
 	}
 	report.Analyze(os.Stdout, l, res)
-	return nil
+	return true, nil
 }
 
 // cmdClean prints the plan, and moves files into the корзина only when told

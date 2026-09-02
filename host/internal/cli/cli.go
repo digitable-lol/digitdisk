@@ -19,26 +19,64 @@ import (
 	"digitdisk/internal/lang"
 )
 
-// A Command is one subcommand: its name, the argument it needs, and one line
-// saying what it does.  One line, because this text has to fit a справка, a
-// footer overlay and a table in the man page without being rewritten for each.
+// A Command is one subcommand: its name, the argument it needs, one line
+// saying what it does, and what the live screen does when this line is chosen
+// from its list.  One line of gloss, because this text has to fit a справка, a
+// section of the screen and a table in the man page without being rewritten
+// for each.
 type Command struct {
 	Name  string
 	Arg   string
 	Gloss string
+	// Start is what the screen does with this command, and Instead is where
+	// the command lives when the screen does not start it.
+	//
+	// They stand HERE, beside the command, and not in the screen, for the
+	// reason the whole file exists: «что будет, если нажать Enter на этой
+	// строке» — свойство подкоманды, а не рисунка.  Держи его в ui, и через
+	// месяц список экрана разойдётся со списком справки на одну строку,
+	// которую никто не заметит.
+	Start   Start
+	Instead string
 }
+
+// Start says what the live screen may do with a subcommand chosen from its
+// list of commands.
+type Start int
+
+const (
+	// StartElsewhere — экран эту подкоманду не запускает, и Instead
+	// говорит, где она живёт: разделом другого экрана или в оболочке.
+	StartElsewhere Start = iota
+	// StartHere — экран делает это, никуда не уходя: `status` и есть этот
+	// экран, а запустить его отсюда значит взять новый замер.
+	StartHere
+	// StartRun — экран закрывается, подкоманда работает и печатает, экран
+	// возвращается.
+	StartRun
+	// StartPath — то же, что StartRun, но сперва спрашивается путь.
+	StartPath
+)
 
 // Commands is the list.  The order is the order everything shows it: reading
 // first, then the three steps of removal, then the two that look at what has
 // been decided and done.
+// Столбцы: имя, довод, одна строка о деле, что делает экран, куда он посылает.
 var Commands = []Command{
-	{"status", "", "снимок системы: ЦП, память, диски, сеть; в терминале — живой экран"},
-	{"analyze", "<путь>", "обход дерева: каталоги по размеру и самые крупные файлы"},
-	{"clean", "<путь>", "план уборки; переносит в корзину только с --apply"},
-	{"restore", "<корзина>", "вернуть корзину на прежние места"},
-	{"purge", "<корзина>", "стереть корзину: необратимо, требует --confirm N"},
-	{"places", "", "справочник известных мест и что из него есть на этой машине"},
-	{"history", "<путь>", "чем кончались прошлые уборки под этим корнем"},
+	{"status", "", "снимок системы: ЦП, память, диски, сеть; в терминале — живой экран",
+		StartHere, ""},
+	{"analyze", "<путь>", "обход дерева: каталоги по размеру и самые крупные файлы",
+		StartPath, ""},
+	{"clean", "<путь>", "план уборки; переносит в корзину только с --apply",
+		StartPath, ""},
+	{"restore", "<корзина>", "вернуть корзину на прежние места",
+		StartElsewhere, "Enter на корзине в разделе ЖУРНАЛ экрана analyze"},
+	{"purge", "<корзина>", "стереть корзину: необратимо, требует --confirm N",
+		StartElsewhere, "из оболочки — это единственный необратимый шаг"},
+	{"places", "", "справочник известных мест и что из него есть на этой машине",
+		StartRun, ""},
+	{"history", "<путь>", "чем кончались прошлые уборки под этим корнем",
+		StartElsewhere, "раздел ЖУРНАЛ экрана analyze, по обойденному корню"},
 }
 
 // Default is the subcommand a bare `digitdisk` runs.  Reading is the frequent
@@ -132,8 +170,10 @@ var keys = []string{
 	"  --dry-run         restore: показать, что вернулось бы, и не возвращать",
 	"  --confirm N       purge: подтвердить стирание ровно N файлов",
 	"",
-	"Экран status: ← → разделы (их десять), 1…9 раздел сразу, ↑ ↓ PgUp/PgDn прокрутка,",
-	"  p пауза, r замер, l язык, ? команды, q выход.",
+	"Экран status: раздел КОМАНДЫ не только называет — ↑ ↓ и 1…7 выбирают,",
+	"  Enter запускает; analyze и clean спросят путь, предложив текущий каталог.",
+	"  Разделы: ← → (их одиннадцать), 1…9 сразу, ↑ ↓ PgUp/PgDn прокрутка,",
+	"  p пауза, r замер, l язык, ? сразу к КОМАНДАМ, q выход.",
 	"",
 	"Экран analyze: пока идёт обход — растущие числа и чем наполняется дерево;",
 	"  перечень помечен ПРЕДВАРИТЕЛЬНО, пока он догадка, q прерывает обход.",

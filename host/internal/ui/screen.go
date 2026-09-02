@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"digitdisk/internal/cli"
 	"digitdisk/internal/lang"
 	"digitdisk/internal/sysinfo"
 )
@@ -87,18 +88,48 @@ type screen struct {
 	scroll  int
 	paused  bool
 	busying bool
-	// menu shows the list of subcommands over the body.  The screen is
-	// `status`, which reads and writes nothing; the list therefore only
-	// names commands and never runs one — see commandsPage.
-	menu bool
+	// pick is the line the cursor stands on in the КОМАНДЫ section: an
+	// index into cli.Commands, not into anything drawn, so the cursor
+	// cannot come to point at a command that is not there.
+	pick int
+	// req is the command the reader chose and this screen cannot run
+	// itself.  Setting it closes the screen; Run hands it to the caller,
+	// who runs the subcommand and opens the screen again.
+	req *Request
 
 	cpuHist []float64
 	memHist []float64
 }
 
-// Run draws the live screen until the reader asks to leave.  The terminal is
-// handed back the way it was found on every path out, including a signal.
-func Run(o Options) error {
+// A Request is the подкоманда the reader chose from the КОМАНДЫ section and
+// this screen does not run itself.
+//
+// It is handed BACK rather than run here, and that is not a limitation working
+// around itself: a screen owns the raw mode of the terminal and the signal
+// handler for as long as it is drawn, and two screens drawing at once own them
+// twice.  So the status screen closes, hands the terminal back exactly as it
+// found it, the caller runs the подкоманда — for analyze that is the walk
+// screen, which draws in its turn — and the status screen opens again.  The
+// PROCESS never restarts, and the language chosen on the way stays chosen;
+// only the drawing changes hands.
+//
+// The KEYBOARD does not change hands at all: internal/ui reads the terminal
+// once for the whole process (see keyboard()), and the screens take keys from
+// that one channel by turns.  That is what keeps a keypress from falling
+// between two screens — and it is not a supposition: with a reader per screen
+// the walk screen opened after this one received nothing at all.
+type Request struct {
+	// Command is a name out of cli.Commands.  Nothing else travels: a
+	// подкоманда that needs a path asks for it where the path is used, in
+	// the прочтённая строка ввода of the walk screen, and not twice.
+	Command string
+}
+
+// Run draws the live screen until the reader asks to leave or asks for a
+// подкоманда.  The terminal is handed back the way it was found on every path
+// out, including a signal.  A non-nil Request means the caller should run that
+// подкоманда and then call Run again.
+func Run(o Options) (*Request, error) {
 	if o.Out == nil {
 		o.Out = os.Stdout
 	}
@@ -106,24 +137,24 @@ func Run(o Options) error {
 		o.Interval = 2 * time.Second
 	}
 	if o.Collect == nil {
-		return lang.Errorf("живому экрану не передан сборщик снимка")
+		return nil, lang.Errorf("живому экрану не передан сборщик снимка")
 	}
 	if !Available(o.Out) {
-		return ErrNoTerminal
+		return nil, ErrNoTerminal
 	}
 
-	tty, closeTTY, err := openInput()
+	tty, keys, err := keyboard()
 	if err != nil {
-		return ErrNoTerminal
+		return nil, ErrNoTerminal
 	}
-	defer closeTTY()
 
 	restore, err := Raw(tty)
 	if err != nil {
-		return ErrNoTerminal
+		return nil, ErrNoTerminal
 	}
 
-	s := &screen{o: o, l: o.Lang, t: NewTheme(o.Palette), out: bufio.NewWriterSize(o.Out, 1<<16), tty: tty}
+	s := &screen{o: o, l: o.Lang, t: NewTheme(o.Palette), out: bufio.NewWriterSize(o.Out, 1<<16), tty: tty,
+		tab: openTab}
 	if !s.l.Valid() {
 		s.l = lang.Default
 	}
@@ -148,9 +179,6 @@ func Run(o Options) error {
 	defer signal.Stop(sig)
 
 	fmt.Fprint(o.Out, altOn+hideCur)
-
-	keys := make(chan key, 16)
-	go readKeys(tty, keys)
 
 	snaps := make(chan sample, 1)
 	s.request(snaps)
@@ -188,9 +216,17 @@ func Run(o Options) error {
 			s.request(snaps)
 		case <-blink.C:
 			s.draw() // the clock and the "measured N s ago" line move on
-		case k := <-keys:
+		case k, ok := <-keys:
+			// The keyboard went away — the terminal closed under the
+			// screen.  Leaving is the only honest answer: a closed
+			// channel hands back a zero key for ever, and a screen
+			// answering that in a loop is a program spinning on a
+			// terminal nobody is holding any more.
+			if !ok {
+				return s.req, nil
+			}
 			if s.handle(k, snaps) {
-				return nil
+				return s.req, nil
 			}
 			s.draw()
 		case sg := <-sig:
@@ -202,7 +238,7 @@ func Run(o Options) error {
 				s.draw()
 				continue
 			}
-			return nil
+			return nil, nil
 		}
 	}
 }
@@ -210,14 +246,19 @@ func Run(o Options) error {
 // openInput finds a terminal to read keys from.  /dev/tty is asked first so
 // the screen still answers the keyboard when standard input is taken by
 // something else; standard input itself is the fallback.
-func openInput() (*os.File, func(), error) {
+//
+// It is called once per process — see keyboard() — and what it opens is never
+// closed: the terminal outlives every screen drawn on it, and a file closed
+// while a read is in flight does not wake that read, it only makes the next
+// screen wonder where its keys went.
+func openInput() (*os.File, error) {
 	if f, err := os.Open("/dev/tty"); err == nil {
-		return f, func() { f.Close() }, nil
+		return f, nil
 	}
 	if IsTerminal(os.Stdin) {
-		return os.Stdin, func() {}, nil
+		return os.Stdin, nil
 	}
-	return nil, nil, ErrNoTerminal
+	return nil, ErrNoTerminal
 }
 
 // A sample is one snapshot together with how long it took to take.  The
@@ -266,6 +307,14 @@ func push(h []float64, v float64) []float64 { return pushSample(h, v, histLen) }
 
 // handle answers one key.  It reports whether the screen should close.
 func (s *screen) handle(k key, snaps chan sample) bool {
+	// КОМАНДЫ is a list to choose from, and there the keys that move a
+	// cursor and the key that starts a command belong to it alone.  Every
+	// other section is a page to read, and there the same keys scroll.
+	if s.tab == menuTab {
+		if done, answered := s.menuKey(k, snaps); answered {
+			return done
+		}
+	}
 	switch k.kind {
 	case keyRune:
 		switch k.r {
@@ -282,8 +331,9 @@ func (s *screen) handle(k key, snaps chan sample) bool {
 		case 'g':
 			s.scroll = 0
 		case '?':
-			s.menu = !s.menu
-			s.scroll = 0
+			// «?» осталась: она вела к списку команд, и ведёт к нему
+			// по-прежнему — теперь к разделу, а не к накладке.
+			s.tab, s.scroll = menuTab, 0
 		case 'l', 'L', 'д', 'Д':
 			// The language of the whole screen, switched where the
 			// reader is looking at it, and stored so that the next
@@ -298,25 +348,19 @@ func (s *screen) handle(k key, snaps chan sample) bool {
 		}
 		if k.r >= '1' && k.r <= '9' {
 			if n := int(k.r - '0'); n <= len(sections) {
-				s.tab, s.scroll, s.menu = pickTab(s.tab, n, len(sections)), 0, false
+				s.tab, s.scroll = pickTab(s.tab, n, len(sections)), 0
 			}
 		}
 	case keyEsc:
-		// Esc backs out of the list first: a key that both closes an
-		// overlay and quits the program would quit it by surprise.
-		if s.menu {
-			s.menu, s.scroll = false, 0
-			return false
-		}
 		return true
 	case keyCtrlC:
 		return true
 	case keyRight, keyTab:
 		s.tab = nextTab(s.tab, len(sections))
-		s.scroll, s.menu = 0, false
+		s.scroll = 0
 	case keyLeft, keyShiftTab:
 		s.tab = prevTab(s.tab, len(sections))
-		s.scroll, s.menu = 0, false
+		s.scroll = 0
 	case keyDown:
 		s.scroll++
 	case keyUp:
@@ -329,6 +373,100 @@ func (s *screen) handle(k key, snaps chan sample) bool {
 	if s.scroll < 0 {
 		s.scroll = 0
 	}
+	return false
+}
+
+// menuKey answers a key while the КОМАНДЫ section is open.  It reports whether
+// the screen should close and whether the key was this section's business at
+// all: a key it does not claim falls through to the keys every section shares.
+func (s *screen) menuKey(k key, snaps chan sample) (done, answered bool) {
+	switch k.kind {
+	case keyUp:
+		s.movePick(-1)
+		return false, true
+	case keyDown:
+		s.movePick(1)
+		return false, true
+	case keyEnter:
+		return s.start(snaps), true
+	case keyEsc:
+		// Esc goes back to the reading the screen opened on rather than
+		// out of the program: a key that both leaves a list and quits
+		// would quit by surprise, and that is what it used to do here.
+		s.tab, s.scroll = openTab, 0
+		return false, true
+	case keyRune:
+		switch k.r {
+		case 'j':
+			s.movePick(1)
+			return false, true
+		case 'k':
+			s.movePick(-1)
+			return false, true
+		}
+		if k.r >= '1' && k.r <= '9' {
+			if n := int(k.r - '0'); n <= len(cli.Commands) {
+				s.pick = n - 1
+				s.showPick()
+			}
+			// A digit on this page chooses a command and never a
+			// section: two meanings on one key is how a reader ends
+			// up somewhere they did not ask for.  ← → and Tab are
+			// how this page is left.
+			return false, true
+		}
+	}
+	return false, false
+}
+
+// movePick walks the cursor along the list, stopping at its ends: a cursor
+// that wraps turns «вниз до упора» into «наверх», and the reader who was
+// holding the key finds themselves on `status` meaning to be on `history`.
+func (s *screen) movePick(by int) {
+	s.pick += by
+	if s.pick < 0 {
+		s.pick = 0
+	}
+	if s.pick > len(cli.Commands)-1 {
+		s.pick = len(cli.Commands) - 1
+	}
+	s.showPick()
+}
+
+// showPick scrolls the section until the chosen line is on the screen.  On a
+// short terminal the list runs off the bottom, and a cursor nobody can see is
+// a cursor that starts the wrong command.
+func (s *screen) showPick() {
+	line := commandsHead + s.pick
+	h := s.bodyHeight()
+	if line < s.scroll {
+		s.scroll = line
+	}
+	if line >= s.scroll+h {
+		s.scroll = line - h + 1
+	}
+}
+
+// start does what Enter on the chosen line means.  What that is comes from
+// cli.Command.Start — beside the command, in the one list — and not from a
+// switch on names here.
+func (s *screen) start(snaps chan sample) bool {
+	c := cli.Commands[s.pick]
+	switch c.Start {
+	case cli.StartHere:
+		// `status` IS this screen.  Running it from here is taking a
+		// fresh замер and going to the page that shows it.
+		s.request(snaps)
+		s.tab, s.scroll = openTab, 0
+		return false
+	case cli.StartRun, cli.StartPath:
+		// The screen closes and the caller runs it; see Request.
+		s.req = &Request{Command: c.Name}
+		return true
+	}
+	// Everything else names where it lives instead of doing nothing: a key
+	// that answers with silence reads as a key that is broken.
+	s.said, s.saidAt = lang.Say("не отсюда: %s", lang.Say(c.Instead)), time.Now()
 	return false
 }
 
@@ -367,9 +505,6 @@ func (s *screen) frame() []string {
 	out = append(out, t.Fg(t.P.Border, strings.Repeat("─", s.cols)))
 
 	body := sections[s.tab].render(s)
-	if s.menu {
-		body = s.commandsPage()
-	}
 	h := s.bodyHeight()
 	s.scroll = clampScroll(body, s.scroll)
 	// shown считает СКОЛЬКО строк раздела видно — это число уезжает в
@@ -454,10 +589,26 @@ func (s *screen) tabs() string {
 		return r.String()
 	}
 
-	cur := sections[s.tab]
+	// Narrow: the current section alone, with arrows — and КОМАНДЫ beside
+	// it whatever the width.
+	//
+	// КОМАНДЫ IS THE ONE NAME THAT DOES NOT GIVE WAY.  Everything else on
+	// this screen is a reading, and a reading the reader can walk to; that
+	// section is where the work is started from, and a person opening the
+	// tool for the first time has to find it without being told a key.  The
+	// full strip above shows it only from about 118 columns, and eighty is
+	// the common terminal — so at eighty it stands here, alone with the
+	// section being read.
 	var r row
+	r.plain(" ")
+	if s.tab == menuTab {
+		r.add(" "+sections[menuTab].title(s.l)+" ", func(x string) string { return t.Chip(t.P.Accent, x) })
+		r.add(fmt.Sprintf("  1/%d", len(sections)), func(x string) string { return t.Fg(t.P.Subtle, x) })
+		return r.String()
+	}
+	r.add(" "+sections[menuTab].title(s.l)+" ", func(x string) string { return t.Chip(t.P.AccentSoft, x) })
 	r.add(" ‹ ", func(x string) string { return t.Fg(t.P.Subtle, x) })
-	r.add(" "+cur.title(s.l)+" ", func(x string) string { return t.Chip(t.P.Accent, x) })
+	r.add(" "+sections[s.tab].title(s.l)+" ", func(x string) string { return t.Chip(t.P.Accent, x) })
 	r.add(fmt.Sprintf(" ›  %d/%d", s.tab+1, len(sections)), func(x string) string { return t.Fg(t.P.Subtle, x) })
 	return r.String()
 }
@@ -474,11 +625,42 @@ func (s *screen) footer(more string) string {
 	default:
 		r.add(" "+s.l.T("ЖИВОЙ")+" ", func(x string) string { return t.Chip(t.P.Green, x) })
 	}
-	// The keys come first in the budget: a full-screen program that does not
-	// say how to leave it is a trap, so the state of the measurement is what
-	// gives way on a narrow terminal, never the way out.
+	// Every width of the hint is its own wording: an English line is not a
+	// Russian line with the words swapped, and one that had to be cut to fit
+	// would be cut in a different place.
 	exit := s.l.T("q выход ")
-	if s.haveSt {
+	hints := []string{
+		s.l.T("← → разделы · ↑ ↓ прокрутка · p пауза · r замер · l язык · 1 КОМАНДЫ · q выход "),
+		s.l.T("← → разделы · p пауза · r замер · l язык · 1 КОМАНДЫ · q выход "),
+		s.l.T("← → · p · r · l язык · 1 КОМАНДЫ · q выход "),
+		s.l.T("1 КОМАНДЫ · q выход "),
+		exit,
+	}
+	if s.tab == menuTab {
+		hints = []string{
+			s.l.T("↑ ↓ и 1…7 выбрать · Enter запустить · ← → разделы · l язык · q выход "),
+			s.l.T("↑ ↓ выбрать · Enter запустить · ← → разделы · q выход "),
+			s.l.T("↑ ↓ · Enter запустить · q выход "),
+			s.l.T("Enter запустить · q выход "),
+			exit,
+		}
+	}
+
+	// The keys come first in the budget, and «the keys» now means one more
+	// than the way out: the shortest hint that still names КОМАНДЫ — the
+	// second from the end, the last being the bare way out.
+	//
+	// It used to reserve only «q выход», and the наблюдение that made this
+	// change necessary is exactly what that cost: on eighty columns the
+	// state of the замер ate the room, the hint fell back to «q выход», and
+	// the list of commands went unnamed on the screen it is started from.
+	// Состояние замера уступает — оно и раньше уступало; уступает оно
+	// теперь на одну строку раньше.
+	keep := hints[maxInt(0, len(hints)-2)]
+	// Состояние замера — подпись к ЧТЕНИЮ, и на списке команд его нет
+	// вовсе: там строка подвала целиком уходит на клавиши, потому что
+	// выбирают и запускают ими, а не датчиком «замер 2 с назад».
+	if s.haveSt && s.tab != menuTab {
 		ago, took, period := s.l.Since(time.Since(s.taken)), s.l.Millis(s.took), s.l.Every(s.o.Interval)
 		states := []string{
 			s.l.F("  замер %s назад · длился %s · каждые %s", ago, took, period),
@@ -486,7 +668,7 @@ func (s *screen) footer(more string) string {
 			s.l.F("  замер %s назад", ago),
 			"",
 		}
-		budget := s.cols - r.w - runes(exit) - 2
+		budget := s.cols - r.w - runes(keep) - 2
 		for _, state := range states {
 			if runes(state) <= budget {
 				r.add(state, func(x string) string { return t.Fg(t.P.Subtle, x) })
@@ -494,26 +676,8 @@ func (s *screen) footer(more string) string {
 			}
 		}
 	}
-	if more != "" && r.w+runes(more)+runes(exit)+2 <= s.cols {
+	if more != "" && r.w+runes(more)+runes(keep)+2 <= s.cols {
 		r.add(more, func(x string) string { return t.Fg(t.P.Subtle, x) })
-	}
-
-	// Every width of the hint is its own wording: an English line is not a
-	// Russian line with the words swapped, and one that had to be cut to fit
-	// would be cut in a different place.
-	hints := []string{
-		s.l.T("← → разделы · ↑ ↓ прокрутка · p пауза · r замер · l язык · ? команды · q выход "),
-		s.l.T("← → разделы · p пауза · r замер · l язык · ? команды · q выход "),
-		s.l.T("← → · p · r · l язык · ? команды · q выход "),
-		s.l.T("← → · p · r · l · q выход "),
-		exit,
-	}
-	if s.menu {
-		hints = []string{
-			s.l.T("↑ ↓ прокрутка · ? или Esc назад · q выход "),
-			s.l.T("? назад · q выход "),
-			exit,
-		}
 	}
 	for _, hint := range hints {
 		if r.w+runes(hint)+2 <= s.cols {

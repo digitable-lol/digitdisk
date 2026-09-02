@@ -71,12 +71,37 @@ type ask struct {
 
 // openPath asks where to walk.  It starts from the root of the last walk, so
 // the frequent case — look next door — is a few keys and not a whole path.
+//
+// WITH NOTHING WALKED YET the текущий каталог is offered instead.  That is the
+// case `digitdisk analyze` without a path lands in, and it is the case the
+// КОМАНДЫ section of the экран состояния lands in: the reader chose analyze
+// and has typed no path, so the answer that is right most of the time is put
+// in the line where they can SEE it before agreeing to it, and agreeing is one
+// keystroke.
+//
+// A default that is one keystroke from a walk of millions of entries is a
+// default that has to say so, and it does: the lines under the title name what
+// Enter will cost and name the key that stops it.  Nothing else was needed —
+// the walk shows its own numbers from the first second and q взводит выход из
+// него, so the reader who agrees by accident finds out in one second and not
+// in ten minutes.
 func (w *walkScreen) openPath() {
 	start := w.o.Root
+	var lines []string
+	if start == "" {
+		if wd, err := os.Getwd(); err == nil {
+			start = wd
+			lines = []string{
+				w.l.T("предложен текущий каталог — Enter соглашается с ним."),
+				w.l.T("обходится всё дерево под ним: на домашнем каталоге это миллионы"),
+				w.l.T("записей и минуты. Числа идут с первой секунды, q прерывает обход."),
+			}
+		}
+	}
 	if start != "" && !strings.HasSuffix(start, string(filepath.Separator)) {
 		start += string(filepath.Separator)
 	}
-	w.ask = &ask{kind: overlayPath, title: w.l.T("ОБОЙТИ КАТАЛОГ"), input: start,
+	w.ask = &ask{kind: overlayPath, title: w.l.T("ОБОЙТИ КАТАЛОГ"), input: start, lines: lines,
 		hint: w.l.T("Tab — дополнить, Ctrl-U — стереть строку, Enter — обойти, Esc — отменить")}
 	w.complete(false)
 }
@@ -604,13 +629,13 @@ func (w *walkScreen) keysLines() []string {
 		out = append(out, line.String())
 	}
 	// The commands come from internal/cli, the one list справка, страница
-	// руководства and the status screen are also built from.
+	// руководства and the КОМАНДЫ section of the status screen are also
+	// built from.
 	//
-	// The status screen shows them and runs none, and says why: it is
-	// read-only, and a command that moves files must not sit one keystroke
-	// from a reading.  This screen is the other case — the walk it draws is
-	// what the removal would act on, and the way to act is here, behind the
-	// plan and the count that stand in front of removal everywhere else.
+	// Both screens now START them, and both start them the same way: this
+	// one is where a walk is acted on, and the other is where a walk is
+	// asked for.  Removal is behind the same plan and the same count on
+	// either road; `purge` is on neither.
 	out = append(out, "", w.caption(w.l.T("КОМАНДЫ")), "")
 	for _, c := range cli.Commands {
 		var line row

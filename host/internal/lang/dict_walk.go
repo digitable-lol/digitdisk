@@ -143,6 +143,9 @@ func init() {
 		"подходит каталогов: %d":  "directories matching: %d",
 		"   …и ещё %d":            "   …and %d more",
 		"Tab — дополнить, Ctrl-U — стереть строку, Enter — обойти, Esc — отменить": "Tab completes, Ctrl-U clears the line, Enter walks, Esc cancels",
+		"предложен текущий каталог — Enter соглашается с ним.":                     "the current directory is offered — Enter agrees with it.",
+		"обходится всё дерево под ним: на домашнем каталоге это миллионы":          "the whole tree under it is walked: on a home directory that is millions",
+		"записей и минуты. Числа идут с первой секунды, q прерывает обход.":        "of entries and minutes. Numbers move from the first second, q stops it.",
 
 		// Отметка.
 		"ОТМЕТКА": "MARKING",

@@ -328,15 +328,46 @@ binary.
 and
 .Nm Cm status
 draw a live screen when the output goes to a terminal.
+There are eleven sections, and the first of them \(em
+.Sy COMMANDS
+\(em does not read but starts: it is the list of subcommands, the same list
+.Fl -help
+is built from, and the line chosen in it is run.
+.Pp
+.Cm analyze
+and
+.Cm clean
+ask for a path on an input line that offers the current directory and completes
+on
+.Ic Tab ;
+the walk is visible from the first second and
+.Ic q
+stops it.
+Cleaning from the screen goes the way
+.Cm clean
+goes: the decision layer's verdict, the plan, and the exact number of files
+typed out by hand.
+.Cm purge
+is started from no screen under any condition \(em it is the one irreversible
+step, and it is typed out in the shell in full.
+A subcommand run from the screen prints as it always prints, and
+.Ic Enter
+brings the status screen back: the program does not restart in between.
+.Pp
 The keys:
 .Pp
 .Bl -tag -width "PgUp, PgDnXX" -compact
 .It Ic \(<-\ \(->, Tab
 the previous and the next section
 .It Ic 1\(en9
-that section at once
+that section at once; 1 is
+.Sy COMMANDS
 .It Ic \(ua\ \(da, PgUp, PgDn
 scrolling a long section
+.It Ic \(ua\ \(da, 1\(en7 Pq in COMMANDS
+choose a subcommand
+.It Ic Enter Pq in COMMANDS
+run the chosen one; Esc goes back to OVERVIEW
 .It Ic p , Space
 pause
 .It Ic r
@@ -344,7 +375,7 @@ measure now
 .It Ic l
 switch the language and store the new choice
 .It Ic \&?
-the list of commands; it only names them, they are typed in the shell
+straight to the COMMANDS section
 .It Ic q , Esc
 quit
 .El

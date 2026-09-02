@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -68,7 +69,22 @@ type WalkOptions struct {
 	Remember func(lang.Lang) lang.Phrase
 
 	// Walk runs the traversal and returns the result the report will print.
-	Walk func(root string, watch func(scan.Step)) (scan.Result, error)
+	//
+	// stop is the screen asking to be let go.  It is answered on every
+	// entry, and it exists because this screen is no longer the last thing
+	// the process does: a reader who presses q on a walk of four million
+	// entries goes back to the экран состояния, and a walk nobody is
+	// watching any more would go on reading the disk behind it for the
+	// minute it had left.  The caller wires it to scan.Prune, and the
+	// truncated result is thrown away — ErrWalkStopped says there is none.
+	Walk func(root string, watch func(scan.Step), stop func() bool) (scan.Result, error)
+
+	// After is what the screen does the moment the walk finishes.  It is
+	// how `clean`, chosen from the экран состояния, arrives here: the walk
+	// runs and the план уборки opens by itself, exactly as the «c» key
+	// opens it, with the приговор ядра and the число файлов in front of it
+	// as always.
+	After After
 
 	// The rest is what the screen can do besides look.  Every one of them is
 	// the same call the matching subcommand makes, handed in rather than
@@ -80,6 +96,16 @@ type WalkOptions struct {
 	History func(root string) (*clean.History, error)
 	Places  func() (origin string, found []PlaceRow, err error)
 }
+
+// After is what the walk screen does the moment its walk finishes.
+type After int
+
+const (
+	// AfterNothing — ничего: экран ждёт читателя.
+	AfterNothing After = iota
+	// AfterPlan — открыть план уборки, как это делает клавиша «c».
+	AfterPlan
+)
 
 // PlaceRow is one known place as the screen shows it.  The справочник itself
 // stays in internal/places; the screen is handed rows, not a parser.
@@ -124,11 +150,10 @@ func RunWalk(o WalkOptions) (scan.Result, bool, error) {
 		return scan.Result{}, false, ErrNoTerminal
 	}
 
-	tty, closeTTY, err := openInput()
+	tty, keys, err := keyboard()
 	if err != nil {
 		return scan.Result{}, false, ErrNoTerminal
 	}
-	defer closeTTY()
 
 	restore, err := Raw(tty)
 	if err != nil {
@@ -153,6 +178,12 @@ func RunWalk(o WalkOptions) (scan.Result, bool, error) {
 		restore()
 	}
 	defer leave()
+	// A walk nobody is watching is let go on the way out.  Before this
+	// screen could be closed and reopened it did not matter — the process
+	// ended a line later; now the reader goes back to the экран состояния,
+	// and a walk left running behind it would read the disk for a minute
+	// under a screen that says nothing about it.
+	defer w.release()
 
 	sig := make(chan os.Signal, 4)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGWINCH)
@@ -160,9 +191,7 @@ func RunWalk(o WalkOptions) (scan.Result, bool, error) {
 
 	fmt.Fprint(o.Out, altOn+hideCur)
 
-	keys := make(chan key, 16)
-	go readKeys(tty, keys)
-
+	w.after = o.After
 	if o.Root != "" {
 		w.startWalk(o.Root)
 	} else {
@@ -218,7 +247,15 @@ func RunWalk(o WalkOptions) (scan.Result, bool, error) {
 		case r := <-w.jobs:
 			w.accepted(r)
 			w.draw()
-		case k := <-keys:
+		case k, ok := <-keys:
+			if !ok {
+				// The terminal closed under the screen; see the
+				// same case in Run.
+				if w.mode == modeWalking || w.mode == modeSettling {
+					return scan.Result{}, false, ErrWalkStopped
+				}
+				return w.res, w.haveRes, nil
+			}
 			if w.handle(k) {
 				if w.mode == modeWalking || w.mode == modeSettling {
 					return scan.Result{}, false, ErrWalkStopped
@@ -288,6 +325,12 @@ type walkScreen struct {
 	feed     *walkFeed
 	done     chan walkDone
 	settling chan struct{}
+	// stop is how the walk in flight is let go when nobody is watching it
+	// any more — see WalkOptions.Walk.
+	stop *atomic.Bool
+	// after is WalkOptions.After, spent once: the план уборки opens on the
+	// walk the reader asked for and not on every walk they take afterwards.
+	after After
 
 	// order is the list as it is SHOWN — see calmMargin.  swaps counts how
 	// often it was reordered, which is what the measurement reads.
@@ -329,12 +372,24 @@ func (w *walkScreen) feedOut() <-chan walkSnap {
 
 func (w *walkScreen) doneCh() <-chan walkDone { return w.done }
 
+// release tells the walk in flight, if there is one, that nobody is reading it
+// any more.
+func (w *walkScreen) release() {
+	if w.stop != nil {
+		w.stop.Store(true)
+	}
+}
+
 func (w *walkScreen) settlingCh() <-chan struct{} { return w.settling }
 
 // startWalk begins a traversal and throws away everything the last one left:
 // a screen showing one tree's numbers under another tree's name would be the
 // worst kind of wrong.
 func (w *walkScreen) startWalk(root string) {
+	// The walk that was running is let go first: two walks reading the disk
+	// for one screen is twice the work and half the speed of the one being
+	// watched.
+	w.release()
 	w.o.Root, w.walkRoot = root, root
 	w.mode = modeWalking
 	w.started = time.Now()
@@ -347,10 +402,11 @@ func (w *walkScreen) startWalk(root string) {
 	feed := newWalkFeed(root)
 	done := make(chan walkDone, 1)
 	settling := make(chan struct{}, 1)
-	w.feed, w.done, w.settling = feed, done, settling
+	stop := new(atomic.Bool)
+	w.feed, w.done, w.settling, w.stop = feed, done, settling, stop
 	walk := w.o.Walk
 	go func() {
-		res, err := walk(root, feed.step)
+		res, err := walk(root, feed.step, stop.Load)
 		// The snapshot and the settling both belong to the goroutine that
 		// owns the collector, so nothing here is ever read from two places.
 		settling <- struct{}{}
@@ -386,6 +442,13 @@ func (w *walkScreen) finish(d walkDone) {
 	if w.tree != nil {
 		w.stack = []*wnode{w.tree}
 		w.sel = []int{0}
+	}
+	// `clean`, chosen on the экран состояния, is a walk and then the plan.
+	// Spent once: the reader who walks somewhere else afterwards asked for
+	// a walk, not for another plan.
+	if w.after == AfterPlan {
+		w.after = AfterNothing
+		w.proposeClean()
 	}
 }
 

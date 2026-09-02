@@ -535,7 +535,7 @@ func TestRunWalkRefusesWhereThereIsNoTerminal(t *testing.T) {
 	defer r.Close()
 	defer w.Close()
 	called := false
-	_, _, err := RunWalk(WalkOptions{Out: w, Root: ".", Walk: func(string, func(scan.Step)) (scan.Result, error) {
+	_, _, err := RunWalk(WalkOptions{Out: w, Root: ".", Walk: func(string, func(scan.Step), func() bool) (scan.Result, error) {
 		called = true
 		return scan.Result{}, nil
 	}})
@@ -546,7 +546,7 @@ func TestRunWalkRefusesWhereThereIsNoTerminal(t *testing.T) {
 		t.Error("обход всё-таки запустился — вывод в трубу был бы не тот, что всегда")
 	}
 	t.Setenv("TERM", "dumb")
-	if _, _, err := RunWalk(WalkOptions{Out: os.Stdout, Root: ".", Walk: func(string, func(scan.Step)) (scan.Result, error) {
+	if _, _, err := RunWalk(WalkOptions{Out: os.Stdout, Root: ".", Walk: func(string, func(scan.Step), func() bool) (scan.Result, error) {
 		return scan.Result{}, nil
 	}}); err != ErrNoTerminal {
 		t.Errorf("RunWalk при TERM=dumb вернул %v, ждали ErrNoTerminal", err)
@@ -946,6 +946,113 @@ func TestPathPromptCompletesDirectories(t *testing.T) {
 	if w.ask == nil || w.ask.err == "" {
 		t.Error("файл принят как корень обхода")
 	}
+}
+
+// Приглашение пути предлагает ТЕКУЩИЙ каталог, когда ничего ещё не обойдено,
+// и корень прошлого обхода, когда есть что обходить рядом. И то и другое
+// проверяется здесь, потому что «предложить» — это единственное, чем экран
+// отвечает на выбор `analyze` в списке команд.
+func TestPathPromptOffersTheCurrentDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "внутри"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	w := &walkScreen{t: Theme{P: Carbon, d: depthTrue}, l: lang.RU, rows: 30, cols: 100}
+	w.openPath()
+	if w.ask == nil || w.ask.kind != overlayPath {
+		t.Fatal("приглашение пути не открылось")
+	}
+	// Точный путь сравнивается по Clean: временный каталог может быть
+	// символической ссылкой (/tmp → /private/tmp на macOS), и os.Getwd
+	// вернёт разрешённый, а t.TempDir — исходный.
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := filepath.Clean(w.ask.input); got != wd {
+		t.Errorf("предложен %q, а текущий каталог %q", got, wd)
+	}
+	if !strings.HasSuffix(w.ask.input, string(filepath.Separator)) {
+		t.Errorf("предложенный путь без разделителя на конце: %q — дополнение начнёт с имени каталога", w.ask.input)
+	}
+	if len(w.ask.choices) != 1 {
+		t.Errorf("подкаталоги не предложены: %v", w.ask.choices)
+	}
+	// Согласие в одно нажатие обязано быть сказано вслух: обход домашнего
+	// каталога — это миллионы записей, и Enter не должен быть тихим.
+	said := strings.Join(w.ask.lines, " ")
+	for _, want := range []string{"текущий каталог", "q прерывает обход"} {
+		if !strings.Contains(said, want) {
+			t.Errorf("приглашение не сказало %q: %q", want, said)
+		}
+	}
+
+	// Обойдено что-то — предлагается сосед, а не текущий каталог, и
+	// предупреждение снимается: путь выбран не по умолчанию.
+	w.o.Root = filepath.Join(root, "внутри")
+	w.openPath()
+	if got := filepath.Clean(w.ask.input); got != filepath.Join(root, "внутри") {
+		t.Errorf("после обхода предложено %q, ждали корень прошлого обхода", got)
+	}
+	if len(w.ask.lines) != 0 {
+		t.Errorf("предупреждение о цене осталось на выбранном пути: %v", w.ask.lines)
+	}
+}
+
+// Обход, который больше некому читать, отпускается.
+//
+// Пока экран был последним, что делает процесс, это не значило ничего: за
+// возвратом из RunWalk шёл выход. Теперь за ним идёт экран состояния, и
+// брошенный обход читал бы диск под ним ещё минуту. Замер на этой машине,
+// одна и та же последовательность нажатий, обход /home/b (4 814 507 записей):
+// 12,95 с пользовательского времени с отпусканием против 32,24 с без него при
+// одинаковых 17,04 с по часам.
+func TestWalkIsLetGoWhenNobodyIsWatching(t *testing.T) {
+	let := make(chan struct{})
+	w := &walkScreen{t: Theme{P: Carbon, d: depthTrue}, l: lang.RU, rows: 30, cols: 100}
+	w.o.Walk = func(root string, watch func(scan.Step), stop func() bool) (scan.Result, error) {
+		for !stop() {
+			time.Sleep(time.Millisecond)
+		}
+		close(let)
+		return scan.Result{}, nil
+	}
+	w.startWalk(t.TempDir())
+	select {
+	case <-let:
+		t.Fatal("обход отпустили раньше, чем его бросили")
+	case <-time.After(20 * time.Millisecond):
+	}
+	w.release()
+	select {
+	case <-let:
+	case <-time.After(2 * time.Second):
+		t.Fatal("обход не отпустили: он читает диск под экраном, который его не показывает")
+	}
+	// Новый обход отпускает прежний: два чтения диска на один экран — это
+	// вдвое больше работы и вдвое меньше скорости у того, что видно.
+	first := make(chan struct{})
+	w.o.Walk = func(root string, watch func(scan.Step), stop func() bool) (scan.Result, error) {
+		for !stop() {
+			time.Sleep(time.Millisecond)
+		}
+		select {
+		case <-first:
+		default:
+			close(first)
+		}
+		return scan.Result{}, nil
+	}
+	w.startWalk(t.TempDir())
+	w.startWalk(t.TempDir())
+	select {
+	case <-first:
+	case <-time.After(2 * time.Second):
+		t.Fatal("прежний обход остался читать диск после начала нового")
+	}
+	w.release()
 }
 
 func TestBusyScreenAnswersNothingButCtrlC(t *testing.T) {
