@@ -283,12 +283,19 @@ colour.
 ## Checks
 
 ```bash
-python3 tools/check-licensing.py    # no copyleft; SPDX headers; removal only in host/internal/clean
+flang io tools/licensing.flang      # no copyleft; SPDX headers; removal only in host/internal/clean
+flang check core/disk-inventory.flang && flang test core/disk-inventory.flang
+make -C core                        # check, emit to Go and C, cross-check the two emissions
 cd host && go vet ./... && go test ./...
 cd host && GOOS=darwin GOARCH=arm64 go build ./... && GOOS=darwin GOARCH=amd64 go build ./...
 cd host && GOOS=darwin go vet ./...  # the macOS host, checked from a machine that is not one
 scripts/build-release.sh            # release archives, sums, formula; verifies the build repeats
 ```
+
+The licensing guard and the emission cross-check are written in flang, not in
+Python or JavaScript: neither is present in this tree. The flang compiler is a
+single binary that needs only a C compiler (`brew install flang`, `asdf`, or
+`make -C bootstrap` in a clone of the language); it does not require Node.
 
 ## State
 

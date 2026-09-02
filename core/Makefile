@@ -1,50 +1,63 @@
 # SPDX-FileCopyrightText: 2026 Marat Zimnurov <zimtir@mail.ru>
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Ядро digitdisk: исходник на flang → AST с постусловиями → печать в Go и в C.
+# Ядро digitdisk: исходник на flang → проверка, примеры, печать в Go и в C.
 #
-# ПОЧЕМУ ПЕЧАТЬ ИДЁТ ИЗ opis-diska.ast.json, А НЕ ИЗ opis-diska.flang.
-# Постусловия функции (flang/SPEC.md §5) — часть контракта AST, но поверхность
-# языка формы для них не имеет: `parseFunction` (flang/src/parser.mjs:1115)
-# знает у функции только «принимает», «возвращает», «убывает», «пример» и тело,
-# а слово «свойство» в теле даёт FLANG_PARSE. Поэтому инварианты И1 и И2
-# приписываются к AST (core/postconditions.mjs) — и оттуда они попадают и в
-# интерпретатор, и в напечатанный Go, и в напечатанный C одним и тем же кодом
-# отказа DIGITDISK_RULE. Печать без постусловий (прямо из .flang) тоже работает
-# и даёт те же значения — просто без сторожа.
+# ── ЧТО ИЗМЕНИЛОСЬ 1 СЕНТЯБРЯ 2026 ──────────────────────────────────────────
+# Печать шла из opis-diska.ast.json, а не из исходника, потому что «поверхность
+# flang формы для постусловия функции НЕ ИМЕЕТ» и постусловия приходилось
+# приписывать к AST скриптом на JavaScript (core/postconditions.mjs).
+# На стволе flang форма ЕСТЬ — слово `обеспечивает`, — и проверяет её сам
+# компилятор. Постусловия переехали в исходник, а скрипт, AST и переходник
+# core/flang-home.mjs сняты: печать идёт прямо из .flang.
+#
+# Снят и core/diff.mjs: сверка интерпретатора с напечатанным кодом теперь
+# написана на самом языке — core/differential.flang, план для `flang io`.
+#
+# ── ЧЕМ СОБИРАЕТСЯ ──────────────────────────────────────────────────────────
+# Компилятор flang — ОДИН двоичный файл, которому нужен только `cc`; ни Node,
+# ни JavaScript тут больше нет. Взять его можно тремя дорогами, и все три дают
+# один и тот же файл под одним именем:
+#
+#   brew install flang        asdf plugin add flang        make -C bootstrap
 #
 # Каталоги out-go/ и out-c/ ПЕЧАТАЮТСЯ, а не правятся руками: `make -C core`
 # восстанавливает их целиком.
 
-# Корень клона flang. Переопределяется переменной окружения; по умолчанию —
-# соседний каталог рядом с этим репозиторием.
-FLANG_HOME ?= $(abspath $(CURDIR)/../../flang)
-FLANG ?= node $(FLANG_HOME)/flang/bin/flang.mjs
-ИСХОДНИК = opis-diska.flang
-AST = opis-diska.ast.json
+# Команда flang. По умолчанию — та, что стоит в системе; FLANG=путь/к/flang
+# переопределяет её, а FLANG_HOME указывает на клон flang с собранным семенем.
+ifdef FLANG_HOME
+FLANG ?= $(FLANG_HOME)/bootstrap/flang
+else
+FLANG ?= flang
+endif
+
+ИСХОДНИК = disk-inventory.flang
+СВЕРКА = differential.flang
 
 .PHONY: all проверка печать сверка чисто
 
 all: проверка печать сверка
 
-$(AST): $(ИСХОДНИК) postconditions.mjs
-	node postconditions.mjs
-
-проверка: $(AST)
+# `check` — разбор, типы, завершаемость и постусловия; `test` — примеры.
+# Порознь, потому что порознь и падают: у них разные причины.
+проверка:
 	$(FLANG) check $(ИСХОДНИК)
 	$(FLANG) test $(ИСХОДНИК)
-	$(FLANG) check $(AST)
-	$(FLANG) test $(AST)
 
-печать: $(AST)
+печать:
 	rm -rf out-go out-c
-	$(FLANG) emit --target go $(AST) --out out-go
-	$(FLANG) emit --target c $(AST) --out out-c
+	$(FLANG) emit --target go $(ИСХОДНИК) --out out-go
+	$(FLANG) emit --target c $(ИСХОДНИК) --out out-c
 	cd out-go && gofmt -l . && go vet ./... && go build ./... && go build -o flang_cli ./cli
 	$(MAKE) -C out-c
 
-сверка:
-	node diff.mjs --описей 400 --си 2400
+# Сверка идёт `flang io`: план запускает напечатанные двоичные и сверяет их
+# ответы с ответами интерпретатора. Расхождения печатаются числом.
+сверка: печать
+	$(FLANG) check $(СВЕРКА)
+	$(FLANG) test $(СВЕРКА)
+	$(FLANG) io $(СВЕРКА)
 
 чисто:
-	rm -rf out-go out-c $(AST)
+	rm -rf out-go out-c

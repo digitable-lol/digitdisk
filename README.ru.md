@@ -277,12 +277,19 @@ Focus: разделы печатного отчёта как страницы, �
 ## Проверки
 
 ```bash
-python3 tools/check-licensing.py    # копилефт, заголовки SPDX, удаление только в host/internal/clean
+flang io tools/licensing.flang      # копилефт, заголовки SPDX, удаление только в host/internal/clean
+flang check core/disk-inventory.flang && flang test core/disk-inventory.flang
+make -C core                        # проверка, печать в Go и C, сверка двух печатей
 cd host && go vet ./... && go test ./...
 cd host && GOOS=darwin GOARCH=arm64 go build ./... && GOOS=darwin GOARCH=amd64 go build ./...
 cd host && GOOS=darwin go vet ./...  # маковский хозяин, проверенный с машины, которая не мак
 scripts/build-release.sh            # архивы, суммы, формула; заодно сверяет, что сборка повторяется
 ```
+
+Сторож лицензий и сверка печати написаны на flang, а не на Python и JavaScript:
+в дереве нет ни того, ни другого. Компилятор flang — один двоичный файл,
+которому нужен только `cc` (`brew install flang`, `asdf`, либо
+`make -C bootstrap` в клоне языка); Node он не требует.
 
 ## Состояние
 
