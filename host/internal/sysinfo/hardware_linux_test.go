@@ -66,7 +66,7 @@ func TestVideoCardsReachTheSnapshot(t *testing.T) {
 	if len(st.Load.Cores) != 0 {
 		t.Errorf("по неподвижному снимку насчитаны доли ядер: %+v", st.Load.Cores)
 	}
-	if why, unmeasured := st.Unmeasured(FactCores); !unmeasured || why == "" {
+	if why, unmeasured := st.Unmeasured(FactCores); !unmeasured || why.Empty() {
 		t.Error("отсутствие долей по ядрам не объяснено")
 	}
 }
@@ -82,7 +82,7 @@ func TestNoVideoCardsIsNamed(t *testing.T) {
 	if len(st.GPUs) != 0 {
 		t.Fatalf("на пустом дереве нашлись карты: %+v", st.GPUs)
 	}
-	if why, unmeasured := st.Unmeasured(FactGPUs); !unmeasured || why == "" {
+	if why, unmeasured := st.Unmeasured(FactGPUs); !unmeasured || why.Empty() {
 		t.Error("пустой список карт не объяснён")
 	}
 }

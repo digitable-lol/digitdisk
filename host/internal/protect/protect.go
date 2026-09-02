@@ -42,11 +42,14 @@ import (
 	"strings"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/lang"
+	"digitdisk/internal/settings"
 )
 
-// UserFile is where the защитный список is looked for, under the config
-// directory ($XDG_CONFIG_HOME, else ~/.config).
-const UserFile = "digitdisk/protect.conf"
+// FileName is the name of the защитный список.  Where it is looked for is
+// settings.Find's business: ~/.digitable/digitdisk/ first, the old
+// $XDG_CONFIG_HOME/digitdisk (else ~/.config/digitdisk) after.
+const FileName = "protect.conf"
 
 // Kind is what a rule matches on.
 type Kind string
@@ -89,10 +92,31 @@ func (r Rule) String() string {
 	return s
 }
 
+// In is String for a reader: the same rule, with the вид named in the reader's
+// language.
+//
+// String stays as it is and is not routed through here: a rule printed into a
+// журнал or compared in a test must read the same on every machine, and «путь
+// ~/projects (protect.conf:3)» is what it has always read.  Only what a person
+// sees on the screen changes — and only the вид changes in it, because the
+// value, the file and the line are what the person wrote themselves.
+func (r Rule) In(l lang.Lang) string {
+	s := fmt.Sprintf("%s %s (%s)", l.Word(string(r.Kind)), r.Value, r.Where())
+	if r.Why != "" {
+		s += ": " + r.Why
+	}
+	return s
+}
+
 // List is the whole защитный список.
 type List struct {
 	Origins []string `json:"откуда"`
 	Rules   []Rule   `json:"правила"`
+
+	// Moved is the one line to say when this список was read from the home
+	// it used to live in.  Out of the JSON on purpose: it is news for a
+	// person, not a field of the plan.
+	Moved lang.Phrase `json:"-"`
 }
 
 // Empty reports whether nothing is protected.
@@ -157,8 +181,9 @@ func Load(opt Options) (*List, error) {
 	l := &List{Rules: []Rule{}}
 
 	file := opt.File
+	var legacy bool
 	if file == "" {
-		file = userPath(opt)
+		file, legacy, _ = userPath(opt)
 	}
 	if file != "" {
 		body, err := os.ReadFile(file)
@@ -168,6 +193,9 @@ func Load(opt Options) (*List, error) {
 				return nil, err
 			}
 			l.Origins = append(l.Origins, file)
+			if legacy {
+				l.Moved = movedNote(opt, file)
+			}
 		case opt.File != "":
 			return nil, err
 		case !os.IsNotExist(err):
@@ -178,7 +206,7 @@ func Load(opt Options) (*List, error) {
 	for _, arg := range opt.Args {
 		r, err := parseArg(arg, opt)
 		if err != nil {
-			return nil, fmt.Errorf("--protect %q: %w", arg, err)
+			return nil, fmt.Errorf("--protect %q: %s", arg, err)
 		}
 		l.Rules = append(l.Rules, r)
 	}
@@ -188,18 +216,29 @@ func Load(opt Options) (*List, error) {
 	return l, nil
 }
 
-func userPath(opt Options) string {
-	dir := opt.Config
-	if dir == "" {
-		if v := opt.Getenv("XDG_CONFIG_HOME"); v != "" {
-			dir = v
-		} else if opt.Home != "" {
-			dir = filepath.Join(opt.Home, ".config")
-		} else {
-			return ""
+// userPath finds the защитный список: the new home first, the old one after.
+func userPath(opt Options) (path string, legacy bool, ok bool) {
+	if opt.Config != "" {
+		p := filepath.Join(opt.Config, "digitdisk", FileName)
+		if st, err := os.Stat(p); err == nil && !st.IsDir() {
+			return p, true, true
 		}
+		return "", false, false
 	}
-	return filepath.Join(dir, filepath.FromSlash(UserFile))
+	if opt.Home == "" {
+		return "", false, false
+	}
+	return settings.Find(settings.Options{Home: opt.Home, Getenv: opt.Getenv}, FileName)
+}
+
+// movedNote is what a person is told when their защитный список came from the
+// home it used to live in.
+func movedNote(opt Options, from string) lang.Phrase {
+	dir, err := settings.Dir(settings.Options{Home: opt.Home, Getenv: opt.Getenv})
+	if err != nil {
+		return lang.Phrase{}
+	}
+	return settings.MovedNote(from, filepath.Join(dir, FileName))
 }
 
 func (l *List) readFile(body, origin string, opt Options) error {
@@ -215,7 +254,7 @@ func (l *List) readFile(body, origin string, opt Options) error {
 			f[i] = strings.TrimSpace(f[i])
 		}
 		if len(f) < 2 {
-			return fmt.Errorf("%s, строка %d: полей %d, а надо не меньше двух: вид|значение[|почему]", origin, line, len(f))
+			return lang.Errorf("%s, строка %d: полей %d, а надо не меньше двух: вид|значение[|почему]", origin, line, len(f))
 		}
 		why := ""
 		if len(f) == 3 {
@@ -223,7 +262,7 @@ func (l *List) readFile(body, origin string, opt Options) error {
 		}
 		r, err := rule(Kind(f[0]), f[1], why, opt)
 		if err != nil {
-			return fmt.Errorf("%s, строка %d: %w", origin, line, err)
+			return lang.Errorf("%s, строка %d: %s", origin, line, err)
 		}
 		r.Origin, r.Line = origin, line
 		l.Rules = append(l.Rules, r)
@@ -262,15 +301,15 @@ func rule(kind Kind, value, why string, opt Options) (Rule, error) {
 				return r, nil
 			}
 		}
-		return Rule{}, fmt.Errorf("разряд %q не известен; есть: %s", value, joinClasses())
+		return Rule{}, lang.Errorf("разряд %q не известен; есть: %s", value, joinClasses())
 	case KindPath:
 		if value == "" {
-			return Rule{}, fmt.Errorf("путь пуст")
+			return Rule{}, lang.Errorf("путь пуст")
 		}
 		switch {
 		case strings.HasPrefix(value, "~/"):
 			if opt.Home == "" {
-				return Rule{}, fmt.Errorf("путь начинается с ~, а домашний каталог не определяется")
+				return Rule{}, lang.Errorf("путь начинается с ~, а домашний каталог не определяется")
 			}
 			r.chain = chainOf(filepath.Join(opt.Home, filepath.FromSlash(value[2:])))
 		case strings.HasPrefix(value, "/"):
@@ -286,7 +325,7 @@ func rule(kind Kind, value, why string, opt Options) (Rule, error) {
 		}
 		return r, nil
 	}
-	return Rule{}, fmt.Errorf("вид %q: можно «путь» или «разряд»", kind)
+	return Rule{}, lang.Errorf("вид %q: можно «путь» или «разряд»", kind)
 }
 
 func chainOf(abs string) string {

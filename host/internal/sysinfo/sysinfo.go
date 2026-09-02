@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"digitdisk/internal/lang"
 )
 
 // Keys of Status.Missing for facts a system does not publish, as opposed to
@@ -54,7 +56,7 @@ var jsonOnly = map[string]bool{
 // Unmeasured reports whether the named fact is absent from this snapshot, and
 // why.  An empty reason with ok = true is still an absence: the caller prints
 // a dash either way.
-func (s Status) Unmeasured(fact string) (why string, ok bool) {
+func (s Status) Unmeasured(fact string) (why lang.Phrase, ok bool) {
 	why, ok = s.Missing[fact]
 	return why, ok
 }
@@ -73,17 +75,28 @@ func (s Status) UnmeasuredNames() []string {
 	return out
 }
 
+// An Absence is one fact the snapshot does not hold, with the reason.
+//
+// The name is a вокабула — the same Russian word that keys Status.Missing in
+// the JSON, so a script reading the snapshot sees exactly what it always saw —
+// and the screen shows the reader's word for it.  The reason is a Phrase for
+// the same purpose: Russian in the file, the reader's language on the screen.
+type Absence struct {
+	Name string
+	Why  lang.Phrase
+}
+
 // UnmeasuredAll lists every absence with its reason, sorted by name.  This is
 // what `--why` prints and nothing else does.
-func (s Status) UnmeasuredAll() [][2]string {
+func (s Status) UnmeasuredAll() []Absence {
 	names := make([]string, 0, len(s.Missing))
 	for name := range s.Missing {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	out := make([][2]string, 0, len(names))
+	out := make([]Absence, 0, len(names))
 	for _, name := range names {
-		out = append(out, [2]string{name, s.Missing[name]})
+		out = append(out, Absence{Name: name, Why: s.Missing[name]})
 	}
 	return out
 }

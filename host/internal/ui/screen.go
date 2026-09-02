@@ -5,7 +5,6 @@ package ui
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -13,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"digitdisk/internal/lang"
 	"digitdisk/internal/sysinfo"
 )
 
@@ -24,11 +24,25 @@ type Options struct {
 	Interval time.Duration
 	Palette  Palette
 	Collect  func() sysinfo.Status
+	// Lang is the language the screen is drawn in when it opens.  The
+	// reader may change it with one key while it is up.
+	Lang lang.Lang
+	// Remember stores a language the reader chose here, and answers with
+	// the line to show them — «язык сохранён: /path», or why it was not.
+	// It is handed in rather than called for, so that this package knows
+	// nothing about home directories and a test can watch what it was
+	// asked to store.  A nil Remember means the key still switches the
+	// screen and nothing is written anywhere.
+	Remember func(lang.Lang) lang.Phrase
 }
 
 // ErrNoTerminal is returned when the screen was asked for where it cannot be
 // drawn.  The caller prints text instead, or says so and stops.
-var ErrNoTerminal = errors.New("вывод не в терминал: живой экран невозможен")
+//
+// It is a lang.Error rather than a plain one because it is shown to a person:
+// the wording travels as a Phrase and is rendered where it is printed, while
+// `err == ErrNoTerminal` goes on working — the value is still this one.
+var ErrNoTerminal = lang.Errorf("вывод не в терминал: живой экран невозможен")
 
 // Available reports whether the live screen may be drawn on out.  It is the
 // whole of the default rule: a pipe, a file, /dev/null, an empty TERM and the
@@ -57,8 +71,16 @@ type screen struct {
 	rows int
 	cols int
 
-	st      sysinfo.Status
-	haveSt  bool
+	st     sysinfo.Status
+	haveSt bool
+	// l is the language every line of this screen is written in.
+	l lang.Lang
+	// said is the one-line answer to the last key that did something
+	// outside the screen — storing the language — and when it was said.
+	// It sits in the footer for a few seconds and then goes away: a
+	// notice that never leaves is a notice that stops being read.
+	said    lang.Phrase
+	saidAt  time.Time
 	taken   time.Time
 	took    time.Duration
 	tab     int
@@ -84,7 +106,7 @@ func Run(o Options) error {
 		o.Interval = 2 * time.Second
 	}
 	if o.Collect == nil {
-		return errors.New("живому экрану не передан сборщик снимка")
+		return lang.Errorf("живому экрану не передан сборщик снимка")
 	}
 	if !Available(o.Out) {
 		return ErrNoTerminal
@@ -101,7 +123,10 @@ func Run(o Options) error {
 		return ErrNoTerminal
 	}
 
-	s := &screen{o: o, t: NewTheme(o.Palette), out: bufio.NewWriterSize(o.Out, 1<<16), tty: tty}
+	s := &screen{o: o, l: o.Lang, t: NewTheme(o.Palette), out: bufio.NewWriterSize(o.Out, 1<<16), tty: tty}
+	if !s.l.Valid() {
+		s.l = lang.Default
+	}
 	s.rows, s.cols, _ = Size(o.Out)
 	if s.rows < minRows {
 		s.rows = 24
@@ -265,6 +290,17 @@ func (s *screen) handle(k key, snaps chan sample) bool {
 		case '?':
 			s.menu = !s.menu
 			s.scroll = 0
+		case 'l', 'L', 'д', 'Д':
+			// The language of the whole screen, switched where the
+			// reader is looking at it, and stored so that the next
+			// run — and `digitdisk clean` tomorrow — speaks the same
+			// language.  «l» for language and «д» for the same key on
+			// a Russian layout, beside the other letters this screen
+			// answers in both alphabets.
+			s.l = s.l.Other()
+			if s.o.Remember != nil {
+				s.said, s.saidAt = s.o.Remember(s.l), time.Now()
+			}
 		}
 		if k.r >= '1' && k.r <= '9' {
 			if n := int(k.r - '1'); n < len(sections) {
@@ -364,7 +400,13 @@ func (s *screen) frame() []string {
 
 	more := ""
 	if len(body) > h {
-		more = fmt.Sprintf("  строки %d–%d из %d", s.scroll+1, s.scroll+len(shown), len(body))
+		more = s.l.F("  строки %d–%d из %d", s.scroll+1, s.scroll+len(shown), len(body))
+	}
+	// What was just stored in the reader's home directory outranks the
+	// line count for a few seconds: writing a file is news, and «строки
+	// 1–20 из 40» is not.
+	if !s.said.Empty() && time.Since(s.saidAt) < 6*time.Second {
+		more = "  " + s.said.In(s.l)
 	}
 	out = append(out, t.Fg(t.P.Border, strings.Repeat("─", s.cols)))
 	out = append(out, s.footer(more))
@@ -411,7 +453,7 @@ func (s *screen) tabs() string {
 	for _, gap := range []int{2, 1} {
 		width := 1
 		for _, sec := range sections {
-			width += runes(sec.title) + 2 + gap
+			width += runes(sec.title(s.l)) + 2 + gap
 		}
 		if width+1 > s.cols {
 			continue
@@ -420,9 +462,9 @@ func (s *screen) tabs() string {
 		r.plain(" ")
 		for i, sec := range sections {
 			if i == s.tab {
-				r.add(" "+sec.title+" ", func(x string) string { return t.Chip(t.P.Accent, x) })
+				r.add(" "+sec.title(s.l)+" ", func(x string) string { return t.Chip(t.P.Accent, x) })
 			} else {
-				r.add(" "+sec.title+" ", func(x string) string { return t.Fg(t.P.Subtle, x) })
+				r.add(" "+sec.title(s.l)+" ", func(x string) string { return t.Fg(t.P.Subtle, x) })
 			}
 			r.plain(strings.Repeat(" ", gap))
 		}
@@ -432,7 +474,7 @@ func (s *screen) tabs() string {
 	cur := sections[s.tab]
 	var r row
 	r.add(" ‹ ", func(x string) string { return t.Fg(t.P.Subtle, x) })
-	r.add(" "+cur.title+" ", func(x string) string { return t.Chip(t.P.Accent, x) })
+	r.add(" "+cur.title(s.l)+" ", func(x string) string { return t.Chip(t.P.Accent, x) })
 	r.add(fmt.Sprintf(" ›  %d/%d", s.tab+1, len(sections)), func(x string) string { return t.Fg(t.P.Subtle, x) })
 	return r.String()
 }
@@ -443,21 +485,22 @@ func (s *screen) footer(more string) string {
 	var r row
 	switch {
 	case s.paused:
-		r.add(" ПАУЗА ", func(x string) string { return t.Chip(t.P.Yellow, x) })
+		r.add(" "+s.l.T("ПАУЗА")+" ", func(x string) string { return t.Chip(t.P.Yellow, x) })
 	case s.busying || !s.haveSt:
-		r.add(" ЗАМЕР ", func(x string) string { return t.Chip(t.P.AccentSoft, x) })
+		r.add(" "+s.l.T("ЗАМЕР")+" ", func(x string) string { return t.Chip(t.P.AccentSoft, x) })
 	default:
-		r.add(" ЖИВОЙ ", func(x string) string { return t.Chip(t.P.Green, x) })
+		r.add(" "+s.l.T("ЖИВОЙ")+" ", func(x string) string { return t.Chip(t.P.Green, x) })
 	}
 	// The keys come first in the budget: a full-screen program that does not
 	// say how to leave it is a trap, so the state of the measurement is what
 	// gives way on a narrow terminal, never the way out.
-	const exit = "q выход "
+	exit := s.l.T("q выход ")
 	if s.haveSt {
+		ago, took, period := s.l.Since(time.Since(s.taken)), s.l.Millis(s.took), s.l.Every(s.o.Interval)
 		states := []string{
-			fmt.Sprintf("  замер %s назад · длился %s · каждые %s", since(s.taken), lasted(s.took), every(s.o.Interval)),
-			fmt.Sprintf("  замер %s назад · каждые %s", since(s.taken), every(s.o.Interval)),
-			fmt.Sprintf("  замер %s назад", since(s.taken)),
+			s.l.F("  замер %s назад · длился %s · каждые %s", ago, took, period),
+			s.l.F("  замер %s назад · каждые %s", ago, period),
+			s.l.F("  замер %s назад", ago),
 			"",
 		}
 		budget := s.cols - r.w - runes(exit) - 2
@@ -472,17 +515,20 @@ func (s *screen) footer(more string) string {
 		r.add(more, func(x string) string { return t.Fg(t.P.Subtle, x) })
 	}
 
+	// Every width of the hint is its own wording: an English line is not a
+	// Russian line with the words swapped, and one that had to be cut to fit
+	// would be cut in a different place.
 	hints := []string{
-		"← → разделы · ↑ ↓ прокрутка · p пауза · r замер · ? команды · q выход ",
-		"← → разделы · p пауза · r замер · ? команды · q выход ",
-		"← → · p · r · ? команды · q выход ",
-		"← → · p · r · q выход ",
+		s.l.T("← → разделы · ↑ ↓ прокрутка · p пауза · r замер · l язык · ? команды · q выход "),
+		s.l.T("← → разделы · p пауза · r замер · l язык · ? команды · q выход "),
+		s.l.T("← → · p · r · l язык · ? команды · q выход "),
+		s.l.T("← → · p · r · l · q выход "),
 		exit,
 	}
 	if s.menu {
 		hints = []string{
-			"↑ ↓ прокрутка · ? или Esc назад · q выход ",
-			"? назад · q выход ",
+			s.l.T("↑ ↓ прокрутка · ? или Esc назад · q выход "),
+			s.l.T("? назад · q выход "),
 			exit,
 		}
 	}
@@ -494,32 +540,6 @@ func (s *screen) footer(more string) string {
 		}
 	}
 	return r.String()
-}
-
-func since(at time.Time) string {
-	d := time.Since(at)
-	if d < time.Second {
-		return "0 с"
-	}
-	if d < time.Minute {
-		return fmt.Sprintf("%d с", int(d.Seconds()))
-	}
-	return fmt.Sprintf("%d мин", int(d.Minutes()))
-}
-
-// lasted says how long a measurement ran, in the units that suit its size.
-func lasted(d time.Duration) string {
-	if d < time.Second {
-		return fmt.Sprintf("%d мс", d.Milliseconds())
-	}
-	return fmt.Sprintf("%.1f с", d.Seconds())
-}
-
-func every(d time.Duration) string {
-	if d < time.Second {
-		return fmt.Sprintf("%d мс", d.Milliseconds())
-	}
-	return fmt.Sprintf("%g с", d.Seconds())
 }
 
 func maxInt(a, b int) int {

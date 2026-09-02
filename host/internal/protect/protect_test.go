@@ -6,9 +6,11 @@ package protect
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/lang"
 )
 
 func load(t *testing.T, body string, args ...string) *List {
@@ -123,5 +125,25 @@ func TestBadRulesAreRefused(t *testing.T) {
 		if _, err := Load(Options{File: file, Home: "/home/u", Config: dir, Getenv: func(string) string { return "" }}); err == nil {
 			t.Errorf("правило %q принято, а должно быть отвергнуто", bad)
 		}
+	}
+}
+
+// TestRuleReadsInBothLanguages: правило называет свой вид словом читателя, а
+// String остаётся прежним — его видят журнал и сравнения по тексту.
+func TestRuleReadsInBothLanguages(t *testing.T) {
+	l := load(t, "путь|~/projects|мои исходники\n")
+	r := l.Rules[0]
+	if got, want := r.String(), r.In(lang.RU); got != want {
+		t.Errorf("по-русски правило читается двояко: %q и %q", got, want)
+	}
+	if !strings.HasPrefix(r.String(), "путь ") {
+		t.Errorf("String() перестал начинаться с вида по-русски: %q", r.String())
+	}
+	en := r.In(lang.EN)
+	if !strings.HasPrefix(en, "path ") {
+		t.Errorf("вид правила не назван по-английски: %q", en)
+	}
+	if !strings.Contains(en, "мои исходники") {
+		t.Errorf("причина, написанная человеком, обязана остаться его словами: %q", en)
 	}
 }

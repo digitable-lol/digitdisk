@@ -4,7 +4,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -164,9 +163,6 @@ func pctOf(part, whole uint64) float64 {
 	}
 	return float64(part) / float64(whole)
 }
-
-// percent renders a share as the report would write it.
-func percent(frac float64) string { return fmt.Sprintf("%.1f%%", frac*100) }
 
 // clip cuts a painted line to n printing cells.  Escape sequences carry no
 // width and are copied through whole, so a line is shortened without its

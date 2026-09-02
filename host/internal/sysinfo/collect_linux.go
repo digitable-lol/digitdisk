@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"digitdisk/internal/gpuinfo"
+	"digitdisk/internal/lang"
 	"digitdisk/internal/procfs"
 )
 
@@ -70,10 +71,10 @@ func (c Collector) trimmed(parts ...string) string {
 // Collect gathers the whole snapshot.  Sources that fail are recorded in
 // Status.Missing rather than aborting the run.
 func (c Collector) Collect() Status {
-	st := Status{TakenAt: time.Now().Format(time.RFC3339), Missing: map[string]string{}}
+	st := Status{TakenAt: time.Now().Format(time.RFC3339), Missing: map[string]lang.Phrase{}}
 	miss := func(what string, err error) {
 		if err != nil {
-			st.Missing[what] = err.Error()
+			st.Missing[what] = lang.FromError(err)
 		}
 	}
 
@@ -106,13 +107,13 @@ func (c Collector) Collect() Status {
 		c.trimmed(c.Sys, "class/dmi/id/product_name"),
 	}, " "))
 	if st.Host.Model == "" {
-		st.Missing[FactMachine] = "прошивка не публикует имя машины в " + filepath.Join(c.Sys, "class/dmi/id")
+		st.Missing[FactMachine] = lang.Say("прошивка не публикует имя машины в %s", filepath.Join(c.Sys, "class/dmi/id"))
 	}
 	if text, err := c.read(c.Proc, "cpuinfo"); err == nil {
 		st.Host.CPUModel = procfs.ParseCPUModel(text)
 	}
 	if st.Host.CPUModel == "" {
-		st.Missing[FactCPUModel] = "в " + filepath.Join(c.Proc, "cpuinfo") + " нет строки с названием процессора"
+		st.Missing[FactCPUModel] = lang.Say("в " + filepath.Join(c.Proc, "cpuinfo") + " нет строки с названием процессора")
 	}
 	environment(&st)
 
@@ -173,7 +174,7 @@ func (c Collector) Collect() Status {
 	} else {
 		st.Processes.Running = first.ProcsRunning
 		st.Processes.Blocked = first.ProcsBlocked
-		st.Missing[FactCores] = "окно замера нулевое — доля занятого времени каждого ядра не измерялась"
+		st.Missing[FactCores] = lang.Say("окно замера нулевое — доля занятого времени каждого ядра не измерялась")
 	}
 
 	procs := make([]Proc, 0, len(pass2))
@@ -233,13 +234,13 @@ func (c Collector) Collect() Status {
 	miss("net/dev", err)
 	gpus := gpuinfo.Reader{Sys: c.Sys, Proc: c.Proc, IDs: gpuinfo.DefaultPCIIDs, Tool: c.GPUTool}.Read()
 	st.GPUs = gpus.Cards
-	if gpus.NoCards != "" {
+	if !gpus.NoCards.Empty() {
 		st.Missing[FactGPUs] = gpus.NoCards
 	}
-	if gpus.NoNumbers != "" {
+	if !gpus.NoNumbers.Empty() {
 		st.Missing[FactGPUNumbers] = gpus.NoNumbers
 	}
-	if gpus.NoPower != "" {
+	if !gpus.NoPower.Empty() {
 		st.Missing[FactGPUPower] = gpus.NoPower
 	}
 
@@ -248,7 +249,7 @@ func (c Collector) Collect() Status {
 		// An absent sensor is a fact about the machine, not a failed
 		// read — but "no temperatures" and "temperatures not looked
 		// for" are still different things, so it is named.
-		st.Missing[FactSensors] = "в " + filepath.Join(c.Sys, "class/hwmon") + " датчиков нет"
+		st.Missing[FactSensors] = lang.Say("в %s датчиков нет", filepath.Join(c.Sys, "class/hwmon"))
 	}
 
 	if len(st.Missing) == 0 {

@@ -1,0 +1,486 @@
+.\" SPDX-FileCopyrightText: 2026 Marat Zimnurov <zimtir@mail.ru>
+.\" SPDX-License-Identifier: BSD-2-Clause
+.Dd September 2, 2026
+.Dt DIGITDISK 1
+.Os
+.Sh NAME
+.Nm digitdisk
+.Nd system snapshot, directory tree analysis and cleanup
+.Sh SYNOPSIS
+.Nm digitdisk
+.Op Ar subcommand
+.Op Ar options
+.Nm digitdisk Cm status
+.Op Fl -json
+.Op Fl -lang Ar language
+.Op Fl -why
+.Op Fl -top Ar N
+.Op Fl -sample Ar MS
+.Op Fl -live | Fl -plain
+.Op Fl -interval Ar MS
+.Nm digitdisk Cm analyze Ar path
+.Op Fl -json
+.Op Fl -lang Ar language
+.Op Fl -top Ar N
+.Op Fl -places Ar file
+.Op Fl -no-places
+.Op Fl -cross-device
+.Op Fl -max-depth Ar N
+.Nm digitdisk Cm clean Ar path
+.Op Fl -json
+.Op Fl -lang Ar language
+.Op Fl -apply
+.Op Fl -top Ar N
+.Op Fl -trash Ar directory
+.Op Fl -protect Ar what
+.Op Fl -protect-file Ar file
+.Op Fl -places Ar file
+.Op Fl -no-places
+.Op Fl -cross-device
+.Op Fl -max-depth Ar N
+.Nm digitdisk Cm restore Ar trash
+.Op Fl -json
+.Op Fl -lang Ar language
+.Op Fl -dry-run
+.Nm digitdisk Cm purge Ar trash
+.Op Fl -json
+.Op Fl -lang Ar language
+.Op Fl -confirm Ar N
+.Nm digitdisk Cm places
+.Op Fl -json
+.Op Fl -lang Ar language
+.Op Fl -top Ar N
+.Op Fl -places Ar file
+.Op Fl -no-measure
+.Nm digitdisk Cm history Ar path
+.Op Fl -json
+.Op Fl -lang Ar language
+.Op Fl -top Ar N
+.Nm digitdisk
+.Fl -help | Fl -version
+.Sh DESCRIPTION
+.Nm
+prints two readings of a machine — where the disk space went and what the
+machine is doing right now — and, on a separate command, removes files.
+.Pp
+The subcommand may be left out:
+.Nm
+with no arguments does what
+.Nm Cm status
+does, with all of its defaults.
+A key where the subcommand would stand also belongs to
+.Cm status ,
+so
+.Nm Fl -json
+and
+.Nm Cm status Fl -json
+are the same command.
+A word that matches no subcommand is not taken for a command: it is refused
+with code 2 rather than read as something else.
+.Pp
+.Cm status ,
+.Cm analyze ,
+.Cm places
+and
+.Cm history
+only read.
+Three commands remove, and there are three of them:
+.Cm clean
+shows a plan and without
+.Fl -apply
+opens no file for writing,
+.Cm restore
+puts back what was moved,
+.Cm purge
+erases.
+.Pp
+What is removed is exactly what the decision layer gave the verdict
+.Dq Removable :
+not what resembles it, and not what matched a pattern.
+.Dq Removable
+is the core's own name for that verdict — an identifier
+rather than an English word — and under
+.Fl -json
+it travels as
+.Dq МожноУбрать .
+.Pp
+Moving to the trash frees no space.
+.Fl -apply
+is
+.Xr rename 2
+inside the same file system: the files stay on the disk under another name,
+and the number
+.Cm clean Fl -apply
+prints is what was moved, not what was freed.
+Only
+.Cm purge
+frees space, and that is irreversible.
+.Pp
+The language is asked once.
+On the first run at a terminal
+.Nm
+asks which language to write in and stores the answer in
+.Pa ~/.digitable/digitdisk/settings.conf .
+Where it is not a terminal — a pipe, a script, CI — or where
+.Fl -json
+is given, nothing is asked and nothing is stored: the language comes from
+.Ev LC_ALL ,
+.Ev LC_MESSAGES
+and
+.Ev LANG ,
+and a locale that is unset or names no language of the two means English.
+.Fl -lang
+overrides both the stored choice and the locale for one run,
+.Ev DIGITDISK_LANG
+for a session.
+.Pp
+.Fl -json
+is not translated: its keys and its machine values stay byte for byte what
+they were, because scripts read them.
+The Russian words that travel in JSON as values — the class
+.Dq Кэш ,
+the verdict
+.Dq МожноУбрать ,
+the texts of a refusal — are identifiers of the decision
+layer, not output text.
+.Sh SUBCOMMANDS
+.Bl -tag -width "history <path>XX"
+.It Cm status
+A snapshot of the system: kernel and release, uptime, load, memory, processes,
+disks, network, temperature.
+The sources are the platform's own:
+.Pa /proc
+and
+.Pa /sys
+on Linux,
+.Xr sysctl 3
+and libSystem on macOS.
+What the system does not publish is printed as a dash, not as a zero, and is
+named in the
+.Dq NOT READ
+section; why, under
+.Fl -why .
+At a terminal a live screen is drawn; into a pipe or a file the same snapshot
+is printed as text.
+.It Cm analyze Ar path
+A walk of the tree at
+.Ar path
+through
+.Xr lstat 2 :
+directories by size and the largest files.
+Symbolic links are not followed, without
+.Fl -cross-device
+the walk does not cross a file system boundary, and what cannot be read is
+counted and stepped over.
+A hard link is counted once.
+.It Cm clean Ar path
+The cleanup plan for
+.Ar path :
+which files, how many bytes, and by which rule of the core they are marked
+.Dq Removable .
+Without
+.Fl -apply
+nothing is touched.
+With
+.Fl -apply
+what is marked is moved to the trash and a journal is written.
+.It Cm restore Ar trash
+The trash named by
+.Ar trash
+goes back where it came from, by its own journal.
+It needs no key and overwrites nothing: a name already taken is an entry
+.Dq not restored ,
+not a replaced file.
+.It Cm purge Ar trash
+Erasing the trash named by
+.Ar trash
+— the one irreversible action.
+Without
+.Fl -confirm
+it prints the plan and the number that has to be named.
+.It Cm places
+The known-places directory: what
+.Nm
+knows about particular caches and how much of that is on this machine.
+The directory is data: it is edited without a rebuild.
+.It Cm history Ar path
+How past cleanups under the root
+.Ar path
+ended: when, how many files, how many bytes are lying in trashes, how much
+was restored and how much was erased.
+Nothing is remembered between runs — all of it is read
+from the journals of the trashes themselves.
+.El
+.Sh OPTIONS
+.Bl -tag -width "--protect-file fileXX"
+.It Fl -json
+Machine-readable output.
+Every subcommand takes it.
+Under
+.Fl -json
+the list of work of
+.Cm clean
+travels whole and is not cut by
+.Fl -top .
+.It Fl -lang Ar language
+.Cm ru
+or
+.Cm en
+for one run; it overrides both the stored choice and the locale.
+Every subcommand takes it.
+.It Fl -top Ar N
+How many lines in the lists: 10 for
+.Cm status ,
+15 for
+.Cm analyze
+and
+.Cm clean ,
+40 for
+.Cm places ,
+20 for
+.Cm history .
+.Ar N
+= 0 means no limit.
+The totals and the breakdown by class are counted over the whole plan and do
+not depend on
+.Fl -top .
+.It Fl -why
+.Cm status :
+instead of the snapshot — what was not measured and why.
+.It Fl -sample Ar MS
+.Cm status :
+the window over which CPU load is measured, milliseconds, 200 by default.
+.It Fl -live
+.Cm status :
+the live screen.
+Without a terminal it is an error, not a quiet fall back to text.
+.It Fl -plain
+.Cm status :
+one snapshot as text, even when the output goes to a terminal.
+.It Fl -interval Ar MS
+.Cm status :
+how often the live screen is refreshed, milliseconds, 2000 by default.
+.It Fl -cross-device
+.Cm analyze , clean :
+walk into other file systems that are mounted there.
+By default the walk stops at the boundary.
+.It Fl -max-depth Ar N
+.Cm analyze , clean :
+the depth limit of the walk, 0 means no limit.
+.It Fl -places Ar file
+.Cm analyze , clean , places :
+a known-places directory of one's own instead of the built-in one.
+.It Fl -no-places
+.Cm analyze , clean :
+judge by the signs alone, without the directory.
+.It Fl -no-measure
+.Cm places :
+do not measure the places that were found, only name them.
+.It Fl -apply
+.Cm clean :
+move what is marked to the trash rather than only showing the plan.
+.It Fl -trash Ar directory
+.Cm clean :
+another trash instead of
+.Pa <root>/.digitdisk-trash .
+It has to lie inside the root of the cleanup.
+.It Fl -protect Ar what
+.Cm clean :
+leave alone.
+.Ar what
+is either a path or a class, written
+.Dq разряд: Ns Ar class ;
+the prefix and the class names are the core's own and are not translated.
+The key may be repeated.
+The protect list only subtracts: it moves an entry from the plan into
+.Dq PROTECTED
+and never adds a file to the plan.
+.It Fl -protect-file Ar file
+.Cm clean :
+the protect list from a file instead of
+.Pa ~/.digitable/digitdisk/protect.conf .
+.It Fl -dry-run
+.Cm restore :
+show what would come back, and put nothing back.
+.It Fl -confirm Ar N
+.Cm purge :
+confirm the erasing of exactly
+.Ar N
+files.
+.Ar N
+has to match the number of files in the trash.
+.It Fl -help , Fl h , Cm help
+Help: the subcommands and the keys on one page.
+.It Fl -version , Fl V , Cm version
+The version, the build hash, the toolchain and the decision layer of this
+binary.
+.El
+.Sh LIVE SCREEN
+.Nm
+and
+.Nm Cm status
+draw a live screen when the output goes to a terminal.
+The keys:
+.Pp
+.Bl -tag -width "PgUp, PgDnXX" -compact
+.It Ic \(<-\ \(->, Tab
+the previous and the next section
+.It Ic 1\(en9
+that section at once
+.It Ic \(ua\ \(da, PgUp, PgDn
+scrolling a long section
+.It Ic p , Space
+pause
+.It Ic r
+measure now
+.It Ic l
+switch the language and store the new choice
+.It Ic \&?
+the list of commands; it only names them, they are typed in the shell
+.It Ic q , Esc
+quit
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width "XDG_CONFIG_HOMEXX"
+.It Ev DIGITDISK_LANG
+.Cm ru
+or
+.Cm en
+for a session: it overrides the stored choice and the locale, and
+.Fl -lang
+overrides it.
+.It Ev LC_ALL , LC_MESSAGES , LANG
+The language of the machine, in that order, when nothing was chosen.
+A locale that is unset or names no language of the two means English.
+.It Ev DIGITDISK_PALETTE
+The palette of the live screen:
+.Cm carbon
+(the default),
+.Cm paper ,
+.Cm signal .
+.It Ev NO_COLOR
+Set, it turns colour off.
+.It Ev TERM
+.Cm dumb
+or an empty value — no live screen, text is printed.
+.It Ev XDG_CONFIG_HOME
+Where the older
+.Pa digitdisk/places.conf
+and
+.Pa digitdisk/protect.conf
+are looked for;
+.Pa ~/.config
+by default.
+.It Ev XDG_CACHE_HOME , XDG_DATA_HOME
+Where the known-places directory aims its
+.Dq cache
+and
+.Dq data
+anchors;
+.Pa ~/.cache
+and
+.Pa ~/.local/share
+by default.
+.El
+.Sh FILES
+.Bl -tag -width "<root>/.digitdisk-trash/<label>/journal.jsonXX"
+.It Pa <root>/.digitdisk-trash/<label>/
+The trash that
+.Cm clean Fl -apply
+makes.
+It is always inside the root of the cleanup; the label is a UTC time of the
+form
+.Pa 2026-09-02T12-00-00Z .
+.It Pa <root>/.digitdisk-trash/<label>/files/
+The moved files, each under its own path relative to the root.
+.It Pa <root>/.digitdisk-trash/<label>/journal.json
+The journal of the trash: where each file was taken from, its size and its
+fingerprint, what was restored and what was erased.
+.Cm restore ,
+.Cm purge
+and
+.Cm history
+read it; without it a directory is no trash of
+.Nm .
+.It Pa ~/.digitable/digitdisk/settings.conf
+The language, stored after the question was answered by hand.
+Nothing else is written here.
+.It Pa ~/.digitable/digitdisk/places.conf
+A known-places directory of one's own.
+With no such file the directory built into the binary is used;
+.Cm places
+prints which of the two was taken.
+.It Pa ~/.digitable/digitdisk/protect.conf
+The protect list: lines of the form
+.Pa путь|<path>|<why>
+and
+.Pa разряд|<class>|<why> .
+.It Pa ~/.config/digitdisk/places.conf , ~/.config/digitdisk/protect.conf
+The older home, still read when the new one holds no such file.
+Nothing is copied out of it: the file is moved by hand, when it suits.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width "0XX" -compact
+.It 0
+The command did its work.
+.It 1
+A failure while running: no such path, a directory that is no trash,
+.Fl -confirm
+naming the wrong number.
+.It 2
+An unknown subcommand or a key that was not parsed.
+.El
+.Sh EXAMPLES
+The live screen of the state:
+.Pp
+.Dl $ digitdisk
+.Pp
+The same snapshot, for a machine:
+.Pp
+.Dl $ digitdisk --json | jq .memory
+.Pp
+The same snapshot, in the other language:
+.Pp
+.Dl $ digitdisk --lang ru
+.Pp
+Where the space went in the home directory, in twenty lines:
+.Pp
+.Dl $ digitdisk analyze ~ --top 20
+.Pp
+The cleanup plan; nothing is touched:
+.Pp
+.Dl $ digitdisk clean ~
+.Pp
+The move to the trash, with two exemptions:
+.Pp
+.Dl $ digitdisk clean ~ --protect ~/projects --protect разряд:сборка --apply
+.Pp
+Second thoughts:
+.Pp
+.Dl $ digitdisk restore ~/.digitdisk-trash/2026-09-02T12-00-00Z
+.Pp
+Freeing the space — irreversible, and the number is said out loud:
+.Pp
+.Dl $ digitdisk purge ~/.digitdisk-trash/2026-09-02T12-00-00Z
+.Dl $ digitdisk purge ~/.digitdisk-trash/2026-09-02T12-00-00Z --confirm 128
+.Pp
+What was removed under this root and how much of it is still in the trashes:
+.Pp
+.Dl $ digitdisk history ~
+.Sh SEE ALSO
+.Xr df 1 ,
+.Xr du 1 ,
+.Xr find 1 ,
+.Xr lstat 2 ,
+.Xr rename 2
+.Pp
+This page is the English one:
+.Ic man digitdisk
+gives it, and
+.Ic LANG=ru_RU.UTF-8 man digitdisk
+gives the Russian one.
+.Pp
+The sources and both editions of the description:
+.Lk https://github.com/digitable-lol/digitdisk
+.Sh AUTHORS
+.An Marat Zimnurov Aq Mt zimtir@mail.ru

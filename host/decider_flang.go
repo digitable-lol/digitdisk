@@ -8,7 +8,8 @@ package main
 import (
 	"digitdisk/internal/core"
 	"digitdisk/internal/coreflang"
+	"digitdisk/internal/lang"
 )
 
 // chosenDecider returns the flang decision layer from core/out-go.
-func chosenDecider() core.Decider { return coreflang.New() }
+func chosenDecider(lang.Lang) core.Decider { return coreflang.New() }

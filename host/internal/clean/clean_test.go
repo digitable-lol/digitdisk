@@ -213,7 +213,7 @@ func TestChangedFileIsRefused(t *testing.T) {
 	if len(failed) != 1 || filepath.Base(failed[0].Path) != "old.bin" {
 		t.Fatalf("отвергнуто %+v, ожидался ровно old.bin", failed)
 	}
-	if !strings.Contains(failed[0].Failed, "размер") && !strings.Contains(failed[0].Failed, "писали") {
+	if !strings.Contains(failed[0].Failed.String(), "размер") && !strings.Contains(failed[0].Failed.String(), "писали") {
 		t.Fatalf("отказ не называет, что изменилось: %q", failed[0].Failed)
 	}
 	if _, err := os.Lstat(target); err != nil {
@@ -237,7 +237,7 @@ func TestVanishedFileIsRefused(t *testing.T) {
 		t.Fatalf("перенесено %d исчезнувших файлов", n)
 	}
 	failed := j.Failed()
-	if len(failed) != 1 || !strings.Contains(failed[0].Failed, "исчез") {
+	if len(failed) != 1 || !strings.Contains(failed[0].Failed.String(), "исчез") {
 		t.Fatalf("исчезновение не названо: %+v", failed)
 	}
 }
@@ -259,10 +259,10 @@ func TestGuardRefusesDirectoryAndLink(t *testing.T) {
 	}
 	var sawDir, sawLink bool
 	for _, r := range p.Refused {
-		if strings.Contains(r.Reason, "каталог") {
+		if strings.Contains(r.Reason.String(), "каталог") {
 			sawDir = true
 		}
-		if strings.Contains(r.Reason, "ссылка") {
+		if strings.Contains(r.Reason.String(), "ссылка") {
 			sawLink = true
 		}
 	}

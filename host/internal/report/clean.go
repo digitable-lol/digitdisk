@@ -10,6 +10,7 @@ import (
 
 	"digitdisk/internal/clean"
 	"digitdisk/internal/core"
+	"digitdisk/internal/lang"
 )
 
 // CleanPlan prints what `clean --apply` would move, and nothing about what it
@@ -27,50 +28,53 @@ import (
 //
 // top ≤ 0 prints everything, the same "0 — без предела" this CLI already uses
 // for --max-depth.  `--json` is not cut at all: see cmdClean.
-func CleanPlan(w io.Writer, p clean.Plan, top int) {
-	pr := func(format string, a ...any) { fmt.Fprintf(w, format+"\n", a...) }
+func CleanPlan(w io.Writer, l lang.Lang, p clean.Plan, top int) {
+	pr := func(line string) { fmt.Fprintln(w, line) }
 
-	pr("ПЛАН УБОРКИ  %s", p.Root)
-	pr("  решающий слой  %s, договор версии %d", p.Decider, p.ContractVersion)
+	pr(l.F("ПЛАН УБОРКИ  %s", p.Root))
+	pr(l.F("  решающий слой  %s, договор версии %d", l.Word(p.Decider), p.ContractVersion))
 	if !p.DeciderReady {
 		pr("")
-		pr("  ВНИМАНИЕ: слой — заглушка. Она никому не выносит «%s», поэтому список ниже", core.VerdictRemovable)
-		pr("  пуст не потому, что убирать нечего, а потому, что никто не решал.")
-		pr("  Настоящий разбор: go build -tags flangcore -o digitdisk ./host")
+		pr(l.F("  ВНИМАНИЕ: слой — заглушка. Она никому не выносит «%s», поэтому список ниже",
+			l.Word(string(core.VerdictRemovable))))
+		pr(l.T("  пуст не потому, что убирать нечего, а потому, что никто не решал."))
+		pr(l.T("  Настоящий разбор: go build -tags flangcore -o digitdisk ./host"))
 	}
 	if p.PlacesOrigin != "" {
-		pr("  справочник     %d мест, %s", p.PlacesCount, p.PlacesOrigin)
+		pr(l.F("  справочник     %d мест, %s", p.PlacesCount, l.Word(p.PlacesOrigin)))
 	}
 	if len(p.ProtectOrigins) > 0 {
-		pr("  защитный спис. %s", strings.Join(p.ProtectOrigins, ", "))
+		pr(l.F("  защитный спис. %s", strings.Join(p.ProtectOrigins, ", ")))
 	}
-	pr("  обойдено       %d записей, %s", p.Walk.Entries, Bytes(p.Walk.TotalBytes))
+	pr(l.F("  обойдено       %s записей, %s", l.Num(int64(p.Walk.Entries)), l.Bytes(p.Walk.TotalBytes)))
 	s := p.Walk.Skipped
-	pr("  пропущено      %d  (нет доступа %d, исчезло %d, иные ошибки %d, граница ФС %d, предел глубины %d)",
-		s.Total(), s.PermissionDenied, s.Vanished, s.OtherErrors, s.DeviceBoundaries, s.DepthLimited)
+	pr(l.F("  пропущено      %s  (нет доступа %s, исчезло %s, иные ошибки %s, граница ФС %s, предел глубины %s)",
+		l.Num(int64(s.Total())), l.Num(int64(s.PermissionDenied)), l.Num(int64(s.Vanished)),
+		l.Num(int64(s.OtherErrors)), l.Num(int64(s.DeviceBoundaries)), l.Num(int64(s.DepthLimited))))
 	if p.PrunedTrash > 0 {
-		pr("  своя корзина   %d записей не обходилось (%s)", p.PrunedTrash, clean.TrashName)
+		pr(l.F("  своя корзина   %s записей не обходилось (%s)", l.Num(int64(p.PrunedTrash)), clean.TrashName))
 	}
 
 	pr("")
-	pr("К ПЕРЕНОСУ В КОРЗИНУ  %d файлов, %s", len(p.Items), Bytes(p.Bytes))
-	pr("  корзина        %s/<метка времени>", p.Trash)
+	pr(l.F("К ПЕРЕНОСУ В КОРЗИНУ  %s файлов, %s", l.Num(int64(len(p.Items))), l.Bytes(p.Bytes)))
+	pr(l.F("  корзина        %s/<метка времени>", p.Trash))
 	if p.HardlinkItems > 0 {
-		pr("  из них %d — жёсткие ссылки: у их содержимого есть второе имя, и стирание", p.HardlinkItems)
-		pr("  этого имени места не освободит. Освободится стиранием: %s", Bytes(p.FreeableBytes))
+		pr(l.F("  из них %s — жёсткие ссылки: у их содержимого есть второе имя, и стирание",
+			l.Num(int64(p.HardlinkItems))))
+		pr(l.F("  этого имени места не освободит. Освободится стиранием: %s", l.Bytes(p.FreeableBytes)))
 	}
 	if len(p.ByClass) > 0 {
 		pr("")
-		pr("  по разрядам (весь план, ключ --top на этот счёт не влияет):")
+		pr(l.T("  по разрядам (весь план, ключ --top на этот счёт не влияет):"))
 		for _, c := range p.ByClass {
-			pr("  %-11s %6d файлов  %10s", c.Class, c.Count, Bytes(c.Bytes))
+			pr(l.F("  %-11s %6s файлов  %10s", l.Word(string(c.Class)), l.Num(int64(c.Count)), l.Bytes(c.Bytes)))
 		}
 	}
 	if len(p.Items) == 0 {
-		pr("  — нечего: ядро не пометило «%s» ни одного файла", core.VerdictRemovable)
+		pr(l.F("  — нечего: ядро не пометило «%s» ни одного файла", l.Word(string(core.VerdictRemovable))))
 	} else {
 		pr("")
-		pr("  %10s  %-11s %-30s %s", "размер", "разряд", "почему", "путь")
+		pr(fmt.Sprintf("  %10s  %-11s %-30s %s", l.T("размер"), l.T("разряд"), l.T("почему"), l.T("путь")))
 		shown, hidden, hiddenBytes := 0, 0, int64(0)
 		for _, it := range p.Items {
 			if top > 0 && shown == top {
@@ -78,188 +82,199 @@ func CleanPlan(w io.Writer, p clean.Plan, top int) {
 				hiddenBytes += it.Size
 				continue
 			}
-			pr("  %10s  %-11s %-30s %s", Bytes(it.Size), it.Class, it.Why(), cut(it.Path, 70))
+			pr(fmt.Sprintf("  %10s  %-11s %-30s %s", l.Bytes(it.Size), l.Word(string(it.Class)),
+				it.Why(l), cut(it.Path, 70)))
 			if where := it.Where(); where != "" {
-				pr("  %10s  %-11s место: %s", "", "", where)
+				pr(l.F("  %10s  %-11s место: %s", "", "", where))
 			}
 			shown++
 		}
 		if hidden > 0 {
-			pr("  …и ещё %d файлов на %s — весь список: --top 0, или --json", hidden, Bytes(hiddenBytes))
+			pr(l.F("  …и ещё %s файлов на %s — весь список: --top 0, или --json",
+				l.Num(int64(hidden)), l.Bytes(hiddenBytes)))
 		}
 	}
 
 	if len(p.Protected) > 0 {
 		pr("")
-		pr("ЗАЩИЩЕНО  %d файлов, %s: ядро назвало их «%s», защитный список запретил",
-			len(p.Protected), Bytes(p.ProtectedBytes), core.VerdictRemovable)
-		pr("  Это не расхождение слоёв, а ваше же распоряжение — оно и выполнено.")
+		pr(l.F("ЗАЩИЩЕНО  %s файлов, %s: ядро назвало их «%s», защитный список запретил",
+			l.Num(int64(len(p.Protected))), l.Bytes(p.ProtectedBytes), l.Word(string(core.VerdictRemovable))))
+		pr(l.T("  Это не расхождение слоёв, а ваше же распоряжение — оно и выполнено."))
 		shown, hidden := 0, 0
 		for _, pt := range p.Protected {
 			if top > 0 && shown == top {
 				hidden++
 				continue
 			}
-			pr("  %10s  %-11s %s", Bytes(pt.Size), pt.Class, cut(pt.Path, 62))
-			pr("              %s", pt.Rule)
+			pr(fmt.Sprintf("  %10s  %-11s %s", l.Bytes(pt.Size), l.Word(string(pt.Class)), cut(pt.Path, 62)))
+			// Правило называется словом читателя, а значение, файл и
+			// строка — теми словами, которыми их написал сам человек:
+			// переводить чужой файл никто не подряжался.
+			pr(fmt.Sprintf("              %s", pt.Rule.In(l)))
 			shown++
 		}
 		if hidden > 0 {
-			pr("  …и ещё %d защищённых файлов", hidden)
+			pr(l.F("  …и ещё %s защищённых файлов", l.Num(int64(hidden))))
 		}
 	}
 
 	pr("")
 	if len(p.Refused) == 0 {
-		pr("ОТКАЗОВ НЕТ: хозяин согласен с ядром по каждой записи")
+		pr(l.T("ОТКАЗОВ НЕТ: хозяин согласен с ядром по каждой записи"))
 	} else {
-		pr("ОТКАЗАНО  %d записей: ядро назвало их «%s», хозяин не тронет", len(p.Refused), core.VerdictRemovable)
-		pr("  Это расхождение двух слоёв. Оно — факт о правилах, и его должен увидеть человек.")
+		pr(l.F("ОТКАЗАНО  %s записей: ядро назвало их «%s», хозяин не тронет",
+			l.Num(int64(len(p.Refused))), l.Word(string(core.VerdictRemovable))))
+		pr(l.T("  Это расхождение двух слоёв. Оно — факт о правилах, и его должен увидеть человек."))
 		shown, hidden := 0, 0
 		for _, r := range p.Refused {
 			if top > 0 && shown == top {
 				hidden++
 				continue
 			}
-			pr("  %-11s %s", r.Class, cut(r.Path, 76))
-			pr("               %s", r.Reason)
+			pr(fmt.Sprintf("  %-11s %s", l.Word(string(r.Class)), cut(r.Path, 76)))
+			pr(fmt.Sprintf("               %s", r.Reason.In(l)))
 			shown++
 		}
 		if hidden > 0 {
-			pr("  …и ещё %d отказов", hidden)
+			pr(l.F("  …и ещё %s отказов", l.Num(int64(hidden))))
 		}
 	}
 
 	pr("")
-	pr("НИЧЕГО НЕ ТРОНУТО. Это план.")
-	pr("  перенести в корзину:  digitdisk clean %s --apply", p.Root)
-	pr("  перенос обратим: digitdisk restore <корзина>; стирает только digitdisk purge")
+	pr(l.T("НИЧЕГО НЕ ТРОНУТО. Это план."))
+	pr(l.F("  перенести в корзину:  digitdisk clean %s --apply", p.Root))
+	pr(l.T("  перенос обратим: digitdisk restore <корзина>; стирает только digitdisk purge"))
 }
 
 // Applied prints the outcome of a move into the корзина.
-func Applied(w io.Writer, j *clean.Journal) {
-	pr := func(format string, a ...any) { fmt.Fprintf(w, format+"\n", a...) }
+func Applied(w io.Writer, l lang.Lang, j *clean.Journal) {
+	pr := func(line string) { fmt.Fprintln(w, line) }
 
 	moved, bytes := j.Moved()
 	failed := j.Failed()
 
-	pr("ПЕРЕНЕСЕНО В КОРЗИНУ  %d файлов, %s", moved, Bytes(bytes))
-	pr("  корзина  %s", j.Box)
-	pr("  журнал   %s", j.Path())
+	pr(l.F("ПЕРЕНЕСЕНО В КОРЗИНУ  %s файлов, %s", l.Num(int64(moved)), l.Bytes(bytes)))
+	pr(l.F("  корзина  %s", j.Box))
+	pr(l.F("  журнал   %s", j.Path()))
 	pr("")
-	pr("  Место НЕ освобождено: файлы лежат на той же файловой системе под другим")
-	pr("  именем. Освобождает его только `digitdisk purge`, и это необратимо.")
+	pr(l.T("  Место НЕ освобождено: файлы лежат на той же файловой системе под другим"))
+	pr(l.T("  именем. Освобождает его только `digitdisk purge`, и это необратимо."))
 
 	if len(failed) > 0 {
 		pr("")
-		pr("НЕ ПЕРЕНЕСЕНО  %d файлов: между обходом и переносом они изменились", len(failed))
+		pr(l.F("НЕ ПЕРЕНЕСЕНО  %s файлов: между обходом и переносом они изменились",
+			l.Num(int64(len(failed)))))
 		for _, it := range failed {
-			pr("  %10s  %s", Bytes(it.Size), cut(it.Path, 70))
-			pr("              %s", it.Failed)
+			pr(fmt.Sprintf("  %10s  %s", l.Bytes(it.Size), cut(it.Path, 70)))
+			pr(fmt.Sprintf("              %s", it.Failed.In(l)))
 		}
 	}
 
 	pr("")
-	pr("  вернуть всё:  digitdisk restore %s", j.Box)
-	pr("  стереть:      digitdisk purge %s --confirm %d", j.Box, moved)
+	pr(l.F("  вернуть всё:  digitdisk restore %s", j.Box))
+	// The number after --confirm is typed by a person into a shell: it is
+	// written without grouping on purpose, because «1 234» pasted into a
+	// command line is not a number any shell will take.
+	pr(l.F("  стереть:      digitdisk purge %s --confirm %d", j.Box, moved))
 }
 
 // Restored prints the outcome of a возврат.
-func Restored(w io.Writer, j *clean.Journal, dryRun bool) {
-	pr := func(format string, a ...any) { fmt.Fprintf(w, format+"\n", a...) }
+func Restored(w io.Writer, l lang.Lang, j *clean.Journal, dryRun bool) {
+	pr := func(line string) { fmt.Fprintln(w, line) }
 
 	if dryRun {
 		would := 0
 		var bytes int64
 		for _, it := range j.Items {
-			if it.MovedAt != "" && it.RestoredAt == "" && it.PurgedAt == "" && it.Failed == "" {
+			if it.MovedAt != "" && it.RestoredAt == "" && it.PurgedAt == "" && it.Failed.Empty() {
 				would++
 				bytes += it.Size
 			}
 		}
-		pr("ВЕРНУЛОСЬ БЫ  %d файлов, %s — из %s", would, Bytes(bytes), j.Box)
+		pr(l.F("ВЕРНУЛОСЬ БЫ  %s файлов, %s — из %s", l.Num(int64(would)), l.Bytes(bytes), j.Box))
 	} else {
 		n, bytes := j.Restored()
-		pr("ВОЗВРАЩЕНО  %d файлов, %s — на прежние места под %s", n, Bytes(bytes), j.Root)
-		pr("  журнал  %s", j.Path())
+		pr(l.F("ВОЗВРАЩЕНО  %s файлов, %s — на прежние места под %s",
+			l.Num(int64(n)), l.Bytes(bytes), j.Root))
+		pr(l.F("  журнал  %s", j.Path()))
 	}
 
 	var stuck []clean.Item
 	for _, it := range j.Items {
-		if it.Failed != "" {
+		if !it.Failed.Empty() {
 			stuck = append(stuck, it)
 		}
 	}
 	if len(stuck) > 0 {
 		pr("")
-		pr("НЕ ВОЗВРАЩЕНО  %d записей", len(stuck))
+		pr(l.F("НЕ ВОЗВРАЩЕНО  %s записей", l.Num(int64(len(stuck)))))
 		for _, it := range stuck {
-			pr("  %10s  %s", Bytes(it.Size), cut(it.Path, 70))
-			pr("              %s", it.Failed)
+			pr(fmt.Sprintf("  %10s  %s", l.Bytes(it.Size), cut(it.Path, 70)))
+			pr(fmt.Sprintf("              %s", it.Failed.In(l)))
 		}
 	}
 }
 
 // PurgePlan prints what erasing this корзина would destroy, and the number
 // --confirm has to name.
-func PurgePlan(w io.Writer, j *clean.Journal) {
-	pr := func(format string, a ...any) { fmt.Fprintf(w, format+"\n", a...) }
+func PurgePlan(w io.Writer, l lang.Lang, j *clean.Journal) {
+	pr := func(line string) { fmt.Fprintln(w, line) }
 
 	n, bytes := j.Moved()
-	pr("ПЛАН СТИРАНИЯ  %s", j.Box)
-	pr("  перенесено сюда  %s из %s", j.StartedAt, j.Root)
-	pr("  в корзине        %d файлов, %s", n, Bytes(bytes))
+	pr(l.F("ПЛАН СТИРАНИЯ  %s", j.Box))
+	pr(l.F("  перенесено сюда  %s из %s", l.StampDate(j.StartedAt), j.Root))
+	pr(l.F("  в корзине        %s файлов, %s", l.Num(int64(n)), l.Bytes(bytes)))
 	if r, _ := j.Restored(); r > 0 {
-		pr("  уже возвращено   %d — их стирать нечем", r)
+		pr(l.F("  уже возвращено   %s — их стирать нечем", l.Num(int64(r))))
 	}
 	if p, _ := j.Purged(); p > 0 {
-		pr("  уже стёрто       %d", p)
+		pr(l.F("  уже стёрто       %s", l.Num(int64(p))))
 	}
 	pr("")
 	if n == 0 {
-		pr("СТИРАТЬ НЕЧЕГО.")
+		pr(l.T("СТИРАТЬ НЕЧЕГО."))
 		return
 	}
-	pr("  %10s  %s", "размер", "откуда взят")
+	pr(fmt.Sprintf("  %10s  %s", l.T("размер"), l.T("откуда взят")))
 	shown := 0
 	for _, it := range j.Items {
 		if it.MovedAt == "" || it.RestoredAt != "" || it.PurgedAt != "" {
 			continue
 		}
 		if shown == 20 {
-			pr("  … и ещё %d", n-shown)
+			pr(l.F("  … и ещё %s", l.Num(int64(n-shown))))
 			break
 		}
-		pr("  %10s  %s", Bytes(it.Size), cut(it.Path, 74))
+		pr(fmt.Sprintf("  %10s  %s", l.Bytes(it.Size), cut(it.Path, 74)))
 		shown++
 	}
 	pr("")
-	pr("НИЧЕГО НЕ СТЁРТО. Это план, и стирание необратимо.")
-	pr("  стереть:  digitdisk purge %s --confirm %d", j.Box, n)
-	pr("  вернуть:  digitdisk restore %s", j.Box)
+	pr(l.T("НИЧЕГО НЕ СТЁРТО. Это план, и стирание необратимо."))
+	pr(l.F("  стереть:  digitdisk purge %s --confirm %d", j.Box, n))
+	pr(l.F("  вернуть:  digitdisk restore %s", j.Box))
 }
 
 // Purged prints the outcome of an erase.
-func Purged(w io.Writer, j *clean.Journal) {
-	pr := func(format string, a ...any) { fmt.Fprintf(w, format+"\n", a...) }
+func Purged(w io.Writer, l lang.Lang, j *clean.Journal) {
+	pr := func(line string) { fmt.Fprintln(w, line) }
 
 	n, bytes := j.Purged()
-	pr("СТЁРТО  %d файлов, %s", n, Bytes(bytes))
-	pr("  корзина  %s", j.Box)
-	pr("  журнал   %s — он остаётся: это запись о том, чего больше нет", j.Path())
+	pr(l.F("СТЁРТО  %s файлов, %s", l.Num(int64(n)), l.Bytes(bytes)))
+	pr(l.F("  корзина  %s", j.Box))
+	pr(l.F("  журнал   %s — он остаётся: это запись о том, чего больше нет", j.Path()))
 
 	var stuck []clean.Item
 	for _, it := range j.Items {
-		if it.Failed != "" {
+		if !it.Failed.Empty() {
 			stuck = append(stuck, it)
 		}
 	}
 	if len(stuck) > 0 {
 		pr("")
-		pr("НЕ СТЁРТО  %d записей", len(stuck))
+		pr(l.F("НЕ СТЁРТО  %s записей", l.Num(int64(len(stuck)))))
 		for _, it := range stuck {
-			pr("  %10s  %s", Bytes(it.Size), cut(it.Path, 70))
-			pr("              %s", it.Failed)
+			pr(fmt.Sprintf("  %10s  %s", l.Bytes(it.Size), cut(it.Path, 70)))
+			pr(fmt.Sprintf("              %s", it.Failed.In(l)))
 		}
 	}
 }

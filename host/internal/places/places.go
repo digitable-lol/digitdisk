@@ -46,6 +46,8 @@ import (
 	"strings"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/lang"
+	"digitdisk/internal/settings"
 )
 
 // builtin is the справочник shipped inside the binary.  A user file replaces
@@ -58,9 +60,13 @@ var builtin string
 // BuiltinName is what reports call the embedded справочник.
 const BuiltinName = "встроенный"
 
-// UserFile is where a user's own справочник is looked for, under the config
-// directory ($XDG_CONFIG_HOME, else ~/.config).
-const UserFile = "digitdisk/places.conf"
+// FileName is the name of a user's own справочник.
+//
+// Where it is looked for is settings.Find's business: ~/.digitable/digitdisk/
+// first, and the place it used to live — $XDG_CONFIG_HOME/digitdisk, else
+// ~/.config/digitdisk — after. A file that is still in the old home goes on
+// being read, and the report says once where it came from.
+const FileName = "places.conf"
 
 // Entry is one row of the справочник, resolved for this machine.
 type Entry struct {
@@ -72,6 +78,15 @@ type Entry struct {
 	Name   string     `json:"имя"`
 	Source string     `json:"источник"`
 	Line   int        `json:"строка"`
+
+	// NameEN is the same имя written in English, and it is the eighth
+	// field — the only optional one.  A справочник written before the
+	// column existed, or a reader's own file with seven fields, leaves it
+	// empty and goes on being read; the screen then shows the Russian имя
+	// in both languages, which is what it did before.  omitempty keeps
+	// such a row's JSON exactly as it was: a script that reads `places
+	// --json` sees a new key only where a new fact was written.
+	NameEN string `json:"имя_en,omitempty"`
 
 	// Applies says the row is for this operating system.  Rows for the other
 	// system are kept — `digitdisk places` shows the whole file, including
@@ -99,10 +114,27 @@ func (e Entry) Place() core.Place {
 	return core.Place{Class: e.Class, Anchor: anchor, Chain: e.Chain}
 }
 
+// DisplayName is the имя for the screen: the English one when it is written
+// and English is what is being read, the Russian one otherwise.  It is the
+// only place the языковой выбор touches the справочник — the JSON keeps both
+// имена under their own keys, and nothing that decides anything looks here.
+func (e Entry) DisplayName(l lang.Lang) string {
+	if l == lang.EN && e.NameEN != "" {
+		return e.NameEN
+	}
+	return e.Name
+}
+
 // Directory is a whole справочник as loaded.
 type Directory struct {
 	Origin  string  `json:"откуда"`
 	Entries []Entry `json:"места"`
+
+	// Moved is the one line to say when this справочник was read from the
+	// home it used to live in.  It is not part of the JSON — a script
+	// reading `places --json` cares where the file is, not where it is
+	// not — and the caller says it once, on the error stream.
+	Moved lang.Phrase `json:"-"`
 
 	// applicable is the rows for this system, kept because Match is called
 	// once for every item that makes a plan and rebuilding the slice there
@@ -202,7 +234,7 @@ func Load(opt Options) (*Directory, error) {
 	if opt.Home == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return nil, fmt.Errorf("домашний каталог не определяется, а справочник считает места от него: %w", err)
+			return nil, lang.Errorf("домашний каталог не определяется, а справочник считает места от него: %s", err)
 		}
 		opt.Home = home
 	}
@@ -215,11 +247,15 @@ func Load(opt Options) (*Directory, error) {
 		return parse(string(body), opt.File, opt)
 	}
 
-	if user := userPath(opt); user != "" {
+	if user, legacy, ok := userPath(opt); ok {
 		body, err := os.ReadFile(user)
 		switch {
 		case err == nil:
-			return parse(string(body), user, opt)
+			d, err := parse(string(body), user, opt)
+			if err == nil && legacy {
+				d.Moved = movedNote(opt, user)
+			}
+			return d, err
 		case !os.IsNotExist(err):
 			return nil, err
 		}
@@ -227,16 +263,21 @@ func Load(opt Options) (*Directory, error) {
 	return parse(builtin, BuiltinName, opt)
 }
 
-func userPath(opt Options) string {
-	dir := opt.Config
-	if dir == "" {
-		if v := opt.Getenv("XDG_CONFIG_HOME"); v != "" {
-			dir = v
-		} else {
-			dir = filepath.Join(opt.Home, ".config")
+// userPath finds the reader's own справочник: the new home first, the old one
+// after, and nothing when neither holds it.  legacy says the file came from
+// the old home, which the caller says out loud once.
+func userPath(opt Options) (path string, legacy bool, ok bool) {
+	if opt.Config != "" {
+		// A caller naming the config directory outright means the old
+		// home, spelled the old way.  Tests do this, and so does
+		// anything that has to look where the file used to be.
+		p := filepath.Join(opt.Config, "digitdisk", FileName)
+		if st, err := os.Stat(p); err == nil && !st.IsDir() {
+			return p, true, true
 		}
+		return "", false, false
 	}
-	return filepath.Join(dir, filepath.FromSlash(UserFile))
+	return settings.Find(settings.Options{Home: opt.Home, Getenv: opt.Getenv}, FileName)
 }
 
 // parse turns the file into resolved entries, refusing a malformed row rather
@@ -253,7 +294,7 @@ func parse(body, origin string, opt Options) (*Directory, error) {
 		}
 		e, err := row(text, line, opt)
 		if err != nil {
-			return nil, fmt.Errorf("%s, строка %d: %w", origin, line, err)
+			return nil, lang.Errorf("%s, строка %d: %s", origin, line, err)
 		}
 		d.Entries = append(d.Entries, e)
 	}
@@ -265,8 +306,12 @@ func parse(body, origin string, opt Options) (*Directory, error) {
 
 func row(text string, line int, opt Options) (Entry, error) {
 	f := strings.Split(text, "|")
-	if len(f) != 7 {
-		return Entry{}, fmt.Errorf("полей %d, а надо 7: разряд|якорь|система|путь|переменная|имя|источник", len(f))
+	// Seven fields are what a row must have; the eighth, the English имя,
+	// is the one a row may leave off.  The refusal names the seven on
+	// purpose: they are the requirement, and a file that stops at имя is
+	// not a file with something missing.
+	if len(f) != 7 && len(f) != 8 {
+		return Entry{}, lang.Errorf("полей %d, а надо 7: разряд|якорь|система|путь|переменная|имя|источник", len(f))
 	}
 	for i := range f {
 		f[i] = strings.TrimSpace(f[i])
@@ -274,39 +319,42 @@ func row(text string, line int, opt Options) (Entry, error) {
 	e := Entry{
 		Anchor: f[1], OS: f[2], Path: f[3], Env: f[4], Name: f[5], Source: f[6], Line: line,
 	}
+	if len(f) == 8 {
+		e.NameEN = f[7]
+	}
 
 	class, ok := classByWord[f[0]]
 	if !ok {
-		return Entry{}, fmt.Errorf("разряд %q справочнику не позволен; можно: кэш, журнал, сборка, загрузка", f[0])
+		return Entry{}, lang.Errorf("разряд %q справочнику не позволен; можно: кэш, журнал, сборка, загрузка", f[0])
 	}
 	e.Class = class
 
 	switch e.OS {
 	case "linux", "macos", "все":
 	default:
-		return Entry{}, fmt.Errorf("система %q: можно linux, macos, все", e.OS)
+		return Entry{}, lang.Errorf("система %q: можно linux, macos, все", e.OS)
 	}
 	e.Applies = e.OS == "все" || (e.OS == "linux" && opt.GOOS == "linux") || (e.OS == "macos" && opt.GOOS == "darwin")
 
 	if e.Name == "" {
-		return Entry{}, fmt.Errorf("у места нет имени: непонятно, чей это каталог")
+		return Entry{}, lang.Errorf("у места нет имени: непонятно, чей это каталог")
 	}
 	if e.Source == "" {
-		return Entry{}, fmt.Errorf("у места %q нет источника; в этом справочнике строка без ссылки на документацию инструмента — не строка", e.Name)
+		return Entry{}, lang.Errorf("у места %q нет источника; в этом справочнике строка без ссылки на документацию инструмента — не строка", e.Name)
 	}
 
 	base, tail, split := strings.Cut(e.Path, "//")
 	if base == "" {
-		return Entry{}, fmt.Errorf("путь пуст")
+		return Entry{}, lang.Errorf("путь пуст")
 	}
 	if strings.HasPrefix(e.Path, "/") && e.Anchor != anchorRoot {
-		return Entry{}, fmt.Errorf("путь начинается с косой, а якорь %q — это можно только с якорем «корень»", e.Anchor)
+		return Entry{}, lang.Errorf("путь начинается с косой, а якорь %q — это можно только с якорем «корень»", e.Anchor)
 	}
 
 	if e.Env != "" {
 		if v := strings.TrimSpace(opt.Getenv(e.Env)); v != "" {
 			if !strings.HasPrefix(v, "/") {
-				return Entry{}, fmt.Errorf("переменная %s задана как %q — не абсолютный путь; место пропущено бы молча, а это отказ", e.Env, v)
+				return Entry{}, lang.Errorf("переменная %s задана как %q — не абсолютный путь; место пропущено бы молча, а это отказ", e.Env, v)
 			}
 			e.Relocated = true
 			e.Resolved = filepath.Clean(joinTail(v, tail))
@@ -321,7 +369,7 @@ func row(text string, line int, opt Options) (Entry, error) {
 	switch e.Anchor {
 	case anchorAnywhere:
 		if e.Env != "" {
-			return Entry{}, fmt.Errorf("у якоря «всюду» переменной быть не может: место не привязано ни к какому основанию")
+			return Entry{}, lang.Errorf("у якоря «всюду» переменной быть не может: место не привязано ни к какому основанию")
 		}
 		e.Chain = chainOf("/" + strings.Trim(e.Path, "/"))
 		return e, nil
@@ -336,7 +384,7 @@ func row(text string, line int, opt Options) (Entry, error) {
 	case anchorConfig:
 		e.Resolved = filepath.Clean(filepath.Join(xdg(opt, "XDG_CONFIG_HOME", ".config"), filepath.FromSlash(joinTail(base, tail))))
 	default:
-		return Entry{}, fmt.Errorf("якорь %q: можно дом, кэш, данные, настройки, корень, всюду", e.Anchor)
+		return Entry{}, lang.Errorf("якорь %q: можно дом, кэш, данные, настройки, корень, всюду", e.Anchor)
 	}
 	e.Chain = chainOf(e.Resolved)
 	return e, nil
@@ -365,11 +413,11 @@ func chainOf(abs string) string {
 // Found is what one place turned out to be on this machine.
 type Found struct {
 	Entry
-	Exists bool   `json:"есть"`
-	Dir    bool   `json:"каталог"`
-	Bytes  int64  `json:"байт"`
-	Files  int    `json:"файлов"`
-	Note   string `json:"замечание,omitempty"`
+	Exists bool        `json:"есть"`
+	Dir    bool        `json:"каталог"`
+	Bytes  int64       `json:"байт"`
+	Files  int         `json:"файлов"`
+	Note   lang.Phrase `json:"замечание,omitzero"`
 }
 
 // Look measures the places that name one directory on this machine.  A
@@ -381,23 +429,23 @@ func (d *Directory) Look(measure func(string) (int64, int, error)) []Found {
 		f := Found{Entry: e}
 		switch {
 		case !e.Applies:
-			f.Note = "другая система"
+			f.Note = lang.Say("другая система")
 		case e.Resolved == "":
-			f.Note = "на любой глубине — одного места нет"
+			f.Note = lang.Say("на любой глубине — одного места нет")
 		default:
 			info, err := os.Lstat(e.Resolved)
 			switch {
 			case err != nil:
-				f.Note = "нет"
+				f.Note = lang.Say("нет")
 			case !info.IsDir():
 				f.Exists = true
-				f.Note = "не каталог"
+				f.Note = lang.Say("не каталог")
 			default:
 				f.Exists, f.Dir = true, true
 				if measure != nil {
 					bytes, files, err := measure(e.Resolved)
 					if err != nil {
-						f.Note = err.Error()
+						f.Note = lang.FromError(err)
 					}
 					f.Bytes, f.Files = bytes, files
 				}
@@ -421,4 +469,21 @@ func (d *Directory) ByClass() []string {
 		}
 	}
 	return out
+}
+
+// UserHint is where the отчёт tells a person to put their own справочник.  The
+// old home goes unnamed there on purpose: it is still read, and it is named in
+// the line that says a file came from it, but pointing a new reader at a path
+// the tool is moving away from would be advice with a short shelf life.
+const UserHint = "~/.digitable/digitdisk/" + FileName
+
+// movedNote is what a person is told when their справочник came from the old
+// home.  It is said once, by the caller, and it names both paths: "the
+// settings moved" without the two paths is a sentence nobody can act on.
+func movedNote(opt Options, from string) lang.Phrase {
+	dir, err := settings.Dir(settings.Options{Home: opt.Home, Getenv: opt.Getenv})
+	if err != nil {
+		return lang.Phrase{}
+	}
+	return settings.MovedNote(from, filepath.Join(dir, FileName))
 }

@@ -4,10 +4,11 @@
 package clean
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"time"
+
+	"digitdisk/internal/lang"
 )
 
 // Restore puts a корзина back where it came from.
@@ -40,20 +41,20 @@ func Restore(j *Journal, dryRun bool, now time.Time) (*Journal, error) {
 	for i := range j.Items {
 		it := &j.Items[i]
 		if it.MovedAt == "" {
-			it.Failed = "не переносился — возвращать нечего"
+			it.Failed = lang.Say("не переносился — возвращать нечего")
 			continue
 		}
 		if it.RestoredAt != "" {
-			it.Failed = "уже возвращён " + it.RestoredAt
+			it.Failed = lang.Say("уже возвращён %s", it.RestoredAt)
 			continue
 		}
 		if it.PurgedAt != "" {
-			it.Failed = "стёрт " + it.PurgedAt + " — возврат невозможен"
+			it.Failed = lang.Say("стёрт %s — возврат невозможен", it.PurgedAt)
 			continue
 		}
-		it.Failed = ""
+		it.Failed = lang.Phrase{}
 		if err := restoreOne(root, it, dryRun, now); err != nil {
-			it.Failed = err.Error()
+			it.Failed = phraseOf(err)
 			continue
 		}
 		touched++
@@ -66,7 +67,7 @@ func Restore(j *Journal, dryRun bool, now time.Time) (*Journal, error) {
 		j.RestoredAt = now.UTC().Format(time.RFC3339Nano)
 	}
 	if err := j.write(root, path.Join(boxRel, JournalName)); err != nil {
-		return j, fmt.Errorf("файлы возвращены, но журнал %s не переписан: %w", j.path, err)
+		return j, lang.Errorf("файлы возвращены, но журнал %s не переписан: %s", j.path, err)
 	}
 	return j, nil
 }
@@ -75,12 +76,12 @@ func restoreOne(root *os.Root, it *Item, dryRun bool, now time.Time) error {
 	info, err := root.Lstat(it.TrashRel)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("в корзине его нет: перенос не дошёл или корзину правили руками")
+			return lang.Errorf("в корзине его нет: перенос не дошёл или корзину правили руками")
 		}
-		return fmt.Errorf("в корзине не читается: %v", err)
+		return lang.Errorf("в корзине не читается: %v", err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("в корзине это уже не обычный файл (%v)", info.Mode())
+		return lang.Errorf("в корзине это уже не обычный файл (%v)", info.Mode())
 	}
 	// The file in the корзина must still be the file that was put there.
 	// A корзина is an ordinary directory and nothing stops a person from
@@ -91,23 +92,23 @@ func restoreOne(root *os.Root, it *Item, dryRun bool, now time.Time) error {
 		want = *it.After
 	}
 	if got := identityOf(info); !want.Same(got) {
-		return fmt.Errorf("в корзине его правили: %s — не возвращён", want.Differs(got))
+		return lang.Errorf("в корзине его правили: %s — не возвращён", want.Differs(got))
 	}
 
 	if _, err := root.Lstat(it.Rel); err == nil {
-		return fmt.Errorf("на прежнем месте уже что-то есть — перезаписывать не будем")
+		return lang.Errorf("на прежнем месте уже что-то есть — перезаписывать не будем")
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("прежнее место не проверяется: %v", err)
+		return lang.Errorf("прежнее место не проверяется: %v", err)
 	}
 
 	if dryRun {
 		return nil
 	}
 	if err := root.MkdirAll(path.Dir(it.Rel), 0o700); err != nil {
-		return fmt.Errorf("прежний каталог не создаётся: %v", err)
+		return lang.Errorf("прежний каталог не создаётся: %v", err)
 	}
 	if err := root.Rename(it.TrashRel, it.Rel); err != nil {
-		return fmt.Errorf("не возвращается: %v", err)
+		return lang.Errorf("не возвращается: %v", err)
 	}
 	it.RestoredAt = now.UTC().Format(time.RFC3339Nano)
 	return nil

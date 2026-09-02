@@ -73,7 +73,7 @@ func TestCapturedAmdCardIsReadWhole(t *testing.T) {
 	if c.MHz == nil || *c.MHz != 600 {
 		t.Errorf("частота %v, ждали 600 МГц", c.MHz)
 	}
-	if res.NoNumbers != "" {
+	if !res.NoNumbers.Empty() {
 		t.Errorf("карта с числами объявлена немой: %q", res.NoNumbers)
 	}
 }
@@ -95,10 +95,10 @@ func TestSilentCardHasEmptyFieldsAndAReason(t *testing.T) {
 	if c.Name == "" {
 		t.Error("карта осталась без имени")
 	}
-	if res.NoNumbers == "" {
+	if res.NoNumbers.Empty() {
 		t.Error("молчание карты не объяснено")
 	}
-	if res.NoCards != "" {
+	if !res.NoCards.Empty() {
 		t.Error("найденная карта объявлена ненайденной")
 	}
 }
@@ -109,7 +109,7 @@ func TestNoCardsIsSaidOutLoud(t *testing.T) {
 	if len(res.Cards) != 0 {
 		t.Fatalf("на пустом дереве нашлись карты: %+v", res.Cards)
 	}
-	if res.NoCards == "" {
+	if res.NoCards.Empty() {
 		t.Error("пустой список не объяснён")
 	}
 }
@@ -131,7 +131,7 @@ func TestNvidiaCardIsNamedFromItsOwnDirectory(t *testing.T) {
 	if got := res.Cards[0].Name; got != "NVIDIA RTX 6000 Ada Generation" {
 		t.Errorf("имя карты %q", got)
 	}
-	if res.NoNumbers == "" {
+	if res.NoNumbers.Empty() {
 		t.Error("немота карты nvidia не объяснена")
 	}
 
@@ -296,7 +296,7 @@ func TestPowerInTheWrongUnitIsRefused(t *testing.T) {
 	if got := res.Cards[0].Watts; got != nil {
 		t.Errorf("мощность напечатана как %v Вт", *got)
 	}
-	if res.NoPower == "" {
+	if res.NoPower.Empty() {
 		t.Error("отказ от мощности не объяснён")
 	}
 
@@ -306,7 +306,7 @@ func TestPowerInTheWrongUnitIsRefused(t *testing.T) {
 	if got := res.Cards[0].Watts; got == nil || *got != 18 {
 		t.Errorf("мощность %v, ждали 18 Вт", got)
 	}
-	if res.NoPower != "" {
+	if !res.NoPower.Empty() {
 		t.Errorf("правдоподобная мощность объявлена сомнительной: %q", res.NoPower)
 	}
 }
@@ -325,10 +325,10 @@ func TestSilentCardIsNamedEvenWhenAnotherCardAnswers(t *testing.T) {
 	if len(res.Cards) != 2 {
 		t.Fatalf("карт %d", len(res.Cards))
 	}
-	if res.NoNumbers == "" {
+	if res.NoNumbers.Empty() {
 		t.Fatal("молчащая карта не объяснена, потому что вторая карта ответила")
 	}
-	if !strings.Contains(res.NoNumbers, "nvidia") || !strings.Contains(res.NoNumbers, "--gpu-tool") {
-		t.Errorf("объяснение не называет ни драйвер, ни ключ: %q", res.NoNumbers)
+	if !strings.Contains(res.NoNumbers.String(), "nvidia") || !strings.Contains(res.NoNumbers.String(), "--gpu-tool") {
+		t.Errorf("объяснение не называет ни драйвер, ни ключ: %q", res.NoNumbers.String())
 	}
 }

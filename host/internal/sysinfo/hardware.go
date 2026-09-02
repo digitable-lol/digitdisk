@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 
+	"digitdisk/internal/lang"
 	"digitdisk/internal/procfs"
 )
 
@@ -94,9 +95,9 @@ func coreIndex(name string) int {
 // counters are taken one after the other rather than at the same instant, so
 // they never agree exactly; five points is wider than that gap and far
 // narrower than any error worth catching.
-func coresAgree(cores []Core, whole *float64) (bool, string) {
+func coresAgree(cores []Core, whole *float64) (bool, lang.Phrase) {
 	if len(cores) == 0 {
-		return false, "ядро не публикует счётчики по каждому процессору"
+		return false, lang.Say("ядро не публикует счётчики по каждому процессору")
 	}
 	sum, n := 0.0, 0
 	for _, c := range cores {
@@ -106,15 +107,15 @@ func coresAgree(cores []Core, whole *float64) (bool, string) {
 		}
 	}
 	if n == 0 {
-		return false, "за окно замера счётчики процессоров не сдвинулись"
+		return false, lang.Say("за окно замера счётчики процессоров не сдвинулись")
 	}
 	if whole == nil {
-		return true, ""
+		return true, lang.Phrase{}
 	}
 	if diff := sum/float64(n) - *whole; diff > 5 || diff < -5 {
-		return false, "среднее по ядрам разошлось с общей загрузкой машины — список ядер не публикуем"
+		return false, lang.Say("среднее по ядрам разошлось с общей загрузкой машины — список ядер не публикуем")
 	}
-	return true, ""
+	return true, lang.Phrase{}
 }
 
 // CoreLoad is the digest of the per-core shares: what a reader can take in at
@@ -178,7 +179,7 @@ func environment(st *Status) {
 	}
 	h.Shell = os.Getenv("SHELL")
 	if h.Shell == "" {
-		st.Missing[FactShell] = "переменная окружения SHELL пуста — оболочку назвать нечем"
+		st.Missing[FactShell] = lang.Say("переменная окружения SHELL пуста — оболочку назвать нечем")
 	}
 	for _, name := range []string{"XDG_CURRENT_DESKTOP", "DESKTOP_SESSION", "XDG_SESSION_DESKTOP"} {
 		if v := strings.TrimSpace(os.Getenv(name)); v != "" {
@@ -187,6 +188,6 @@ func environment(st *Status) {
 		}
 	}
 	if h.Desktop == "" {
-		st.Missing[FactDesktop] = "переменные окружения XDG_CURRENT_DESKTOP и DESKTOP_SESSION пусты — рабочего стола в этом сеансе нет"
+		st.Missing[FactDesktop] = lang.Say("переменные окружения XDG_CURRENT_DESKTOP и DESKTOP_SESSION пусты — рабочего стола в этом сеансе нет")
 	}
 }

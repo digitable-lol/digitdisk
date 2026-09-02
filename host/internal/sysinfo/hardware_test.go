@@ -4,6 +4,7 @@
 package sysinfo
 
 import (
+	"digitdisk/internal/lang"
 	"testing"
 
 	"digitdisk/internal/procfs"
@@ -59,14 +60,14 @@ func TestCoresAgreeRefusesAListThatContradictsTheMachine(t *testing.T) {
 	if ok {
 		t.Error("среднее по ядрам 50%% принято при общей доле 5%%")
 	}
-	if why == "" {
+	if why.Empty() {
 		t.Error("отказ не объяснён")
 	}
 	// Nothing measured at all is a refusal too, and a different one.
-	if ok, why := coresAgree([]Core{{Index: 0}}, &whole); ok || why == "" {
+	if ok, why := coresAgree([]Core{{Index: 0}}, &whole); ok || why.Empty() {
 		t.Errorf("пустой замер принят (ok=%v, why=%q)", ok, why)
 	}
-	if ok, why := coresAgree(nil, nil); ok || why == "" {
+	if ok, why := coresAgree(nil, nil); ok || why.Empty() {
 		t.Errorf("пустой список принят (ok=%v, why=%q)", ok, why)
 	}
 	// A list without a machine-wide share to check against is still usable:
@@ -115,13 +116,13 @@ func TestEnvironmentNamesWhatTheSessionDidNotGive(t *testing.T) {
 	t.Setenv("XDG_CURRENT_DESKTOP", "")
 	t.Setenv("DESKTOP_SESSION", "")
 	t.Setenv("XDG_SESSION_DESKTOP", "")
-	st := Status{Missing: map[string]string{}}
+	st := Status{Missing: map[string]lang.Phrase{}}
 	environment(&st)
 	if st.Host.Bits != 64 && st.Host.Bits != 32 {
 		t.Errorf("разрядность %d", st.Host.Bits)
 	}
 	for _, fact := range []string{FactShell, FactDesktop} {
-		if why, ok := st.Unmeasured(fact); !ok || why == "" {
+		if why, ok := st.Unmeasured(fact); !ok || why.Empty() {
 			t.Errorf("пустое окружение не объяснено для %q", fact)
 		}
 	}
@@ -135,7 +136,7 @@ func TestEnvironmentNamesWhatTheSessionDidNotGive(t *testing.T) {
 
 	t.Setenv("SHELL", "/bin/zsh")
 	t.Setenv("XDG_CURRENT_DESKTOP", "GNOME")
-	st = Status{Missing: map[string]string{}}
+	st = Status{Missing: map[string]lang.Phrase{}}
 	environment(&st)
 	if st.Host.Shell != "/bin/zsh" || st.Host.Desktop != "GNOME" {
 		t.Errorf("оболочка %q, рабочий стол %q", st.Host.Shell, st.Host.Desktop)

@@ -64,7 +64,7 @@
 package clean
 
 import (
-	"fmt"
+	"errors"
 	"io/fs"
 	"os"
 	"path"
@@ -75,6 +75,7 @@ import (
 	"time"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/lang"
 	"digitdisk/internal/places"
 	"digitdisk/internal/protect"
 	"digitdisk/internal/scan"
@@ -148,18 +149,18 @@ func (i Identity) Same(o Identity) bool {
 
 // Differs names the first field that changed, for a refusal a person can act
 // on.  "изменился" without saying what changed is not a report.
-func (i Identity) Differs(o Identity) string {
+func (i Identity) Differs(o Identity) lang.Phrase {
 	switch {
 	case i.Dev != o.Dev || i.Ino != o.Ino:
-		return fmt.Sprintf("это уже другой файл (был узел %d:%d, стал %d:%d)", i.Dev, i.Ino, o.Dev, o.Ino)
+		return lang.Say("это уже другой файл (был узел %d:%d, стал %d:%d)", i.Dev, i.Ino, o.Dev, o.Ino)
 	case i.Size != o.Size:
-		return fmt.Sprintf("размер изменился (был %d Б, стал %d Б)", i.Size, o.Size)
+		return lang.Say("размер изменился (был %d Б, стал %d Б)", i.Size, o.Size)
 	case i.MtimeUnixNano != o.MtimeUnixNano:
-		return "в файл писали после обхода (время изменения другое)"
+		return lang.Say("в файл писали после обхода (время изменения другое)")
 	case i.Mode != o.Mode:
-		return fmt.Sprintf("права изменились (были %v, стали %v)", fs.FileMode(i.Mode), fs.FileMode(o.Mode))
+		return lang.Say("права изменились (были %v, стали %v)", fs.FileMode(i.Mode), fs.FileMode(o.Mode))
 	}
-	return ""
+	return lang.Phrase{}
 }
 
 func identityOf(info fs.FileInfo) Identity {
@@ -210,18 +211,18 @@ type Item struct {
 	// Failed is why this item was NOT acted on, when the file turned out to
 	// have changed between the walk and the moment of touching it.  An empty
 	// MovedAt with a filled Failed is the whole record of a refusal.
-	Failed string `json:"не_сделано,omitempty"`
+	Failed lang.Phrase `json:"не_сделано,omitzero"`
 }
 
 // Why states, in the layer's own terms, why this item is on the list.  Every
 // number in it is one the decision layer used: the разряд it assigned, the
 // порог it applies to that разряд, and the возраст the host measured and
 // handed it.  The host adds no rule of its own here — it has none.
-func (i Item) Why() string {
+func (i Item) Why(l lang.Lang) string {
 	if i.HasThreshold {
-		return fmt.Sprintf("разряд %s: возраст %.0f дн ≥ порога %.0f дн", i.Class, i.AgeDays, i.ThresholdDays)
+		return l.F("разряд %s: возраст %s ≥ порога %s", l.Word(string(i.Class)), l.Days(i.AgeDays), l.Days(i.ThresholdDays))
 	}
-	return fmt.Sprintf("разряд %s, приговор %s", i.Class, i.Verdict)
+	return l.F("разряд %s, приговор %s", l.Word(string(i.Class)), l.Word(string(i.Verdict)))
 }
 
 // Where names the известное место this path lies in, or an empty string when
@@ -236,7 +237,7 @@ type Refusal struct {
 	Path    string       `json:"путь"`
 	Class   core.Class   `json:"разряд"`
 	Verdict core.Verdict `json:"приговор_ядра"`
-	Reason  string       `json:"отказ"`
+	Reason  lang.Phrase  `json:"отказ"`
 }
 
 // Protected is a path the decision layer marked «МожноУбрать» and the operator
@@ -358,7 +359,7 @@ func Make(opt Options) (Plan, error) {
 				return
 			}
 			rel, reason := guard(rootAbs, e, info)
-			if reason != "" {
+			if !reason.Empty() {
 				p.Refused = append(p.Refused, Refusal{
 					Path: e.Path, Class: e.Class, Verdict: e.Verdict, Reason: reason,
 				})
@@ -434,41 +435,41 @@ func Make(opt Options) (Plan, error) {
 // Every check here duplicates something the flang rules already prove.  That
 // is the point: this is the assertion that the proof and the running program
 // are about the same file.
-func guard(rootAbs string, e scan.Entry, info fs.FileInfo) (rel, reason string) {
+func guard(rootAbs string, e scan.Entry, info fs.FileInfo) (rel string, reason lang.Phrase) {
 	if e.Verdict != core.VerdictRemovable {
-		return "", fmt.Sprintf("приговор %s — убирается только «%s»", e.Verdict, core.VerdictRemovable)
+		return "", lang.Say("приговор %s — убирается только «%s»", e.Verdict, core.VerdictRemovable)
 	}
 	if info == nil {
-		return "", "файл не удалось прочитать при обходе — недоступное не трогаем"
+		return "", lang.Say("файл не удалось прочитать при обходе — недоступное не трогаем")
 	}
 	switch e.Kind {
 	case core.KindDir:
-		return "", "это каталог: снос каталога рекурсивен, и ядро его «МожноУбрать» не выдаёт (правило П3)"
+		return "", lang.Say("это каталог: снос каталога рекурсивен, и ядро его «МожноУбрать» не выдаёт (правило П3)")
 	case core.KindLink:
-		return "", "это символическая ссылка: ядро её не убирает (правило П2)"
+		return "", lang.Say("это символическая ссылка: ядро её не убирает (правило П2)")
 	case core.KindFile:
 	default:
-		return "", fmt.Sprintf("это %s, а не обычный файл", e.Kind)
+		return "", lang.Say("это %s, а не обычный файл", e.Kind)
 	}
 	if !info.Mode().IsRegular() {
-		return "", fmt.Sprintf("не обычный файл (%v)", info.Mode())
+		return "", lang.Say("не обычный файл (%v)", info.Mode())
 	}
 	rel, err := filepath.Rel(rootAbs, e.Path)
 	if err != nil {
-		return "", fmt.Sprintf("путь не считается от корня: %v", err)
+		return "", lang.Say("путь не считается от корня: %v", err)
 	}
 	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", "путь вне указанного корня"
+		return "", lang.Say("путь вне указанного корня")
 	}
 	if filepath.IsAbs(rel) {
-		return "", "путь вне указанного корня"
+		return "", lang.Say("путь вне указанного корня")
 	}
 	for _, part := range strings.Split(rel, string(filepath.Separator)) {
 		if part == TrashName {
-			return "", "путь внутри корзины digitdisk — своё же убирает `purge`, не `clean`"
+			return "", lang.Say("путь внутри корзины digitdisk — своё же убирает `purge`, не `clean`")
 		}
 	}
-	return filepath.ToSlash(rel), ""
+	return filepath.ToSlash(rel), lang.Phrase{}
 }
 
 // trashRoot resolves where корзины go and refuses a place outside the корень.
@@ -483,15 +484,31 @@ func trashRoot(rootAbs, given string) (string, error) {
 	abs = filepath.Clean(abs)
 	rel, err := filepath.Rel(rootAbs, abs)
 	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("корзина %s лежит вне корня %s.\n"+
-			"Корзина обязана быть внутри корня: тогда перенос — это rename(2), то есть\n"+
-			"мгновенно и без копирования, и все обращения идут через os.Root, который\n"+
-			"из корня не выпускает даже по символической ссылке. Корзина на другой\n"+
-			"файловой системе превратила бы перенос в копирование: цена обратимости\n"+
-			"стала бы равна объёму уборки, а обрыв на середине оставил бы полфайла",
+		return "", lang.Errorf(`корзина %s лежит вне корня %s.
+Корзина обязана быть внутри корня: тогда перенос — это rename(2), то есть
+мгновенно и без копирования, и все обращения идут через os.Root, который
+из корня не выпускает даже по символической ссылке. Корзина на другой
+файловой системе превратила бы перенос в копирование: цена обратимости
+стала бы равна объёму уборки, а обрыв на середине оставил бы полфайла`,
 			abs, rootAbs)
 	}
 	return abs, nil
+}
+
+// phraseOf keeps a refusal this package wrote as the wording it was written
+// as, so that «не сделано» reads in the language of whoever is looking, and
+// leaves a message from the system alone — nobody here wrote it and nobody
+// here can translate it honestly.
+//
+// The Russian rendering is the same either way: an Error renders its Phrase,
+// and the Phrase is what the Error was built from.  The журнал therefore keeps
+// the byte it always kept.
+func phraseOf(err error) lang.Phrase {
+	var ours *lang.Error
+	if errors.As(err, &ours) {
+		return ours.P
+	}
+	return lang.FromError(err)
 }
 
 // stamp names one корзина.  Colons are legal in a POSIX filename and illegal
@@ -508,7 +525,7 @@ func relUnder(rootAbs, target string) (string, error) {
 		return "", err
 	}
 	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return "", fmt.Errorf("%s лежит вне корня %s", target, rootAbs)
+		return "", lang.Errorf("%s лежит вне корня %s", target, rootAbs)
 	}
 	return filepath.ToSlash(rel), nil
 }
@@ -527,7 +544,7 @@ func trashRelFor(rootAbs, boxAbs, itemRel string) (string, error) {
 func openRoot(rootAbs string) (*os.Root, error) {
 	r, err := os.OpenRoot(rootAbs)
 	if err != nil {
-		return nil, fmt.Errorf("корень %s не открывается: %w", rootAbs, err)
+		return nil, lang.Errorf("корень %s не открывается: %s", rootAbs, err)
 	}
 	return r, nil
 }

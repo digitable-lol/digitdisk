@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"digitdisk/internal/gpuinfo"
-	"digitdisk/internal/report"
 	"digitdisk/internal/sysinfo"
 )
 
@@ -104,8 +103,8 @@ func (s *screen) systemFields() [][2]string {
 	memory := dash
 	if st.Memory.Total > 0 {
 		f := pctOf(st.Memory.Used, st.Memory.Total)
-		memory = fmt.Sprintf("%s из %s (%s)", report.UBytes(st.Memory.Used),
-			report.UBytes(st.Memory.Total), percent(f))
+		memory = fmt.Sprintf("%s из %s (%s)", s.l.UBytes(st.Memory.Used),
+			s.l.UBytes(st.Memory.Total), s.l.Pct((f)*100, 1))
 	}
 
 	return [][2]string{
@@ -291,7 +290,7 @@ func (s *screen) busiestCores(n int) []string {
 			continue
 		}
 		out = append(out, s.t.gauge("ядро "+fmt.Sprint(c.Index), 12, *c.BusyPercent/100,
-			percent(*c.BusyPercent/100), bw))
+			s.l.Pct((*c.BusyPercent/100)*100, 1), bw))
 	}
 	return out
 }
@@ -332,7 +331,7 @@ func (s *screen) gpus() []string {
 		out = append(out, s.caption(fmt.Sprintf("%d · %s", i, c.Name)))
 		if c.BusyPercent != nil {
 			f := *c.BusyPercent / 100
-			out = append(out, t.gauge("занято", 12, f, percent(f), bw))
+			out = append(out, t.gauge("занято", 12, f, s.l.Pct((f)*100, 1), bw))
 		} else {
 			out = append(out, t.gaugeUnmeasured("занято", 12, dash, bw))
 		}
@@ -340,11 +339,11 @@ func (s *screen) gpus() []string {
 		case c.MemoryTotalBytes != nil && c.MemoryUsedBytes != nil:
 			f := pctOf(*c.MemoryUsedBytes, *c.MemoryTotalBytes)
 			out = append(out, t.gauge("память", 12, f, s.reading(
-				fmt.Sprintf("%s из %s  (%s)", report.UBytes(*c.MemoryUsedBytes),
-					report.UBytes(*c.MemoryTotalBytes), percent(f)), percent(f)), bw))
+				fmt.Sprintf("%s из %s  (%s)", s.l.UBytes(*c.MemoryUsedBytes),
+					s.l.UBytes(*c.MemoryTotalBytes), s.l.Pct((f)*100, 1)), s.l.Pct((f)*100, 1)), bw))
 		case c.MemoryTotalBytes != nil:
 			out = append(out, t.gaugeUnmeasured("память", 12,
-				"всего "+report.UBytes(*c.MemoryTotalBytes)+", занято "+dash, bw))
+				"всего "+s.l.UBytes(*c.MemoryTotalBytes)+", занято "+dash, bw))
 		default:
 			out = append(out, t.gaugeUnmeasured("память", 12, dash, bw))
 		}
@@ -413,8 +412,8 @@ func (s *screen) gpuGauges(limit int) []string {
 		name := fit(c.Name, 20)
 		reading := []string{}
 		if c.MemoryTotalBytes != nil && c.MemoryUsedBytes != nil {
-			reading = append(reading, fmt.Sprintf("%s из %s", report.UBytes(*c.MemoryUsedBytes),
-				report.UBytes(*c.MemoryTotalBytes)))
+			reading = append(reading, fmt.Sprintf("%s из %s", s.l.UBytes(*c.MemoryUsedBytes),
+				s.l.UBytes(*c.MemoryTotalBytes)))
 		}
 		if c.Celsius != nil {
 			reading = append(reading, fmt.Sprintf("%.0f °C", *c.Celsius))
@@ -424,7 +423,7 @@ func (s *screen) gpuGauges(limit int) []string {
 			continue
 		}
 		f := *c.BusyPercent / 100
-		out = append(out, t.gauge(name, 20, f, strings.Join(append([]string{percent(f)}, reading...), "  ·  "), bw))
+		out = append(out, t.gauge(name, 20, f, strings.Join(append([]string{s.l.Pct((f)*100, 1)}, reading...), "  ·  "), bw))
 	}
 	return out
 }
