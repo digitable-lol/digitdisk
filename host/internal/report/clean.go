@@ -6,6 +6,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"digitdisk/internal/clean"
 	"digitdisk/internal/core"
@@ -14,7 +15,19 @@ import (
 // CleanPlan prints what `clean --apply` would move, and nothing about what it
 // would free — moving into the корзина frees no space, and a plan that
 // promised a saving at that point would be promising the wrong step's result.
-func CleanPlan(w io.Writer, p clean.Plan) {
+//
+// # Why the lists are cut and the counts are not
+//
+// A plan over a real home directory is hundreds of lines long, and a wall of
+// them is not a plan anybody reads: the first thing a person wants is the
+// total and the biggest few.  So every LIST here stops at top and says what it
+// left out, while every COUNT — the total, the bytes, the breakdown by разряд —
+// is computed over the whole plan and never changes with top.  A summary that
+// moved when the screen got shorter would be a summary of the screen.
+//
+// top ≤ 0 prints everything, the same "0 — без предела" this CLI already uses
+// for --max-depth.  `--json` is not cut at all: see cmdClean.
+func CleanPlan(w io.Writer, p clean.Plan, top int) {
 	pr := func(format string, a ...any) { fmt.Fprintf(w, format+"\n", a...) }
 
 	pr("ПЛАН УБОРКИ  %s", p.Root)
@@ -24,6 +37,12 @@ func CleanPlan(w io.Writer, p clean.Plan) {
 		pr("  ВНИМАНИЕ: слой — заглушка. Она никому не выносит «%s», поэтому список ниже", core.VerdictRemovable)
 		pr("  пуст не потому, что убирать нечего, а потому, что никто не решал.")
 		pr("  Настоящий разбор: go build -tags flangcore -o digitdisk ./host")
+	}
+	if p.PlacesOrigin != "" {
+		pr("  справочник     %d мест, %s", p.PlacesCount, p.PlacesOrigin)
+	}
+	if len(p.ProtectOrigins) > 0 {
+		pr("  защитный спис. %s", strings.Join(p.ProtectOrigins, ", "))
 	}
 	pr("  обойдено       %d записей, %s", p.Walk.Entries, Bytes(p.Walk.TotalBytes))
 	s := p.Walk.Skipped
@@ -40,13 +59,53 @@ func CleanPlan(w io.Writer, p clean.Plan) {
 		pr("  из них %d — жёсткие ссылки: у их содержимого есть второе имя, и стирание", p.HardlinkItems)
 		pr("  этого имени места не освободит. Освободится стиранием: %s", Bytes(p.FreeableBytes))
 	}
+	if len(p.ByClass) > 0 {
+		pr("")
+		pr("  по разрядам (весь план, ключ --top на этот счёт не влияет):")
+		for _, c := range p.ByClass {
+			pr("  %-11s %6d файлов  %10s", c.Class, c.Count, Bytes(c.Bytes))
+		}
+	}
 	if len(p.Items) == 0 {
 		pr("  — нечего: ядро не пометило «%s» ни одного файла", core.VerdictRemovable)
 	} else {
 		pr("")
 		pr("  %10s  %-11s %-30s %s", "размер", "разряд", "почему", "путь")
+		shown, hidden, hiddenBytes := 0, 0, int64(0)
 		for _, it := range p.Items {
+			if top > 0 && shown == top {
+				hidden++
+				hiddenBytes += it.Size
+				continue
+			}
 			pr("  %10s  %-11s %-30s %s", Bytes(it.Size), it.Class, it.Why(), cut(it.Path, 70))
+			if where := it.Where(); where != "" {
+				pr("  %10s  %-11s место: %s", "", "", where)
+			}
+			shown++
+		}
+		if hidden > 0 {
+			pr("  …и ещё %d файлов на %s — весь список: --top 0, или --json", hidden, Bytes(hiddenBytes))
+		}
+	}
+
+	if len(p.Protected) > 0 {
+		pr("")
+		pr("ЗАЩИЩЕНО  %d файлов, %s: ядро назвало их «%s», защитный список запретил",
+			len(p.Protected), Bytes(p.ProtectedBytes), core.VerdictRemovable)
+		pr("  Это не расхождение слоёв, а ваше же распоряжение — оно и выполнено.")
+		shown, hidden := 0, 0
+		for _, pt := range p.Protected {
+			if top > 0 && shown == top {
+				hidden++
+				continue
+			}
+			pr("  %10s  %-11s %s", Bytes(pt.Size), pt.Class, cut(pt.Path, 62))
+			pr("              %s", pt.Rule)
+			shown++
+		}
+		if hidden > 0 {
+			pr("  …и ещё %d защищённых файлов", hidden)
 		}
 	}
 
@@ -56,9 +115,18 @@ func CleanPlan(w io.Writer, p clean.Plan) {
 	} else {
 		pr("ОТКАЗАНО  %d записей: ядро назвало их «%s», хозяин не тронет", len(p.Refused), core.VerdictRemovable)
 		pr("  Это расхождение двух слоёв. Оно — факт о правилах, и его должен увидеть человек.")
+		shown, hidden := 0, 0
 		for _, r := range p.Refused {
+			if top > 0 && shown == top {
+				hidden++
+				continue
+			}
 			pr("  %-11s %s", r.Class, cut(r.Path, 76))
 			pr("               %s", r.Reason)
+			shown++
+		}
+		if hidden > 0 {
+			pr("  …и ещё %d отказов", hidden)
 		}
 	}
 

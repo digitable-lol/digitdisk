@@ -28,7 +28,7 @@
 // дифференциальный прогон, и притом не слабее прежнего: кодогенератора два, они
 // написаны порознь (`flang/self/emit-go.flang` и `emit-c.flang`), и совпадение
 // их ответов на сетке — настоящее свидетельство. Интерпретатор при этом
-// проверяется примерами: `flang test disk-inventory.flang` — 115 штук.
+// проверяется примерами: `flang test disk-inventory.flang` — 160 штук.
 //
 // ── ЧЕМ ЗАПРОСЫ ЕДУТ В ПРОГОНЩИК, И ПОЧЕМУ НЕ СТАНДАРТНЫМ ВХОДОМ ────────────
 // Поручение «Запустить процесс с вводом» в языке ЕСТЬ (оно десятое из 22), но
@@ -76,9 +76,9 @@
 тотальная функция «Пути сетки»
   возвращает список строки
   обеспечивает «сетка не пуста» (длина результат) больше 0
-  пример «Двенадцать путей»
-    ожидается ["/home/u/.cache/pip/a.whl", "/var/log/messages.log", "/home/u/p/node_modules/left-pad/i.js", "/home/u/Downloads/iso.img", "/home/u/видео/фильм.mkv", "/home/u/docs/письмо.txt", "/home/u/.local/share/uv/python/cpython-3.13.15-x/site-packages/pip/_internal/operations/build/wheel.py", "/home/u/.local/share/containers/storage/overlay/c0359c5b1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3fb3e/diff/var/cache/debconf/templates.dat", "/home/u/projects/dotfiles/configs/.logseq/config.edn", "/home/u/lab/tmp/docs/letter.txt", "/tmp/сборка/о.o", "/home/u/p/.git/objects/ab/cdef"]
-  ["/home/u/.cache/pip/a.whl", "/var/log/messages.log", "/home/u/p/node_modules/left-pad/i.js", "/home/u/Downloads/iso.img", "/home/u/видео/фильм.mkv", "/home/u/docs/письмо.txt", "/home/u/.local/share/uv/python/cpython-3.13.15-x/site-packages/pip/_internal/operations/build/wheel.py", "/home/u/.local/share/containers/storage/overlay/c0359c5b1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3fb3e/diff/var/cache/debconf/templates.dat", "/home/u/projects/dotfiles/configs/.logseq/config.edn", "/home/u/lab/tmp/docs/letter.txt", "/tmp/сборка/о.o", "/home/u/p/.git/objects/ab/cdef"]
+  пример «Пятнадцать путей»
+    ожидается ["/home/u/.cache/pip/a.whl", "/var/log/messages.log", "/home/u/p/node_modules/left-pad/i.js", "/home/u/Downloads/iso.img", "/home/u/видео/фильм.mkv", "/home/u/docs/письмо.txt", "/home/u/.local/share/uv/python/cpython-3.13.15-x/site-packages/pip/_internal/operations/build/wheel.py", "/home/u/.local/share/containers/storage/overlay/c0359c5b1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3fb3e/diff/var/cache/debconf/templates.dat", "/home/u/projects/dotfiles/configs/.logseq/config.edn", "/home/u/lab/tmp/docs/letter.txt", "/tmp/сборка/о.o", "/home/u/p/.git/objects/ab/cdef", "/home/u/.npm/_cacache/index-v5/aa/bb", "/home/u/Library/Developer/Xcode/DerivedData/App-abc/Build/Intermediates/o.o", "/home/u/x.npm/_cacache/aa"]
+  ["/home/u/.cache/pip/a.whl", "/var/log/messages.log", "/home/u/p/node_modules/left-pad/i.js", "/home/u/Downloads/iso.img", "/home/u/видео/фильм.mkv", "/home/u/docs/письмо.txt", "/home/u/.local/share/uv/python/cpython-3.13.15-x/site-packages/pip/_internal/operations/build/wheel.py", "/home/u/.local/share/containers/storage/overlay/c0359c5b1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3fb3e/diff/var/cache/debconf/templates.dat", "/home/u/projects/dotfiles/configs/.logseq/config.edn", "/home/u/lab/tmp/docs/letter.txt", "/tmp/сборка/о.o", "/home/u/p/.git/objects/ab/cdef", "/home/u/.npm/_cacache/index-v5/aa/bb", "/home/u/Library/Developer/Xcode/DerivedData/App-abc/Build/Intermediates/o.o", "/home/u/x.npm/_cacache/aa"]
 
 тотальная функция «Размеры сетки»
   возвращает список числа
@@ -135,13 +135,25 @@
     ожидается "false"
   если значение то "true" иначе "false"
 
+// Справочник, который едет в КАЖДЫЙ запрос сетки. Он здесь не для полноты, а
+// потому, что без него сверка двух печатей не трогала бы ни «Место подходит»,
+// ни «Разряд по справочнику», ни постусловие «Место обосновано» — то есть
+// целый раздел ядра печатался бы двумя кодогенераторами и никем не сверялся.
+// Три пути сетки заведены под него: кэш npm (место от корня), производные
+// данные Xcode (место где угодно) и `x.npm` — приманка на подстроку.
+тотальная функция «Справочник сетки»
+  возвращает строка
+  пример «Два места»
+    ожидается "{\"l\":[{\"r\":[[\"разряд\",{\"v\":\"Кэш\",\"f\":[]}],[\"якорь\",{\"v\":\"ОтКорня\",\"f\":[]}],[\"цепь\",{\"s\":\"/home/u/.npm/_cacache/\"}]]},{\"r\":[[\"разряд\",{\"v\":\"Сборка\",\"f\":[]}],[\"якорь\",{\"v\":\"ГдеУгодно\",\"f\":[]}],[\"цепь\",{\"s\":\"/DerivedData/\"}]]}]}"
+  "{\"l\":[{\"r\":[[\"разряд\",{\"v\":\"Кэш\",\"f\":[]}],[\"якорь\",{\"v\":\"ОтКорня\",\"f\":[]}],[\"цепь\",{\"s\":\"/home/u/.npm/_cacache/\"}]]},{\"r\":[[\"разряд\",{\"v\":\"Сборка\",\"f\":[]}],[\"якорь\",{\"v\":\"ГдеУгодно\",\"f\":[]}],[\"цепь\",{\"s\":\"/DerivedData/\"}]]}]}"
+
 тотальная функция «Запрос по номеру»
   принимает номер: число
   возвращает строка
   пример «Первый запрос»
     дано номер равно 1
-    ожидается "{\"fn\":\"Решить находку\",\"args\":[{\"r\":[[\"путь\",{\"s\":\"/home/u/.cache/pip/a.whl\"}],[\"размер\",{\"n\":\"0\"}],[\"возраст_дней\",{\"n\":\"0\"}],[\"вид\",{\"v\":\"Файл\",\"f\":[]}],[\"доступен\",true]]}],\"depth\":\"10000\",\"steps\":\"1000000\"}"
-  соединить ["{\"fn\":\"Решить находку\",\"args\":[{\"r\":[[\"путь\",{\"s\":\"", («Взять строку по кругу» от («Пути сетки») и номер), "\"}],[\"размер\",{\"n\":\"", (к строке («Взять число по кругу» от («Размеры сетки») и номер)), "\"}],[\"возраст_дней\",{\"n\":\"", (к строке («Взять число по кругу» от («Возрасты сетки») и номер)), "\"}],[\"вид\",{\"v\":\"", («Взять строку по кругу» от («Виды сетки») и номер), "\",\"f\":[]}],[\"доступен\",true]]}],\"depth\":\"10000\",\"steps\":\"1000000\"}"] по ""
+    ожидается "{\"fn\":\"Решить находку\",\"args\":[{\"r\":[[\"путь\",{\"s\":\"/home/u/.cache/pip/a.whl\"}],[\"размер\",{\"n\":\"0\"}],[\"возраст_дней\",{\"n\":\"0\"}],[\"вид\",{\"v\":\"Файл\",\"f\":[]}],[\"доступен\",true]]},{\"l\":[{\"r\":[[\"разряд\",{\"v\":\"Кэш\",\"f\":[]}],[\"якорь\",{\"v\":\"ОтКорня\",\"f\":[]}],[\"цепь\",{\"s\":\"/home/u/.npm/_cacache/\"}]]},{\"r\":[[\"разряд\",{\"v\":\"Сборка\",\"f\":[]}],[\"якорь\",{\"v\":\"ГдеУгодно\",\"f\":[]}],[\"цепь\",{\"s\":\"/DerivedData/\"}]]}]}],\"depth\":\"10000\",\"steps\":\"1000000\"}"
+  соединить ["{\"fn\":\"Решить находку\",\"args\":[{\"r\":[[\"путь\",{\"s\":\"", («Взять строку по кругу» от («Пути сетки») и номер), "\"}],[\"размер\",{\"n\":\"", (к строке («Взять число по кругу» от («Размеры сетки») и номер)), "\"}],[\"возраст_дней\",{\"n\":\"", (к строке («Взять число по кругу» от («Возрасты сетки») и номер)), "\"}],[\"вид\",{\"v\":\"", («Взять строку по кругу» от («Виды сетки») и номер), "\",\"f\":[]}],[\"доступен\",true]]},", («Справочник сетки»), "],\"depth\":\"10000\",\"steps\":\"1000000\"}"] по ""
 
 тотальная функция «Сколько запросов»
   возвращает число

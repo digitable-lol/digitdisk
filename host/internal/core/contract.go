@@ -23,7 +23,12 @@
 package core
 
 // ContractVersion is the version of the record/verdict shape above.
-const ContractVersion = 0
+//
+// Version 1 added the справочник известных мест: the decision layer is handed
+// a list of Place values alongside each record.  A layer that ignores it
+// decides exactly what version 0 decided — the справочник only ever adds a
+// разряд where the general приметы found none.
+const ContractVersion = 1
 
 // Kind is "вид" — what the path is on disk.
 type Kind string
@@ -105,4 +110,47 @@ type Decider interface {
 	// A false value tells the report to say so out loud instead of passing
 	// off empty answers as analysis.
 	Ready() bool
+}
+
+// Anchor is «якорь» — how a place's chain must sit in a path.
+type Anchor string
+
+const (
+	// AnchorRoot: the chain must be the beginning of the path.
+	AnchorRoot Anchor = "ОтКорня"
+	// AnchorAnywhere: the chain may appear at any depth.
+	AnchorAnywhere Anchor = "ГдеУгодно"
+)
+
+// Place is one entry of the справочник известных мест as the decision layer
+// takes it: a разряд, an anchor, and a chain — the place's path with a slash
+// at both ends, `/home/u/.npm/_cacache/`.
+//
+// The slashes are not decoration.  They are what makes the layer's comparison
+// a comparison of whole path components rather than of substrings: the trail
+// `/home/u/x.npm/_cacache/` does not contain `/home/u/.npm/_cacache/`, because
+// there is no slash in front of `.npm`.  A chain without them is refused by
+// the layer («Справочник ограничен»), not matched loosely.
+//
+// Only Кэш, Журнал, Сборка and Загрузка may appear here.  Крупное is decided
+// by size and Неизвестное means "no place matched"; a справочник asserting
+// either would be lying about where the разряд came from, and the layer's
+// постусловие «Место обосновано» rejects it.
+type Place struct {
+	Class  Class  `json:"разряд"`
+	Anchor Anchor `json:"якорь"`
+	Chain  string `json:"цепь"`
+}
+
+// Placer is an optional capability of a decision layer: it accepts a
+// справочник известных мест, once, before any record is judged.  A Decider
+// that does not implement it judges by приметы alone, which is what the layer
+// did before the справочник existed — so a missing capability is a smaller
+// answer, never a wrong one.
+type Placer interface {
+	// UsePlaces hands the layer the справочник.  It returns an error when
+	// the layer refuses it — a chain without its bounding slashes, say —
+	// and the host then reports the refusal instead of cleaning with a
+	// справочник the layer would not check.
+	UsePlaces([]Place) error
 }

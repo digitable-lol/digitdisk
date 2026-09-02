@@ -75,6 +75,8 @@ import (
 	"time"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/places"
+	"digitdisk/internal/protect"
 	"digitdisk/internal/scan"
 )
 
@@ -106,6 +108,17 @@ type Options struct {
 	Decider     core.Decider
 	Now         time.Time
 	Version     string // digitdisk version, recorded in the journal
+
+	// Protect is the operator standing veto.  It is asked only about items
+	// the decision layer already marked «МожноУбрать», and it can only
+	// subtract from the plan.  See internal/protect for why it lives here
+	// and not in the rules.
+	Protect *protect.List
+
+	// Places names the справочник the decision layer was given, so the plan
+	// can say which place claimed an item.  It decides nothing: the разряд
+	// on every item came from the layer.
+	Places *places.Directory
 }
 
 // Identity is what the host remembers about a file between the moment it was
@@ -176,8 +189,14 @@ type Item struct {
 	Weight        float64      `json:"вес"`
 	ThresholdDays float64      `json:"порог_дней,omitempty"`
 	HasThreshold  bool         `json:"порог_известен"`
-	Hardlinked    bool         `json:"жёсткая_ссылка"`
-	Before        Identity     `json:"отпечаток"`
+
+	// Place names the row of the справочник that claims this path, when one
+	// does.  It is written for the report only: the разряд above came from
+	// the decision layer, and this says which line of the file the layer was
+	// given that could account for it.
+	Place      string   `json:"место,omitempty"`
+	Hardlinked bool     `json:"жёсткая_ссылка"`
+	Before     Identity `json:"отпечаток"`
 
 	// Filled in by Apply.
 	TrashRel string    `json:"в_корзине,omitempty"`
@@ -205,6 +224,11 @@ func (i Item) Why() string {
 	return fmt.Sprintf("разряд %s, приговор %s", i.Class, i.Verdict)
 }
 
+// Where names the известное место this path lies in, or an empty string when
+// the разряд came from the general приметы instead.  Two different sentences,
+// and a person deciding whether to trust a line wants to know which one it is.
+func (i Item) Where() string { return i.Place }
+
 // Refusal is a path the decision layer marked «МожноУбрать» that the host will
 // not touch, and the check that stopped it.  A refusal is never a silent skip:
 // it means the two layers disagree, and that is a fact about the rules.
@@ -213,6 +237,19 @@ type Refusal struct {
 	Class   core.Class   `json:"разряд"`
 	Verdict core.Verdict `json:"приговор_ядра"`
 	Reason  string       `json:"отказ"`
+}
+
+// Protected is a path the decision layer marked «МожноУбрать» and the operator
+// told the tool to leave alone.  It is kept apart from Refusal on purpose: a
+// refusal means the two layers disagree and somebody should look at the rules,
+// while this means the rules worked and the answer was overruled by the person
+// whose disk it is.  Mixing them would make the first invisible among the
+// second on any machine with a защитный список.
+type Protected struct {
+	Path  string       `json:"путь"`
+	Class core.Class   `json:"разряд"`
+	Size  int64        `json:"размер"`
+	Rule  protect.Rule `json:"правило"`
 }
 
 // Plan is the whole answer to "what would `clean` remove here".
@@ -225,6 +262,12 @@ type Plan struct {
 	Walk            scan.Result `json:"обход"`
 	Items           []Item      `json:"к_переносу"`
 	Refused         []Refusal   `json:"отказано"`
+	Protected       []Protected `json:"защищено"`
+	ProtectOrigins  []string    `json:"защитный_список,omitempty"`
+	ProtectedBytes  int64       `json:"защищено_байт"`
+	PlacesOrigin    string      `json:"справочник,omitempty"`
+	PlacesCount     int         `json:"мест_в_справочнике"`
+	ByClass         []ClassSum  `json:"по_разрядам"`
 	Bytes           int64       `json:"байт"`
 	FreeableBytes   int64       `json:"освободится_стиранием"`
 	HardlinkItems   int         `json:"из_них_жёстких_ссылок"`
@@ -233,6 +276,15 @@ type Plan struct {
 	// files inside them: a pruned directory is never opened, so nobody here
 	// knows how much was in it.
 	PrunedTrash int `json:"своих_корзин_пропущено"`
+}
+
+// ClassSum is the plan broken down by разряд.  It is computed over EVERY item,
+// never over the shortened list a report prints: a summary that changed with
+// --top would be a summary of the screen, not of the disk.
+type ClassSum struct {
+	Class core.Class `json:"разряд"`
+	Count int        `json:"файлов"`
+	Bytes int64      `json:"байт"`
 }
 
 // Make walks the tree and returns what `clean --apply` would move.  It opens
@@ -265,6 +317,14 @@ func Make(opt Options) (Plan, error) {
 		ContractVersion: core.ContractVersion,
 		Items:           []Item{},
 		Refused:         []Refusal{},
+		Protected:       []Protected{},
+	}
+	if opt.Places != nil {
+		p.PlacesOrigin = opt.Places.Origin
+		p.PlacesCount = len(opt.Places.Applicable())
+	}
+	if opt.Protect != nil {
+		p.ProtectOrigins = opt.Protect.Origins
 	}
 
 	thresholds, _ := opt.Decider.(core.Thresholder)
@@ -287,6 +347,16 @@ func Make(opt Options) (Plan, error) {
 			if e.Verdict != core.VerdictRemovable {
 				return
 			}
+			// The operator's veto comes before the host's own checks:
+			// "I said do not touch this" is an answer to the whole
+			// question, and running the other checks on a path nobody
+			// may touch would only produce noise about it.
+			if rule, ok := opt.Protect.Covers(e.Path, e.Class); ok {
+				p.Protected = append(p.Protected, Protected{
+					Path: e.Path, Class: e.Class, Size: e.Size, Rule: rule,
+				})
+				return
+			}
 			rel, reason := guard(rootAbs, e, info)
 			if reason != "" {
 				p.Refused = append(p.Refused, Refusal{
@@ -303,6 +373,13 @@ func Make(opt Options) (Plan, error) {
 			if thresholds != nil {
 				it.ThresholdDays, it.HasThreshold = thresholds.Threshold(e.Class)
 			}
+			// Only for the items that made the plan — a few hundred paths,
+			// not the millions the walk visited.
+			if opt.Places != nil {
+				if place, ok := opt.Places.Match(e.Path); ok {
+					it.Place = place.Name
+				}
+			}
 			p.Items = append(p.Items, it)
 		},
 	})
@@ -317,15 +394,36 @@ func Make(opt Options) (Plan, error) {
 		}
 		return p.Items[i].Path < p.Items[j].Path
 	})
+	byClass := map[core.Class]ClassSum{}
 	for _, it := range p.Items {
 		p.Bytes += it.Size
+		sum := byClass[it.Class]
+		sum.Class, sum.Count, sum.Bytes = it.Class, sum.Count+1, sum.Bytes+it.Size
+		byClass[it.Class] = sum
 		if it.Hardlinked {
 			p.HardlinkItems++
 			continue // another name keeps the bytes: erasing this one frees nothing
 		}
 		p.FreeableBytes += it.Size
 	}
+	// Report order, not map order: the summary is read by a person, and a
+	// summary whose lines move between runs is read twice every time.
+	p.ByClass = []ClassSum{}
+	for _, c := range core.Classes {
+		if sum, ok := byClass[c]; ok {
+			p.ByClass = append(p.ByClass, sum)
+		}
+	}
 	sort.Slice(p.Refused, func(i, j int) bool { return p.Refused[i].Path < p.Refused[j].Path })
+	sort.Slice(p.Protected, func(i, j int) bool {
+		if p.Protected[i].Size != p.Protected[j].Size {
+			return p.Protected[i].Size > p.Protected[j].Size
+		}
+		return p.Protected[i].Path < p.Protected[j].Path
+	})
+	for _, pr := range p.Protected {
+		p.ProtectedBytes += pr.Size
+	}
 	return p, nil
 }
 

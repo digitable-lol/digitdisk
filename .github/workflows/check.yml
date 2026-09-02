@@ -36,8 +36,22 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           check-latest: false
 
+      # Шаг звал `python3 tools/check-licensing.py` — файла, которого в дереве
+      # нет с 1 сентября: сторож переписан на flang, а Python из дерева ушёл.
+      # То есть проверка была мёртвой. Компилятор flang — один двоичный файл,
+      # которому нужен только `cc`, поэтому он и собирается здесь из своего же
+      # клона, как написано в README.
+      - name: Компилятор flang
+        run: |
+          git clone --depth 1 https://github.com/digitable-lol/flang.git /tmp/flang-src
+          make -C /tmp/flang-src/bootstrap
+          echo "/tmp/flang-src/bootstrap" >> "$GITHUB_PATH"
+
       - name: Лицензионный сторож
-        run: python3 tools/check-licensing.py
+        run: flang io tools/licensing.flang
+
+      - name: Ядро на flang — проверка, примеры и сверка двух печатей
+        run: make -C core
 
       - name: Проверки хозяина
         run: |

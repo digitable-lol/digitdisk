@@ -15,11 +15,20 @@ and not a pattern**: it is exactly what the decision layer in `core/` gives the
 verdict «МожноУбрать», which is proved to be nothing outside Кэш, Журнал and
 Сборка.
 
+The concrete places — npm's cache, Go's build cache, Xcode's derived data —
+digitdisk knows from a **справочник**, a separate data file edited without a
+rebuild. The справочник names a разряд; the verdict is still the core's, and
+thresholds, directories, symlinks and content-addressed stores are judged
+exactly as before. To say "leave this alone" there is the
+[защитный список](#the-protection-list); what past cleanups did is
+`digitdisk history`.
+
 ## What it is made of
 
 ```
 core/       the readings as a flang specification, plus the Go printed from it into core/out-go
 host/       the Go host: system calls, the command line, the output
+host/internal/places/places.conf   the справочник of known places: data, not code
 packaging/  the Homebrew formula
 scripts/    the release build
 tools/      the licence gate
@@ -187,10 +196,12 @@ and the same Go toolchain give the same archive, byte for byte.
 ```bash
 ./digitdisk analyze <path>   # where the space went: directories by size, the largest files
 ./digitdisk status           # how the machine feels: CPU, memory, disk, network
+./digitdisk places           # what the tool knows about concrete caches, and what of it is here
+./digitdisk history <path>   # what past cleanups under this root did
 ./digitdisk --version        # version, build hash, toolchain, decision layer
 ```
 
-Both readings take `--json`. Neither writes anything.
+All four readings take `--json`. None of them writes anything.
 
 ### Cleaning, in three steps
 
@@ -222,6 +233,150 @@ remembers each file's dev/ino, size, mtime and mode, checks them again before
 touching it, and refuses by name — "размер изменился (был 25 Б, стал 30 Б)" —
 rather than removing something it no longer recognises.
 
+**The plan is meant to be read.** Every list stops at `--top` (15 by default,
+the same as `analyze`; `--top 0` prints all of it) and ends with a line saying
+how many files and bytes were left out. The counts do not move: the total, the
+bytes and the breakdown by разряд are computed over the whole plan and are
+independent of `--top` — a summary that shrank with the screen would be a
+summary of the screen. `--json` is never cut: `--json` is how scripts call this
+tool, and a shortened work list would make `clean --json | jq` quietly wrong.
+
+<a id="the-directory-of-known-places"></a>
+
+### The справочник of known places
+
+The core's rules know what a cache IS in general: a path component called
+`.cache`, `Caches`, `cache`. That is enough to recognise a cache and not enough
+to recognise **npm's**, whose store is `~/.npm/_cacache` — no component with the
+word `cache` anywhere in it. The missing knowledge is a LIST OF PLACES, and a
+list is data.
+
+```bash
+./digitdisk places                      # the whole справочник and what of it is here
+./digitdisk places --json               # the same for a machine
+./digitdisk clean <path> --places FILE  # your own справочник instead of the built-in one
+./digitdisk clean <path> --no-places    # judge by приметы alone, as before 0.4.0
+```
+
+It lives in
+[`host/internal/places/places.conf`](host/internal/places/places.conf), travels
+inside the binary as the default, and is replaced whole — by `--places` or by
+`~/.config/digitdisk/places.conf`. A row looks like this:
+
+```
+разряд | якорь | система | путь | переменная | имя | источник
+кэш|дом|все|.npm//_cacache|npm_config_cache|npm: download cache|https://docs.npmjs.com/...
+```
+
+The last field is mandatory, and not for decoration: **every row comes from the
+tool's own documentation**, and a place is listed only when that documentation
+calls it a cache, a log, or derived data the tool will rebuild by itself. The
+double slash splits the path into a base and a tail: the base is what the
+environment variable relocates (`npm_config_cache`, `GOCACHE`, `CARGO_HOME`,
+`GRADLE_USER_HOME` and others), so a developer who moved a cache gets their real
+place instead of one that is no longer there.
+
+**How it reaches the verdict.** A row becomes a "цепь" — the place's path with a
+slash at both ends, `/home/u/.npm/_cacache/`. The host assembles the chain; the
+core matches it, and the slashes are what makes the match a match of whole
+COMPONENTS: `/home/u/x.npm/_cacache/` does not contain `/home/u/.npm/_cacache/`,
+because there is no slash before `.npm`. A справочник whose chains are not
+bounded is refused whole («Справочник ограничен») — matching one as a bare
+substring would bring back the bug fixed on 1 September.
+
+**What it may not do.** It names a разряд and nothing else, and only four of
+them: Кэш, Журнал, Сборка, Загрузка. «Крупное» is decided by size and
+«Неизвестное» means "no place matched", and the core refuses to let a file
+assert either (постусловие «Место обосновано»). It softens no threshold, removes
+no directory and no symlink, and a content-addressed store stays untouched:
+постусловие И3 outranks any line of the file. Invariant И1 — «МожноУбрать»
+never leaves Кэш, Журнал and Сборка — holds exactly as before, however many
+places the file knows.
+
+<a id="the-protection-list"></a>
+
+### The защитный список
+
+How to say "do not touch this", by path and by разряд:
+
+```bash
+./digitdisk clean <path> --protect ~/projects        # the path and everything under it
+./digitdisk clean <path> --protect разряд:Загрузка   # a whole разряд
+./digitdisk clean <path> --protect-file FILE         # a list from a file
+```
+
+Without a flag, `~/.config/digitdisk/protect.conf` is read; a row there is
+`путь|~/projects|why` or `разряд|Журнал|why`. A path written without a leading
+slash protects that chain of components at any depth.
+
+The защитный список lives **in the host and not in the rules**, and that is not
+an implementation detail. The core answers one question — what this path IS —
+and every answer it gives is proved; "do not touch my `~/projects`" is not an
+answer to that question: the path may very well be a cache, and writing the
+opposite into the справочник would be putting a falsehood into the layer to get
+an effect. An instruction from the person who owns the machine belongs where the
+host already keeps its veto — next to the checks in `internal/clean`. That is
+why it weakens nothing: the list can only subtract from a plan, and no
+постусловие of the core moves because of it. What it protected is printed in its
+own ЗАЩИЩЕНО section, with the rule and the file line, rather than quietly
+missing from the plan — and it is kept apart from ОТКАЗАНО, because a refusal
+means the two layers disagree and somebody should look at the rules, while a
+protection means the rules worked and a person overruled the answer.
+
+### The cleanup journal
+
+```bash
+./digitdisk history <path>          # a cleaned root, the корзина store, or one корзина
+./digitdisk history <path> --json
+```
+
+What was removed, when, how many bytes are sitting in корзины, how much went
+back, how much was erased — and what puts the last one back. **digitdisk
+remembers nothing between runs**: every number is read out of the same
+`journal.json` files that `restore` and `purge` obey. A separate history
+database would be a second account of the same events, and the two would
+disagree the first time somebody moved a корзина with `mv`.
+
+"Freed" in that summary counts only what was erased: moving into a корзина frees
+no bytes at all, and a number claiming otherwise would be a lie about the disk.
+
+<a id="why-not-the-system-trash"></a>
+
+### Why not the system Trash
+
+What is cleaned goes into digitdisk's own корзина inside the tree, not into the
+desktop Trash, for three reasons, one of which is a number.
+
+**The number.** A корзина inside the tree means `rename(2)`: on this machine
+moving a gibibyte does not register on the timer at all (0.00 s, three runs),
+because no bytes move. A корзина across a filesystem boundary turns the move
+into a copy: the same gibibyte written to disk with `fsync` takes **0.91 s per
+GiB** (best of three: 0.91 / 1.01 / 1.12). The cost of reversibility would
+become the size of the cleanup, the file would exist twice while the copy runs
+(so the space has to be free beforehand), and a crash halfway would leave half a
+file. Both `~/.local/share/Trash` on Linux and `~/.Trash` on macOS live in the
+home directory, and cleaning usually happens on other volumes.
+
+**The write boundary.** "Does not leave the tree you named" is a property of the
+system calls digitdisk uses: everything goes through an `os.Root` opened on the
+root, which cannot be walked out of even through a symlink. A cleanup of
+`/var/tmp` that writes into `~/.local/share/Trash` cancels that property.
+
+**The two systems have no common behaviour.** On Linux the Trash is defined by
+the [freedesktop.org specification](https://specifications.freedesktop.org/trash-spec/latest/):
+`files/` and `info/` with `.trashinfo` records — and the same specification says
+the home Trash only accepts files from its own filesystem, while another volume
+needs a `.Trash-$uid` at its top level, which digitdisk would have to create. On
+macOS the layout is different and Finder's "Put Back" lives in an unpublished
+store: the documented way in is `NSFileManager trashItemAtURL:`, which is Cocoa,
+which is cgo, which is the end of cross-building four targets from one machine
+with a reproducible digest. There is no common behaviour to implement here —
+there are two different Trashes and one way to lie about freed space.
+
+What there is instead: digitdisk's корзина is an ordinary directory. Whoever
+wants to hand it to the system Trash hands it over themselves, in one gesture,
+and knows they did.
+
 ### The live screen
 
 In a terminal, `digitdisk status` opens a live screen in the Digitable Focus
@@ -246,11 +401,15 @@ colour.
 
 ## What it does not do
 
-- **It does not delete by pattern, by name, or by a list of known paths.** The
-  only thing `clean` will remove is a path the decision layer gave the verdict
-  «МожноУбрать». The host keeps a veto on top of that and refuses a directory, a
-  symlink or anything unreadable even if the layer were to ask — and when the
-  two disagree it prints the disagreement instead of acting on it.
+- **It does not delete by pattern, and it does not delete from a list of
+  paths.** digitdisk does have a list of known places, and that list removes
+  nothing: the справочник names a РАЗРЯД, and what `clean` removes is still
+  exactly what the decision layer gave the verdict «МожноУбрать» — with the same
+  thresholds, the same refusal to touch directories and symlinks, and the same
+  refusal to touch content-addressed stores. A place is an argument, not an
+  order. The host keeps a veto on top of that and refuses a directory, a symlink
+  or anything unreadable even if the layer were to ask — and when the two
+  disagree it prints the disagreement instead of acting on it.
 - **It never deletes in one step, and never without being asked.** There is no
   flag that erases without a plan first and a separate confirmation after, and
   `clean` on its own touches nothing at all.
@@ -260,7 +419,7 @@ colour.
   the same tree — a корзина elsewhere would make every move a cross-filesystem
   copy, and the cost of reversibility would become the size of the cleanup.
 - **It does not delete recursively.** `os.RemoveAll` appears nowhere in this
-  tree and `tools/check-licensing.py` fails the build if it ever does. Files go
+  tree and `tools/licensing.flang` fails the build if it ever does. Files go
   one at a time, from a list in a journal; empty directories go through the
   call that refuses a directory with anything in it.
 - **It does not explain instead of measuring.** Where there is a number, it is
@@ -300,8 +459,8 @@ single binary that needs only a C compiler (`brew install flang`, `asdf`, or
 ## State
 
 The tree is complete and installable: the licences and the gate, the flang core
-printed into `core/out-go`, the Go host with `status`, `analyze` and the three
-steps of `clean` / `restore` / `purge`, and the release path — [`scripts/build-release.sh`](scripts/build-release.sh), the
+printed into `core/out-go`, the Go host with `status`, `analyze`, `places`,
+`history` and the three steps of `clean` / `restore` / `purge`, and the release path — [`scripts/build-release.sh`](scripts/build-release.sh), the
 Homebrew formula, and the tag-driven workflow in
 [`.github/workflows/release.yml`](.github/workflows/release.yml). The version
 lives in one place, [`VERSION`](VERSION); the build stamps it into the binary,
