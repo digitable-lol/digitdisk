@@ -113,6 +113,7 @@ func cmdStatus(args []string) error {
 	why := fs.Bool("why", false, "что не измерено и почему")
 	top := fs.Int("top", 10, "сколько процессов в каждом списке")
 	sample := fs.Int("sample", 200, "окно замера загрузки ЦП, мс")
+	gpuTool := fs.Bool("gpu-tool", false, "спросить о видеокартах программу их драйвера (nvidia-smi)")
 	live := fs.Bool("live", false, "живой экран, даже если о терминале не спрашивали")
 	plain := fs.Bool("plain", false, "печать одним снимком, без живого экрана")
 	interval := fs.Int("interval", 2000, "период обновления живого экрана, мс")
@@ -127,6 +128,7 @@ func cmdStatus(args []string) error {
 	c := sysinfo.New()
 	c.Top = *top
 	c.SampleWindow = time.Duration(*sample) * time.Millisecond
+	c.GPUTool = *gpuTool
 
 	// A machine reader is answered first and never gets the screen: --json is
 	// how scripts call this tool, and its output must not depend on where it

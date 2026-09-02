@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"digitdisk/internal/cli"
 	"digitdisk/internal/report"
@@ -31,6 +30,7 @@ var sections = []section{
 	{"ДИСКИ", (*screen).disks},
 	{"СЕТЬ", (*screen).network},
 	{"ТЕМПЕРАТУРА", (*screen).sensors},
+	{"ВИДЕОКАРТЫ", (*screen).gpus},
 	{"НЕ ПРОЧИТАНО", (*screen).missing},
 }
 
@@ -106,6 +106,12 @@ func (s *screen) overview() []string {
 		out = append(out, t.gaugeUnmeasured("ЦП занято", 12, "замер не делался", bw))
 	}
 	out = append(out, s.sparkLine(12, s.cpuHist))
+	// The same share spread across the processors, on one line: a machine
+	// with one core on fire and two hundred idle reads as eight per cent
+	// busy, and this is where that becomes visible.
+	if len(st.Load.Cores) > 0 {
+		out = append(out, s.coreComb(12))
+	}
 
 	if st.Memory.Total > 0 {
 		f := pctOf(st.Memory.Used, st.Memory.Total)
@@ -123,6 +129,11 @@ func (s *screen) overview() []string {
 			report.UBytes(st.Memory.SwapUsed), report.UBytes(st.Memory.SwapTotal)), bw))
 	} else {
 		out = append(out, t.gaugeUnmeasured("Своп", 12, "нет", bw))
+	}
+
+	if len(st.GPUs) > 0 {
+		out = append(out, "", s.caption("ВИДЕОКАРТЫ"))
+		out = append(out, s.gpuGauges(3)...)
 	}
 
 	out = append(out, "")
@@ -176,32 +187,8 @@ func count(n int) string {
 	return fmt.Sprint(n)
 }
 
-func (s *screen) system() []string {
-	if !s.haveSt {
-		return s.waiting()
-	}
-	h := s.st.Host
-	out := []string{""}
-	out = append(out,
-		s.kv("узел", text(h.Hostname)),
-		s.kv("дистрибутив", text(h.Distro)),
-		s.kv("ядро", fmt.Sprintf("%s (%s)", text(h.KernelRelease), text(h.Machine))),
-	)
-	if strings.TrimSpace(h.KernelVersion) != "" {
-		out = append(out, s.kv("сборка ядра", h.KernelVersion))
-	}
-	if h.UptimeSeconds > 0 {
-		boot := dash
-		if h.BootTime > 0 {
-			boot = time.Unix(h.BootTime, 0).Format("2006-01-02 15:04")
-		}
-		out = append(out, s.kv("время работы", fmt.Sprintf("%s (с %s)", text(h.UptimeHuman), boot)))
-	} else {
-		out = append(out, s.kv("время работы", dash))
-	}
-	out = append(out, s.kv("снимок взят", text(s.st.TakenAt)))
-	return out
-}
+// СИСТЕМА is drawn in hardware.go: the mark of the system and the facts a
+// person recognises a machine by.
 
 func (s *screen) load() []string {
 	if !s.haveSt {
@@ -225,6 +212,11 @@ func (s *screen) load() []string {
 		out = append(out, t.gaugeUnmeasured("занято ЦП", 12, "замер не делался", bw))
 	}
 	out = append(out, s.sparkLine(12, s.cpuHist))
+	// The same window, processor by processor.  It lives on this page and
+	// not on one of its own: it is the same measurement, and the section
+	// strip is the printed report's, where the per-core figures are a line
+	// of ЗАГРУЗКА — see coresBlock in hardware.go.
+	out = append(out, s.coresBlock()...)
 	return out
 }
 

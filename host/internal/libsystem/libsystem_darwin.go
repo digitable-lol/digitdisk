@@ -18,27 +18,39 @@ import (
 //	sysctl(3)            — a sysctl node named by its whole MIB
 //	host_statistics      — machine-wide statistics, 32-bit flavors
 //	host_statistics64    — machine-wide statistics, 64-bit flavors
-//	mach_host_self       — the host port those two are asked through
+//	host_processor_info  — the same statistics, one processor at a time
+//	mach_host_self       — the host port those three are asked through
 //	proc_pidinfo(3)      — what one process costs
+//	task_self_trap       — this task's own port (<mach/mach_traps.h>)
+//	vm_deallocate        — giving back what host_processor_info allocated
+//	memcpy(3)            — copying out of it without making its address a pointer
 //
 // The umbrella library re-exports libsystem_kernel and libsystem_c, where
-// these actually live, so one path resolves all five.
+// these actually live, so one path resolves all nine.
 
 //go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_host_statistics host_statistics "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_host_statistics64 host_statistics64 "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_host_processor_info host_processor_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_host_self mach_host_self "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_proc_pidinfo proc_pidinfo "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_task_self_trap task_self_trap "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_vm_deallocate vm_deallocate "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_memcpy memcpy "/usr/lib/libSystem.B.dylib"
 
 // The addresses of the assembly stubs, filled in by the .s files next to this
 // one — one per architecture, because a stub is two instructions and those
 // differ.
 var (
-	libc_sysctl_trampoline_addr            uintptr
-	libc_host_statistics_trampoline_addr   uintptr
-	libc_host_statistics64_trampoline_addr uintptr
-	libc_mach_host_self_trampoline_addr    uintptr
-	libc_proc_pidinfo_trampoline_addr      uintptr
+	libc_sysctl_trampoline_addr              uintptr
+	libc_host_statistics_trampoline_addr     uintptr
+	libc_host_statistics64_trampoline_addr   uintptr
+	libc_host_processor_info_trampoline_addr uintptr
+	libc_mach_host_self_trampoline_addr      uintptr
+	libc_proc_pidinfo_trampoline_addr        uintptr
+	libc_task_self_trap_trampoline_addr      uintptr
+	libc_vm_deallocate_trampoline_addr       uintptr
+	libc_memcpy_trampoline_addr              uintptr
 )
 
 // syscall.syscall6 and syscall.rawSyscall call a C function by address on
@@ -100,6 +112,64 @@ func hostStatistics(fn uintptr, flavor, count int) ([]byte, error) {
 		return nil, syscall.EINVAL
 	}
 	return buf[:4*int(n)], nil
+}
+
+// taskPort is this task's own port, the one vm_deallocate is addressed to.
+// Like hostPort it is taken once.  task_self_trap is the kernel trap the
+// libSystem macro mach_task_self() is built on, and it is what a caller
+// without cgo can reach: the macro reads a variable, and a variable is not a
+// symbol this door opens.
+var taskPort = sync.OnceValue(func() uintptr {
+	port, _, _ := rawSyscallThree(libc_task_self_trap_trampoline_addr, 0, 0, 0)
+	return port
+})
+
+// ProcessorInfo asks the host for one flavor of per-processor statistics and
+// returns the number of processors together with a copy of the array.
+//
+// Unlike host_statistics, this call does not fill a buffer of ours: the
+// kernel allocates the array in this task's address space and hands over the
+// address, and the caller owns it from then on.  So the bytes are copied out
+// and the allocation is given straight back — a screen that takes a snapshot
+// every two seconds would otherwise lose a page of memory per reading, which
+// on a machine with many processors adds up to a leak a person would notice
+// by the end of the day.
+//
+// A task port of zero means the trap did not answer.  Nothing is published
+// then: reading the array we could not free is not worth the leak.
+func ProcessorInfo(flavor int) (cpus int, data []byte, err error) {
+	if taskPort() == 0 {
+		return 0, nil, syscall.EINVAL
+	}
+	var count uint32 // natural_t *out_processor_count
+	var addr uintptr // processor_info_array_t *out_processor_info
+	var words uint32 // mach_msg_type_number_t *out_processor_infoCnt
+	// kern_return_t host_processor_info(host_t, processor_flavor_t,
+	//                                   natural_t *, processor_info_array_t *,
+	//                                   mach_msg_type_number_t *)
+	rc, _, _ := syscallSix(libc_host_processor_info_trampoline_addr, hostPort(),
+		uintptr(uint32(flavor)), uintptr(unsafe.Pointer(&count)),
+		uintptr(unsafe.Pointer(&addr)), uintptr(unsafe.Pointer(&words)), 0)
+	if kr := int32(rc); kr != 0 {
+		return 0, nil, kernError(kr)
+	}
+	if addr == 0 || words == 0 || count == 0 {
+		return 0, nil, syscall.EINVAL
+	}
+	size := 4 * uintptr(words)
+	out := make([]byte, size)
+	// The copy is made by memcpy(3) rather than by Go.  The address the
+	// kernel handed over is not a Go pointer and must not become one: a
+	// number turned into a pointer is exactly what `go vet` refuses, and it
+	// refuses it for a good reason — the garbage collector would then be
+	// looking at memory it does not own.  Handing the number to a C function
+	// that expects a number keeps it a number the whole way.
+	// void *memcpy(void *dst, const void *src, size_t n)
+	syscallSix(libc_memcpy_trampoline_addr,
+		uintptr(unsafe.Pointer(&out[0])), addr, size, 0, 0, 0)
+	// kern_return_t vm_deallocate(vm_map_t, vm_address_t, vm_size_t)
+	syscallSix(libc_vm_deallocate_trampoline_addr, taskPort(), addr, size, 0, 0, 0)
+	return int(count), out, nil
 }
 
 // ProcTaskInfo asks proc_pidinfo for what one process costs, and returns the

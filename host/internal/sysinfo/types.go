@@ -15,7 +15,10 @@
 // than Linux does that rule is most of the work.
 package sysinfo
 
-import "digitdisk/internal/procfs"
+import (
+	"digitdisk/internal/gpuinfo"
+	"digitdisk/internal/procfs"
+)
 
 // Status is the whole snapshot printed by `digitdisk status`.
 type Status struct {
@@ -27,6 +30,10 @@ type Status struct {
 	Disks     []Disk        `json:"disks"`
 	Network   []Iface       `json:"network"`
 	Sensors   []Sensor      `json:"sensors"`
+	// GPUs are the video cards, each with whatever its driver publishes
+	// about it.  A card whose driver publishes nothing is still here: the
+	// machine has it, and an absent line would say it does not.
+	GPUs []gpuinfo.Card `json:"gpus"`
 	// Missing names what is not in the snapshot and why: a source that
 	// could not be read (keyed by its name, "meminfo", "mounts"), and a
 	// fact this system does not publish at all (keyed by one of the Fact
@@ -42,7 +49,8 @@ type Host struct {
 	KernelVersion string `json:"kernel_version"`
 	Machine       string `json:"machine"`
 	// Model is the machine's own name for itself, when it has one:
-	// "MacBookPro18,3" from hw.model.  Linux leaves it empty.
+	// "MacBookPro18,3" from hw.model, "Dell Inc. PowerEdge C6525" from the
+	// firmware tables on Linux.
 	Model         string  `json:"model,omitempty"`
 	Distro        string  `json:"distro"`
 	DistroID      string  `json:"distro_id"`
@@ -50,6 +58,18 @@ type Host struct {
 	BootTime      int64   `json:"boot_time_unix"`
 	UptimeSeconds float64 `json:"uptime_seconds"`
 	UptimeHuman   string  `json:"uptime_human"`
+	// CPUModel is what the processor calls itself.
+	CPUModel string `json:"cpu_model,omitempty"`
+	// Bits is the word size of this build — 64 on every release target,
+	// and the thing to look at when a binary turns up somewhere else.
+	Bits int `json:"bits,omitempty"`
+	// User, Shell, Desktop and Terminal are the session this snapshot was
+	// taken in, not properties of the machine.  A server has no desktop and
+	// says so with an empty field.
+	User     string `json:"user,omitempty"`
+	Shell    string `json:"shell,omitempty"`
+	Desktop  string `json:"desktop,omitempty"`
+	Terminal string `json:"terminal,omitempty"`
 }
 
 // Load is scheduler pressure plus a short CPU-busy sample.
@@ -61,6 +81,11 @@ type Load struct {
 	// sample was not taken — never confuse that with a measured zero.
 	BusyPercent  *float64 `json:"busy_percent"`
 	SampleMillis int64    `json:"sample_millis"`
+	// Cores is the same share measured for each processor over the same
+	// window.  It is empty when the system does not publish the
+	// per-processor counters, or when the shares failed the check against
+	// BusyPercent — see coresAgree.
+	Cores []Core `json:"cores,omitempty"`
 }
 
 // Proc is one process in the snapshot.

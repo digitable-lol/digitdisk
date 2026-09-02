@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/gpuinfo"
 	"digitdisk/internal/procfs"
 	"digitdisk/internal/scan"
 	"digitdisk/internal/sysinfo"
@@ -67,6 +68,13 @@ func Status(w io.Writer, st sysinfo.Status) {
 	if st.Host.Model != "" {
 		p("  модель        %s", st.Host.Model)
 	}
+	if st.Host.CPUModel != "" {
+		if st.Load.CPUCount > 0 {
+			p("  процессор     %s × %d", st.Host.CPUModel, st.Load.CPUCount)
+		} else {
+			p("  процессор     %s", st.Host.CPUModel)
+		}
+	}
 	p("  ядро          %s (%s)", dash(st.Host.KernelRelease), dash(st.Host.Machine))
 	if st.Host.UptimeSeconds > 0 {
 		boot := "—"
@@ -90,6 +98,15 @@ func Status(w io.Writer, st sysinfo.Status) {
 		p("  занято ЦП     %.1f%% (замер %d мс)", *st.Load.BusyPercent, st.Load.SampleMillis)
 	} else {
 		p("  занято ЦП     —")
+	}
+	// The same share, processor by processor, in one line: on a machine with
+	// two hundred and fifty-six of them the list itself belongs on the
+	// screen, and what a printed report can say is how far apart they are.
+	// One busy core among two hundred idle ones is a machine at eight per
+	// cent by the line above and a machine with a problem by this one.
+	if cores, ok := st.Cores(); ok {
+		p("  по ядрам      мин %.1f%% / медиана %.1f%% / макс %.1f%% (ядро %d); занято больше половины %d из %d",
+			cores.Min, cores.Median, cores.Max, cores.Busiest, cores.Loaded, cores.Total)
 	}
 
 	p("")
@@ -195,6 +212,24 @@ func Status(w io.Writer, st sysinfo.Status) {
 				extra = fmt.Sprintf("  (критич. %.1f°C)", s.CritC)
 			}
 			p("  %-18s %-16s %6.1f°C%s", cut(s.Chip, 18), cut(s.Label, 16), s.Celsius, extra)
+		}
+	}
+
+	p("")
+	p("ВИДЕОКАРТЫ")
+	if len(st.GPUs) == 0 {
+		p("  —")
+	} else {
+		p("  %-34s %8s %22s %9s %9s", "карта", "занято", "память", "темп.", "мощность")
+		for _, g := range st.GPUs {
+			p("  %-34s %8s %22s %9s %9s", cut(dash(g.Name), 34), share(g.BusyPercent),
+				videoMemory(g), celsius(g.Celsius), watts(g.Watts))
+			// Where the numbers came from, on the line under them — a
+			// reading a program outside digitdisk supplied is not the
+			// same claim as a reading the driver publishes in a file.
+			if origin := cardOrigin(g); origin != "" {
+				p("      %s", origin)
+			}
 		}
 	}
 
@@ -340,4 +375,62 @@ func firstNonEmpty(a, b string) string {
 		return a
 	}
 	return b
+}
+
+// The four readings of a video card, each rendered as itself or as a dash.
+// A driver that publishes no load share is not a card doing nothing, and the
+// difference has to survive into the printed line.
+
+func share(v *float64) string {
+	if v == nil {
+		return "—"
+	}
+	return fmt.Sprintf("%.1f%%", *v)
+}
+
+func celsius(v *float64) string {
+	if v == nil {
+		return "—"
+	}
+	return fmt.Sprintf("%.1f°C", *v)
+}
+
+func watts(v *float64) string {
+	if v == nil {
+		return "—"
+	}
+	return fmt.Sprintf("%.1f Вт", *v)
+}
+
+// videoMemory is the card's memory as one column: what is taken out of what
+// there is, and a dash for either half nobody published.
+func videoMemory(g gpuinfo.Card) string {
+	switch {
+	case g.MemoryTotalBytes != nil && g.MemoryUsedBytes != nil:
+		return fmt.Sprintf("%s из %s", UBytes(*g.MemoryUsedBytes), UBytes(*g.MemoryTotalBytes))
+	case g.MemoryTotalBytes != nil:
+		return fmt.Sprintf("— из %s", UBytes(*g.MemoryTotalBytes))
+	default:
+		return "—"
+	}
+}
+
+// cardOrigin says where a card's numbers came from: the bus it sits on, the
+// driver that answered, and — when it was not a file that answered — the name
+// of the program that was run.
+func cardOrigin(g gpuinfo.Card) string {
+	var parts []string
+	if g.Bus != "" {
+		parts = append(parts, "шина "+g.Bus)
+	}
+	if g.Driver != "" {
+		parts = append(parts, "драйвер "+g.Driver)
+	}
+	switch {
+	case g.Outside:
+		parts = append(parts, "числа от чужой программы "+g.Source)
+	case g.Source != "":
+		parts = append(parts, "числа из "+g.Source)
+	}
+	return strings.Join(parts, "  ·  ")
 }

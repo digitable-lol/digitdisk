@@ -165,3 +165,25 @@ func ParseOSRelease(text string) map[string]string {
 	}
 	return out
 }
+
+// ParseCPUModel picks the processor's own name out of /proc/cpuinfo.
+//
+// The key is not the same on every architecture: x86 and its kin write "model
+// name", ARM writes "Processor" or nothing at all and leaves the name to
+// "Hardware", and a machine that writes none of them has no name to give.
+// The first line that matches wins, because every processor in the file is
+// the same one repeated.
+func ParseCPUModel(text string) string {
+	for _, key := range []string{"model name", "Model Name", "cpu model", "Processor", "Hardware", "cpu"} {
+		for _, line := range strings.Split(text, "\n") {
+			name, value, ok := strings.Cut(line, ":")
+			if !ok || strings.TrimSpace(name) != key {
+				continue
+			}
+			if v := strings.TrimSpace(value); v != "" {
+				return v
+			}
+		}
+	}
+	return ""
+}

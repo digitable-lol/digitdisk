@@ -43,6 +43,12 @@ const (
 var jsonOnly = map[string]bool{
 	FactLoadEntities: true,
 	FactNetTxDrops:   true,
+	// The session's shell and desktop are drawn on the live screen beside
+	// the mark of the system, and the printed report has no line for
+	// either.  A headless server has no desktop, and naming that at the
+	// foot of a report about disks and memory would be noise.
+	FactShell:   true,
+	FactDesktop: true,
 }
 
 // Unmeasured reports whether the named fact is absent from this snapshot, and

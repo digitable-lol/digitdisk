@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"digitdisk/internal/gpuinfo"
 	"digitdisk/internal/procfs"
 )
 
@@ -39,6 +40,9 @@ type Collector struct {
 	SampleWindow time.Duration
 	// Top is how many processes to list per ranking.
 	Top int
+	// GPUTool allows the video-card reader to run the driver's own program
+	// for the numbers no file publishes.  Off unless the reader asked.
+	GPUTool bool
 }
 
 // New returns a Collector pointed at the live system.
@@ -94,6 +98,24 @@ func (c Collector) Collect() Status {
 	} else {
 		miss("os-release", err)
 	}
+	// The machine's own name for itself comes from the firmware tables the
+	// kernel publishes.  Two of the files there are readable by anybody and
+	// carry no serial number: who made it and what it is called.
+	st.Host.Model = strings.TrimSpace(strings.Join([]string{
+		c.trimmed(c.Sys, "class/dmi/id/sys_vendor"),
+		c.trimmed(c.Sys, "class/dmi/id/product_name"),
+	}, " "))
+	if st.Host.Model == "" {
+		st.Missing[FactMachine] = "прошивка не публикует имя машины в " + filepath.Join(c.Sys, "class/dmi/id")
+	}
+	if text, err := c.read(c.Proc, "cpuinfo"); err == nil {
+		st.Host.CPUModel = procfs.ParseCPUModel(text)
+	}
+	if st.Host.CPUModel == "" {
+		st.Missing[FactCPUModel] = "в " + filepath.Join(c.Proc, "cpuinfo") + " нет строки с названием процессора"
+	}
+	environment(&st)
+
 	if text, err := c.read(c.Proc, "uptime"); err == nil {
 		if up, _, ok := procfs.ParseUptime(text); ok {
 			st.Host.UptimeSeconds = up
@@ -137,10 +159,21 @@ func (c Collector) Collect() Status {
 			st.Load.SampleMillis = c.SampleWindow.Milliseconds()
 			st.Processes.Running = second.ProcsRunning
 			st.Processes.Blocked = second.ProcsBlocked
+			// The same two readings carry a line per processor.  They
+			// are published only after their mean has been checked
+			// against the machine-wide share above, which is the sum
+			// of exactly these lines.
+			cores := coresFrom(first.PerCPU, second.PerCPU)
+			if ok, why := coresAgree(cores, st.Load.BusyPercent); ok {
+				st.Load.Cores = cores
+			} else {
+				st.Missing[FactCores] = why
+			}
 		}
 	} else {
 		st.Processes.Running = first.ProcsRunning
 		st.Processes.Blocked = first.ProcsBlocked
+		st.Missing[FactCores] = "окно замера нулевое — доля занятого времени каждого ядра не измерялась"
 	}
 
 	procs := make([]Proc, 0, len(pass2))
@@ -198,6 +231,18 @@ func (c Collector) Collect() Status {
 	st.Disks = disks
 	st.Network, err = c.Network()
 	miss("net/dev", err)
+	gpus := gpuinfo.Reader{Sys: c.Sys, Proc: c.Proc, IDs: gpuinfo.DefaultPCIIDs, Tool: c.GPUTool}.Read()
+	st.GPUs = gpus.Cards
+	if gpus.NoCards != "" {
+		st.Missing[FactGPUs] = gpus.NoCards
+	}
+	if gpus.NoNumbers != "" {
+		st.Missing[FactGPUNumbers] = gpus.NoNumbers
+	}
+	if gpus.NoPower != "" {
+		st.Missing[FactGPUPower] = gpus.NoPower
+	}
+
 	st.Sensors = c.Sensors()
 	if len(st.Sensors) == 0 {
 		// An absent sensor is a fact about the machine, not a failed

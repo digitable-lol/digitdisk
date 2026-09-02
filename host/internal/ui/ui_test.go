@@ -430,7 +430,8 @@ func TestMissingSectionIsSortedSoTheScreenDoesNotShuffle(t *testing.T) {
 
 func TestSectionsAreTheSectionsOfThePrintedReport(t *testing.T) {
 	// The screen is a second view of the same report, not a second tool.
-	want := []string{"ОБЗОР", "СИСТЕМА", "ЗАГРУЗКА", "ПАМЯТЬ", "ПРОЦЕССЫ", "ДИСКИ", "СЕТЬ", "ТЕМПЕРАТУРА", "НЕ ПРОЧИТАНО"}
+	want := []string{"ОБЗОР", "СИСТЕМА", "ЗАГРУЗКА", "ПАМЯТЬ", "ПРОЦЕССЫ", "ДИСКИ", "СЕТЬ",
+		"ТЕМПЕРАТУРА", "ВИДЕОКАРТЫ", "НЕ ПРОЧИТАНО"}
 	if len(sections) != len(want) {
 		t.Fatalf("разделов %d, ждали %d", len(sections), len(want))
 	}
@@ -439,8 +440,18 @@ func TestSectionsAreTheSectionsOfThePrintedReport(t *testing.T) {
 			t.Errorf("раздел %d = %q, ждали %q", i, sections[i].title, w)
 		}
 	}
-	if len(sections) > 9 {
-		t.Error("разделов больше девяти — клавиши 1…9 перестанут доставать до всех")
+	// The keys did not change, so what the digits reach did not either: 1…9
+	// are the first nine sections.  The section added since — ВИДЕОКАРТЫ —
+	// went in as the ninth, after the last one the report prints, so every
+	// section the report has still has a digit; and the tenth is НЕ
+	// ПРОЧИТАНО, which is named on the opening page and is one ← away from
+	// it.  A section list longer than this one would leave a reading behind
+	// a key nobody can guess.
+	if len(sections) > 10 {
+		t.Error("разделов больше десяти — до последних клавишами 1…9 уже не добраться")
+	}
+	if sections[len(sections)-1].title != "НЕ ПРОЧИТАНО" {
+		t.Error("без цифры остался не тот раздел: последним должен быть НЕ ПРОЧИТАНО")
 	}
 }
 

@@ -82,6 +82,11 @@ type Collector struct {
 	SampleWindow time.Duration
 	// Top is how many processes to list per ranking.
 	Top int
+	// GPUTool would allow running the graphics driver's own program for the
+	// numbers no file publishes.  It is here so the command line has the
+	// same shape on both systems; macOS publishes no video card at all, so
+	// nothing reads it.
+	GPUTool bool
 }
 
 // New returns a Collector pointed at the live system.
@@ -140,6 +145,15 @@ func (c Collector) Collect() Status {
 	st.Sensors = nil
 	st.Missing[FactSensors] = "macOS не публикует показания датчиков, а угадывать их формат нельзя"
 
+	// The video cards are the same case as the sensors, and for the same
+	// reason.  What a Mac knows about its graphics lives in the IORegistry,
+	// and the documented way in is IOKit — a library of Core Foundation
+	// objects, not of numbers, and one that cannot be called the way the
+	// five functions in internal/libsystem are.  Every number a card here
+	// could show would be a guess about somebody's reverse engineering, so
+	// there are none.
+	st.Missing[FactGPUs] = "macOS публикует сведения о видеокартах только через IOKit, объектами Core Foundation; без cgo мы их не читаем, а угадывать не станем"
+
 	if len(st.Missing) == 0 {
 		st.Missing = nil
 	}
@@ -169,6 +183,12 @@ func (c Collector) host(st *Status) {
 	st.Host.KernelVersion = text(st, "kern.version")
 	st.Host.Machine = text(st, "hw.machine")
 	st.Host.Model = text(st, "hw.model")
+	if v, err := syscall.Sysctl("machdep.cpu.brand_string"); err == nil && strings.TrimSpace(v) != "" {
+		st.Host.CPUModel = strings.TrimSpace(v)
+	} else {
+		st.Missing[FactCPUModel] = "узел machdep.cpu.brand_string ничего не ответил — процессор себя не назвал"
+	}
+	environment(st)
 
 	// The product name is not a sysctl: kern.ostype answers "Darwin", which
 	// is the kernel, not the system the user knows.  "macOS" is written out
@@ -331,6 +351,7 @@ func (c Collector) sample(st *Status) {
 		// Everything measured across a window is measured across no
 		// window at all, which is not a measurement.
 		st.Missing[FactCPUBusy] = "окно замера нулевое — доля занятого процессора не измерялась"
+		st.Missing[FactCores] = "окно замера нулевое — доля занятого времени каждого ядра не измерялась"
 		st.Missing[FactProcessCPU] = "окно замера нулевое — процессорное время процессов не измерялось"
 		if after, ok := c.snapProcesses(st, true); ok {
 			c.rank(st, nil, after)
@@ -338,7 +359,7 @@ func (c Collector) sample(st *Status) {
 		return
 	}
 
-	ticksBefore, haveTicks := c.cpuTicks()
+	ticksBefore, haveTicks := c.cpuReading()
 	started := time.Now()
 	before, _ := c.snapProcesses(st, false)
 	time.Sleep(c.SampleWindow)
@@ -361,25 +382,65 @@ func (c Collector) sample(st *Status) {
 // them about half the time.  Waiting out another window or two turns a dash
 // that means "the machine was idle" into the number the reader asked for,
 // and the window that is finally reported is the one that was really used.
-func (c Collector) busyShare(st *Status, before darwinsys.CPUTicks, have bool, started time.Time) {
+func (c Collector) busyShare(st *Status, before cpuReading, have bool, started time.Time) {
 	if !have {
 		st.Missing[FactCPUBusy] = "ядро не дало счётчики процессорного времени"
+		st.Missing[FactCores] = "ядро не дало счётчики процессорного времени"
 		return
 	}
 	for attempt := 0; ; attempt++ {
-		if now, ok := c.cpuTicks(); ok {
-			if share, ok := before.BusyShare(now); ok {
+		if now, ok := c.cpuReading(); ok {
+			if share, ok := before.whole.BusyShare(now.whole); ok {
 				st.Load.BusyPercent = &share
 				st.Load.SampleMillis = time.Since(started).Milliseconds()
+				// The same pair of readings carries the same share
+				// for each processor separately.
+				c.cores(st, before, now)
 				return
 			}
 		}
 		if attempt >= busyRetries {
 			st.Missing[FactCPUBusy] = "за окно замера счётчики процессора не сдвинулись"
+			st.Missing[FactCores] = "за окно замера счётчики процессоров не сдвинулись"
 			return
 		}
 		time.Sleep(c.SampleWindow)
 	}
+}
+
+// cores publishes the share of each processor separately — but only after two
+// checks, because a misread array here would put every processor's number in
+// the wrong row and nothing on the screen would look wrong.
+//
+// The first check is the count: the kernel says how many processors it wrote
+// about, and that has to be the number the machine says it has.  The second is
+// arithmetic: the machine-wide counters are the sum of the per-processor ones,
+// so the mean of the shares has to be the share already measured for the
+// machine.  Either one failing means these bytes are not what we think they
+// are, and then there are no per-processor numbers at all.
+func (c Collector) cores(st *Status, before, now cpuReading) {
+	if len(before.cores) == 0 || len(now.cores) != len(before.cores) {
+		st.Missing[FactCores] = "ядро не дало счётчики по каждому процессору отдельно"
+		return
+	}
+	if st.Load.CPUCount > 0 && len(now.cores) != st.Load.CPUCount {
+		st.Missing[FactCores] = "процессоров в ответе ядра не столько, сколько машина насчитала у себя, — по ядрам не публикуем"
+		return
+	}
+	out := make([]Core, 0, len(now.cores))
+	for i := range now.cores {
+		core := Core{Index: i, Name: "cpu" + strconv.Itoa(i)}
+		if share, ok := before.cores[i].BusyShare(now.cores[i]); ok {
+			s := share
+			core.BusyPercent = &s
+		}
+		out = append(out, core)
+	}
+	if ok, why := coresAgree(out, st.Load.BusyPercent); !ok {
+		st.Missing[FactCores] = why
+		return
+	}
+	st.Load.Cores = out
 }
 
 // busyRetries is how many extra windows the CPU sample may wait for the
@@ -388,13 +449,34 @@ func (c Collector) busyShare(st *Status, before darwinsys.CPUTicks, have bool, s
 // grow past a second because of it.
 const busyRetries = 3
 
-// cpuTicks reads the machine-wide processor tick counters.
-func (c Collector) cpuTicks() (darwinsys.CPUTicks, bool) {
+// cpuReading is one look at the processor tick counters: the machine as a
+// whole, and each of its processors.  The two come from two calls, but from
+// the same counters — the machine-wide flavor is the sum of the per-processor
+// one — so they are taken together and used together.
+type cpuReading struct {
+	whole darwinsys.CPUTicks
+	cores []darwinsys.CPUTicks
+}
+
+// cpuReading reads the tick counters.  The per-processor array is allowed to
+// be missing: the machine-wide share is the older and the more important of
+// the two, and it must not be lost because the newer call refused.
+func (c Collector) cpuReading() (cpuReading, bool) {
 	b, err := libsystem.HostStatistics(darwinsys.FlavorCPULoad, darwinsys.CPULoadCount)
 	if err != nil {
-		return darwinsys.CPUTicks{}, false
+		return cpuReading{}, false
 	}
-	return darwinsys.ParseCPUTicks(b)
+	whole, ok := darwinsys.ParseCPUTicks(b)
+	if !ok {
+		return cpuReading{}, false
+	}
+	out := cpuReading{whole: whole}
+	if cpus, data, err := libsystem.ProcessorInfo(darwinsys.FlavorProcessorCPULoad); err == nil {
+		if cores, ok := darwinsys.ParseProcessorTicks(data, cpus); ok {
+			out.cores = cores
+		}
+	}
+	return out, true
 }
 
 // snapProcesses reads the process table once.  The bool says whether anything
