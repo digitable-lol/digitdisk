@@ -57,7 +57,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # на копилефт НЕ освобождено: печать чужого кода была бы тем же нарушением.
 GENERATED = ("core/out-go/", "core/out-c/")
 
-SOURCE_SUFFIXES = {".go", ".flang", ".py", ".sh", ".mjs"}
+SOURCE_SUFFIXES = {".go", ".flang", ".py", ".sh", ".mjs", ".s"}
 
 # Проза вправе обсуждать копилефт: NOTICE объясняет, почему кода mole здесь
 # нет, а README называет лицензию, которую мы не взяли. Ни один из этих файлов

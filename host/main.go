@@ -50,11 +50,12 @@ import (
 const usage = `digitdisk — снимок системы, разбор дерева каталогов и уборка.
 
 Использование:
-  digitdisk status  [--json] [--top N] [--sample MS] [--live|--plain] [--interval MS]
+  digitdisk status  [--json] [--top N] [--sample MS] [--why] [--live|--plain] [--interval MS]
       Снимок системы: ядро и выпуск, время работы, загрузка, память, процессы,
       диски, сеть, температура. Источники платформенные — /proc и /sys на
-      Linux, sysctl и getfsstat на macOS. Чего система не публикует, печатается
-      прочерком и называется в разделе «НЕ ИЗМЕРЕНО», а не нулём.
+      Linux, sysctl и libSystem на macOS. Чего система не публикует, печатается
+      прочерком, а не нулём, и называется одной строкой в конце; почему — по
+      ключу --why.
       В терминале — живой экран, который обновляется сам; в трубу, в файл и
       под --json — та же печать текстом, что и всегда.
 
@@ -84,10 +85,9 @@ const usage = `digitdisk — снимок системы, разбор дере�
 
 Ключи:
   --json           машиночитаемый вывод
+  --why            вместо снимка — что не измерено и почему (status)
   --top N          сколько строк в списках (по умолчанию 10 / 15)
-  --sample MS      окно замера загрузки ЦП, мс (status, по умолчанию 200;
-                   на macOS не используется — эта доля там из Mach, а её мы
-                   не зовём)
+  --sample MS      окно замера загрузки ЦП, мс (status, по умолчанию 200)
   --cross-device   заходить на смонтированные другие файловые системы
   --max-depth N    предел глубины обхода (0 — без предела)
   --apply          clean: перенести в корзину, а не только показать план
@@ -146,6 +146,7 @@ func main() {
 func cmdStatus(args []string) error {
 	fs := flag.NewFlagSet("status", flag.ExitOnError)
 	asJSON := fs.Bool("json", false, "машиночитаемый вывод")
+	why := fs.Bool("why", false, "что не измерено и почему")
 	top := fs.Int("top", 10, "сколько процессов в каждом списке")
 	sample := fs.Int("sample", 200, "окно замера загрузки ЦП, мс")
 	live := fs.Bool("live", false, "живой экран, даже если о терминале не спрашивали")
@@ -168,6 +169,13 @@ func cmdStatus(args []string) error {
 	// is pointed.
 	if *asJSON {
 		return writeJSON(c.Collect())
+	}
+	// --why answers one question and prints nothing else, so it comes before
+	// the screen: somebody asking why a number is missing wants the answer,
+	// not a dashboard.
+	if *why {
+		report.Why(os.Stdout, c.Collect())
+		return nil
 	}
 
 	// The screen is the default only when there is a terminal to draw it on.

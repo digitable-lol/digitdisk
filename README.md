@@ -38,9 +38,9 @@ print — see [`AGENTS.md`](AGENTS.md).
 
 ## Install
 
-**Released binaries: Linux, x86-64 and arm64.** On macOS the host builds from
-source and runs — see [macOS](#macos) below — but nothing is released for it
-yet, because nobody has run it on a Mac.
+**Released binaries: Linux (x86-64, arm64) and macOS (Apple Silicon, Intel).**
+All four are produced by one cross-compilation on Linux, with CGO off and a
+repeatable fingerprint — see [macOS](#macos) below.
 
 ### Homebrew
 
@@ -86,23 +86,46 @@ host builds against a placeholder that counts but decides nothing —
 
 <a id="macos"></a>
 
-### macOS: builds from source, not released
+### macOS: the same readings, a different source
 
 The host builds and runs on macOS, arm64 and x86-64. It takes its facts from
-`sysctl(3)`, `getfsstat(2)` and the routing socket instead of `/proc` and
-`/sys`; the flang core is untouched by any of that, because the core has never
-known what a system call is.
+`sysctl(3)`, `getfsstat(2)`, the routing socket and the documented functions of
+`libSystem` instead of `/proc` and `/sys`; the flang core is untouched by any of
+that, because the core has never known what a system call is.
 
 ```bash
 cd host && GOOS=darwin go build -tags flangcore -o ../digitdisk .
 ```
 
-**No Mac has ever run this.** The authors have none. What is checked is that it
-compiles and passes vet for both macOS architectures, and that every kernel
-structure it decodes is covered by tests over samples the tests build
-themselves. A snapshot of a real Mac has not been seen, which is why there is no
-macOS archive in the release and the Homebrew formula still says
-`depends_on :linux`.
+**Why there is no cgo.** The obvious way to call a C function from Go is cgo,
+and it would have ended the release: the four binaries are cross-compiled on one
+Linux machine and checked byte for byte against a second build of themselves,
+and cgo ends both properties at once. So the calls are made the way the Go
+standard library itself makes them on macOS — the symbol is recorded as a
+dynamic import, a two-instruction assembly stub jumps to it, and the call goes
+out through `syscall.syscall6`. The Go linker writes the import into the Mach-O
+file and the system loader binds it to `libSystem` at start-up, exactly as it
+binds the imports the runtime already needs. No Mac is needed to build this; one
+is needed only to check it.
+
+**How the layouts are proved.** The decoders are written from Apple's headers,
+not from anybody else's source, and no number is printed until its provenance
+has been confirmed on the machine itself:
+
+| What is read | What proves it was read correctly |
+|---|---|
+| process record (`kinfo_proc`) | our own pid, parent and user turn up where we expect them |
+| process memory and threads (`proc_taskinfo`) | the kernel says how many bytes it wrote; our own process holds pages and has at least one thread |
+| command line (`KERN_PROCARGS2`) | our own arguments match `os.Args` word for word, which the runtime got by another road |
+| memory breakdown (`vm_statistics64`) | no page count exceeds the machine's pages; the read-ahead pages do not outnumber the free ones the kernel folds them into; and the disjoint buckets sum to `hw.memsize` within a third of a percent |
+| CPU busy share | it is a ratio of two differences, so it depends on no tick rate at all |
+| interface counters (`if_data64`) | the MTU matches what the standard library reports |
+
+If a check does not agree, the field stays empty rather than being printed on a
+guess. On top of that, every push runs those same self-checks on live GitHub
+macOS runners, on Apple Silicon and on Intel:
+`.github/workflows/check.yml` does not only build — it takes a snapshot and
+looks for numbers in it.
 
 What macOS measures, and the call each number comes from:
 
@@ -111,20 +134,34 @@ What macOS measures, and the call each number comes from:
 | host, kernel, release, model | `sysctl` `kern.hostname`, `kern.osrelease`, `kern.version`, `kern.osproductversion`, `kern.osversion`, `hw.machine`, `hw.model` |
 | uptime | `sysctl kern.boottime` (`struct timeval`) |
 | load average, cores | `sysctl vm.loadavg` (`struct loadavg`), `hw.logicalcpu` |
-| memory total, swap | `sysctl hw.memsize`, `vm.swapusage` (`struct xsw_usage`) |
-| processes: total, running | `sysctl kern.proc.all` (`struct kinfo_proc`) |
+| CPU busy share | `host_statistics(HOST_CPU_LOAD_INFO)` |
+| memory total, page size, swap | `sysctl hw.memsize`, `hw.pagesize`, `vm.swapusage` (`struct xsw_usage`) |
+| memory free, cache, available, used, wired, compressed | `host_statistics64(HOST_VM_INFO64)` (`struct vm_statistics64`) |
+| processes: the list, and how many | `sysctl kern.proc.all` (`struct kinfo_proc`) |
+| per-process memory, threads, threads on a processor, CPU time | `proc_pidinfo(PROC_PIDTASKINFO)` (`struct proc_taskinfo`) |
+| per-process command lines | `sysctl {CTL_KERN, KERN_PROCARGS2, pid}` |
 | disks | `getfsstat(2)` (`struct statfs`) |
 | interfaces, addresses | `net.Interfaces` |
 | interface counters | `sysctl NET_RT_IFLIST2` (`struct if_data64`) |
 
-What macOS does **not** give a program without cgo, and what digitdisk
-therefore prints as "—" while naming it under `НЕ ИЗМЕРЕНО`: the CPU busy share
-and per-process CPU time, the memory breakdown (free, active, inactive, wired,
-compressed), per-process resident memory and command line, the thread count,
-and temperatures. Those live in Mach calls (`host_statistics64`), in libproc
-and in IOKit — reachable from Go only through cgo, and cgo would end the
-repeatable cross-compiled release build. An empty field is honest; a zero would
-not be.
+"Used" and "available" are the two sides of one statement: memory that is
+neither free nor file cache is in use. It is the same reading `free(1)` gives on
+Linux, and the report prints the arithmetic next to the number.
+
+**What is still missing on a Mac, and why.** Two kinds, and they are not the
+same kind:
+
+- **Closed by permission, not by the language.** The memory, threads and command
+  line of a process belonging to *another user* are refused to anybody but the
+  administrator: the kernel checks the owner. Running under `sudo` fills those
+  rows in; nothing else will.
+- **Not published by the system.** Die temperature comes from the SMC through
+  IOKit, and Apple documents no interface to it — what circulates is a
+  reverse-engineered structure. A number read that way would be a guess wearing
+  a unit, so there is none.
+
+The report names them in one line and leaves it at that. The reasons live behind
+`digitdisk status --why` and in `--json`.
 
 Two more macOS facts worth knowing before reading a report: a walk of `/`
 stops at `/System/Volumes/Data` unless `--cross-device` is given, because the
@@ -226,11 +263,11 @@ colour.
   tree and `tools/check-licensing.py` fails the build if it ever does. Files go
   one at a time, from a list in a journal; empty directories go through the
   call that refuses a directory with anything in it.
-- **It does not pretend macOS is finished.** The host builds and runs there,
-  and a good part of a snapshot is out of reach without cgo and comes out
-  empty; every empty field says which call it would have needed. No Mac has run
-  it yet, so there is no macOS archive in the release and the formula installs
-  on Linux only.
+- **It does not explain instead of measuring.** Where there is a number, it is
+  printed; where there is none, a dash, and the name of the reading on one line
+  at the end. Why it is missing lives behind `digitdisk status --why`, a flag of
+  its own, and not in the middle of the report: a reader wants a number, not an
+  essay about kernel calls.
 - **It is not a fork of mole**, and carries none of its GPL-3.0 code — the idea
   came from there, the code did not. See [`NOTICE`](NOTICE).
 

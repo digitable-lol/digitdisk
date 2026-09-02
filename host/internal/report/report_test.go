@@ -42,8 +42,8 @@ func TestStatusPrintsDashesForMissingData(t *testing.T) {
 	if !strings.Contains(out, "узел          —") {
 		t.Errorf("an absent hostname must print as —, got:\n%s", out)
 	}
-	if !strings.Contains(out, "занято ЦП     — (замер не делался)") {
-		t.Errorf("an unsampled CPU must say so rather than print 0%%:\n%s", out)
+	if !strings.Contains(out, "занято ЦП     —") {
+		t.Errorf("an unsampled CPU must print a dash rather than 0%%:\n%s", out)
 	}
 	if strings.Contains(out, "0.0%") && !strings.Contains(out, "средняя       0.00") {
 		t.Errorf("empty status invented a percentage:\n%s", out)
@@ -88,12 +88,14 @@ func TestStatusPrintsDashesForFactsTheSystemDoesNotPublish(t *testing.T) {
 		Processes: sysinfo.Processes{Total: 412, Running: 3},
 		Network:   []sysinfo.Iface{{NetCounters: procfs.NetCounters{Name: "en0"}, OperState: "up"}},
 		Missing: map[string]string{
-			sysinfo.FactCPUBusy:     "нужен вызов Mach",
-			sysinfo.FactThreads:     "в kinfo_proc потоков нет",
-			sysinfo.FactBlocked:     "состояния не различают непрерываемый сон",
-			sysinfo.FactNetCounters: "разбор не сошёлся с MTU",
-			sysinfo.FactSensors:     "нужен IOKit",
-			sysinfo.FactMemoryPages: "нужен host_statistics64",
+			sysinfo.FactCPUBusy:      "счётчики не дались",
+			sysinfo.FactThreads:      "самопроверка не сошлась",
+			sysinfo.FactBlocked:      "система не различает такие процессы",
+			sysinfo.FactNetCounters:  "самопроверка не сошлась",
+			sysinfo.FactSensors:      "система не публикует показания",
+			sysinfo.FactMemoryPages:  "самопроверка не сошлась",
+			sysinfo.FactNetTxDrops:   "система не считает такие пакеты",
+			sysinfo.FactLoadEntities: "система не публикует очередь",
 		},
 	}
 	var buf bytes.Buffer
@@ -107,11 +109,9 @@ func TestStatusPrintsDashesForFactsTheSystemDoesNotPublish(t *testing.T) {
 		"доступно      —",
 		"кэш/буферы    —",
 		"своп          1.0 ГиБ из 2.0 ГиБ занято",
-		"занято ЦП     — (нужен вызов Mach)",
-		"потоков —",
-		"заблокировано —",
-		"— (нужен IOKit)",
-		"НЕ ИЗМЕРЕНО",
+		"занято ЦП     —",
+		"ПРОЦЕССЫ  всего 412, выполняется 3",
+		"НЕ ИЗМЕРЕНО  ",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the report must contain %q:\n%s", want, out)
@@ -119,6 +119,21 @@ func TestStatusPrintsDashesForFactsTheSystemDoesNotPublish(t *testing.T) {
 	}
 	if strings.Contains(out, "занято        0 Б") || strings.Contains(out, "потоков 0") {
 		t.Errorf("an unmeasured field was printed as a measured zero:\n%s", out)
+	}
+	// The point of the whole rework: a reader looking for numbers is not
+	// made to read an explanation of the ones that are not there.
+	for _, reason := range []string{"счётчики не дались", "самопроверка не сошлась",
+		"система не публикует показания", "система не различает такие процессы"} {
+		if strings.Contains(out, reason) {
+			t.Errorf("the report printed a reason instead of leaving it to --why: %q\n%s", reason, out)
+		}
+	}
+	// A fact with no column in the report has no line in it either.
+	if strings.Contains(out, sysinfo.FactNetTxDrops) || strings.Contains(out, sysinfo.FactLoadEntities) {
+		t.Errorf("a fact the report never shows must not be named in it:\n%s", out)
+	}
+	if !strings.Contains(out, sysinfo.FactSensors) || !strings.Contains(out, sysinfo.FactCPUBusy) {
+		t.Errorf("a fact the report would have shown must be named:\n%s", out)
 	}
 	// The interface is real and is listed; its counters are not measured.
 	if !strings.Contains(out, "en0") {
@@ -131,12 +146,63 @@ func TestStatusPrintsDashesForFactsTheSystemDoesNotPublish(t *testing.T) {
 	}
 }
 
-func TestStatusOrdersTheUnmeasuredSection(t *testing.T) {
+func TestStatusOrdersTheUnmeasuredLine(t *testing.T) {
 	st := sysinfo.Status{Missing: map[string]string{"я": "1", "а": "2", "м": "3"}}
 	var buf bytes.Buffer
 	Status(&buf, st)
+	if out := buf.String(); !strings.Contains(out, "НЕ ИЗМЕРЕНО  а, м, я") {
+		t.Errorf("the line must be ordered, so two runs can be compared:\n%s", out)
+	}
+}
+
+// The reasons did not vanish; they moved to where somebody who wants them asks
+// for them.  That is the whole trade: the report keeps the names, --why keeps
+// the sentences, and the JSON keeps both.
+func TestWhyCarriesTheReasonsTheReportLeavesOut(t *testing.T) {
+	st := sysinfo.Status{Missing: map[string]string{
+		sysinfo.FactSensors:    "система не публикует показания датчиков",
+		sysinfo.FactNetTxDrops: "система не считает такие пакеты",
+	}}
+	var buf bytes.Buffer
+	Why(&buf, st)
 	out := buf.String()
-	if a, m, ya := strings.Index(out, "\n  а: "), strings.Index(out, "\n  м: "), strings.Index(out, "\n  я: "); !(a < m && m < ya) {
-		t.Errorf("the section must be ordered, so two runs can be compared:\n%s", out)
+	for _, want := range []string{
+		sysinfo.FactSensors, "система не публикует показания датчиков",
+		sysinfo.FactNetTxDrops, "система не считает такие пакеты",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("--why must carry %q:\n%s", want, out)
+		}
+	}
+	if i, j := strings.Index(out, sysinfo.FactSensors), strings.Index(out, sysinfo.FactNetTxDrops); i > j {
+		t.Errorf("--why must be ordered by name:\n%s", out)
+	}
+}
+
+func TestWhySaysSoWhenNothingIsMissing(t *testing.T) {
+	var buf bytes.Buffer
+	Why(&buf, sysinfo.Status{})
+	if out := buf.String(); !strings.Contains(out, "снимок полон") {
+		t.Errorf("a complete snapshot must say so:\n%s", out)
+	}
+}
+
+// A partial count must say how partial it is: on macOS a snapshot taken
+// without administrator rights covers the caller's own processes only.
+func TestStatusSaysHowManyProcessesTheThreadCountCovers(t *testing.T) {
+	st := sysinfo.Status{Processes: sysinfo.Processes{
+		Total: 906, Running: 4, Threads: 1240, WithDetail: 214,
+	}}
+	var buf bytes.Buffer
+	Status(&buf, st)
+	if out := buf.String(); !strings.Contains(out, "замерено по 214 процессам") {
+		t.Errorf("a partial count must name its coverage:\n%s", out)
+	}
+
+	st.Processes.WithDetail = st.Processes.Total
+	buf.Reset()
+	Status(&buf, st)
+	if out := buf.String(); !strings.Contains(out, "потоков 1240,") || strings.Contains(out, "замерено по") {
+		t.Errorf("a complete count needs no qualifier:\n%s", out)
 	}
 }

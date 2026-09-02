@@ -6,8 +6,10 @@
 # отдельным именем, а не случиться от нажатия «слить».
 #
 # Что делает: прогоняет сторожей, собирает повторимо двоичные файлы под
-# linux/amd64 и linux/arm64 с настоящим ядром на flang, считает контрольные
-# суммы, заполняет формулу Homebrew и кладёт архивы в выпуск.
+# linux/amd64, linux/arm64, darwin/amd64 и darwin/arm64 с настоящим ядром на
+# flang, считает контрольные суммы, заполняет формулу Homebrew и кладёт архивы
+# в выпуск. Все четыре цели собираются здесь, на Linux, с выключенным CGO —
+# маковская половина хозяина написана без cgo именно ради этого.
 #
 # Проверить синтаксис, не запуская:  python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1]))' .github/workflows/release.yml
 name: Выпуск
@@ -84,8 +86,9 @@ jobs:
           go vet -tags flangcore ./...
           go test ./...
           go test -tags flangcore ./...
-          # Маковский хозяин собирается и проверяется отсюда: мака у выпуска
-          # нет, а кросс-сборка ловит всё, что ловится без прогона.
+          # Маковский хозяин собирается и проверяется отсюда. Прогон на живом
+          # маке — отдельный рабочий поток (check.yml), он идёт на каждый
+          # толчок и сверяет раскладки на самой машине.
           GOOS=darwin GOARCH=arm64 go build ./...
           GOOS=darwin GOARCH=amd64 go build ./...
           GOOS=darwin go vet ./...
@@ -120,7 +123,7 @@ jobs:
             echo "sudo install -m 0755 digitdisk-${{ steps.version.outputs.version }}-linux-amd64/digitdisk /usr/local/bin/digitdisk"
             echo '```'
             echo
-            echo "Только Linux (x86-64 и arm64): маковской сборки в выпуске пока нет."
+            echo "Linux (x86-64, arm64) и macOS (Apple Silicon, Intel)."
             echo "Двоичный файл собран с ядром на flang; проверить — \`digitdisk --version\`."
             echo
             echo "## Уборка"
@@ -169,5 +172,7 @@ jobs:
             --verify-tag \
             dist/digitdisk-${{ steps.version.outputs.version }}-linux-amd64.tar.gz \
             dist/digitdisk-${{ steps.version.outputs.version }}-linux-arm64.tar.gz \
+            dist/digitdisk-${{ steps.version.outputs.version }}-darwin-amd64.tar.gz \
+            dist/digitdisk-${{ steps.version.outputs.version }}-darwin-arm64.tar.gz \
             dist/SHA256SUMS \
             dist/homebrew/digitdisk.rb

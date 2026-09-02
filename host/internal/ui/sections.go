@@ -127,9 +127,7 @@ func (s *screen) overview() []string {
 	out = append(out, "")
 	out = append(out, s.kv("средняя", fmt.Sprintf("%.2f / %.2f / %.2f   (1/5/15 мин, ядер %s)",
 		st.Load.One, st.Load.Five, st.Load.Fifteen, count(st.Load.CPUCount))))
-	pr := st.Processes
-	out = append(out, s.kv("процессы", fmt.Sprintf("всего %d, потоков %d, выполняется %d, заблокировано %d",
-		pr.Total, pr.Threads, pr.Running, pr.Blocked)))
+	out = append(out, s.kv("процессы", strings.Join(report.ProcessCounts(st), ", ")))
 	out = append(out, s.kv("время работы", text(st.Host.UptimeHuman)))
 
 	if len(st.Disks) > 0 {
@@ -268,12 +266,7 @@ func (s *screen) processes() []string {
 		return s.waiting()
 	}
 	t, pr := s.t, s.st.Processes
-	unread := ""
-	if pr.Unreadable > 0 {
-		unread = fmt.Sprintf(", не прочитано %d", pr.Unreadable)
-	}
-	out := []string{"", s.kv("всего", fmt.Sprintf("%d, потоков %d, выполняется %d, заблокировано %d%s",
-		pr.Total, pr.Threads, pr.Running, pr.Blocked, unread))}
+	out := []string{"", s.kv("процессы", strings.Join(report.ProcessCounts(s.st), ", "))}
 
 	cmdWidth := maxInt(10, s.cols-38)
 	head := func(what string) string {

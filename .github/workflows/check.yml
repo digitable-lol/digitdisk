@@ -1,0 +1,124 @@
+# Проверки digitdisk на каждый толчок.
+#
+# ЗАЧЕМ ЗДЕСЬ МАК. Разбор структур, которыми отвечает macOS, написан по
+# заголовкам Apple на машине, которая маком не является. Проверить раскладку
+# можно только на маке — и вот он: у публичных репозиториев маковские бегунки
+# GitHub бесплатны и без лимита минут, потолок только на одновременность
+# (5 маковских задач на планах Free/Pro/Team). Поэтому здесь не «собралось», а
+# «снялось»: тесты с признаком darwin сверяют каждую раскладку с тем, что
+# машина знает о себе сама, а потом снимок снимается и в нём ищутся числа.
+#
+# Проверить синтаксис, не запуская:  python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1]))' .github/workflows/check.yml
+name: Проверки
+
+# Ключ в кавычках нарочно: без них разборщик YAML 1.1 читает «on» как
+# логическую истину. GitHub принимает обе записи одинаково.
+"on":
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.26.5"
+
+jobs:
+  linux:
+    name: Linux — сборка без cgo, тесты, кросс-сборка под macOS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: false
+
+      - name: Лицензионный сторож
+        run: python3 tools/check-licensing.py
+
+      - name: Проверки хозяина
+        run: |
+          test -z "$(gofmt -l host core/out-go)" || { gofmt -l host core/out-go; exit 1; }
+          cd host
+          go vet ./...
+          go vet -tags flangcore ./...
+          go test ./...
+          go test -tags flangcore ./...
+
+      - name: Маковский хозяин собирается отсюда
+        # Ради этой строки маковская половина и написана без cgo: обе цели
+        # собираются с Linux, выключенным CGO и повторимым отпечатком.
+        run: |
+          cd host
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build ./...
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build ./...
+          CGO_ENABLED=0 GOOS=darwin go vet ./...
+
+      - name: Дерево чистое
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            echo "Проверки наследили в дереве." >&2
+            exit 1
+          fi
+
+  macos:
+    name: macOS ${{ matrix.runner }} — снимок снимается по-настоящему
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-latest — Apple Silicon; вторая цель выпуска, x86-64, живёт на
+        # отдельном образе (GitHub сворачивает маковский Intel осенью 2027).
+        runner: [macos-latest, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: false
+
+      - name: Тесты, включая те, которым нужен мак
+        # Здесь исполняются host/internal/sysinfo/sysinfo_darwin_test.go: они
+        # сверяют раскладку каждой структуры с тем, что процесс знает о себе.
+        run: |
+          cd host
+          go vet ./...
+          go test -v -run 'Darwin|OnThisMac|AreMeasured' ./internal/sysinfo/
+          go test ./...
+
+      - name: Снимок содержит числа, а не прочерки
+        run: |
+          cd host
+          go build -o "$RUNNER_TEMP/digitdisk" .
+          "$RUNNER_TEMP/digitdisk" status --sample 300 | tee "$RUNNER_TEMP/status.txt"
+          fail=0
+          need() {
+            grep -qE "$1" "$RUNNER_TEMP/status.txt" || { echo "НЕТ ЧИСЛА: $2" >&2; fail=1; }
+          }
+          need 'занято ЦП     [0-9]+\.[0-9]%' 'доля занятого процессора'
+          need 'свободно      [0-9]' 'свободная память'
+          need 'кэш/буферы    [0-9]' 'файловый кэш'
+          need 'доступно      [0-9]' 'доступная память'
+          need 'закреплённая  [0-9]' 'закреплённая память'
+          need 'сжатая        [0-9]' 'сжатая память'
+          need 'потоков [0-9]' 'число потоков'
+          need 'выполняется [0-9]' 'сколько процессов работает'
+          need 'десятка по памяти' 'десятка по памяти'
+          need 'десятка по процессору' 'десятка по процессору'
+          exit $fail
+
+      - name: В выводе нет инженерного дневника
+        # Сторож против того, ради чего всё это и переписано: пользователю —
+        # число или прочерк, а объяснения — только по `--why`.
+        run: |
+          cd host
+          if grep -nE 'Mach|cgo|sysctl|IOKit|libproc|host_statistics|proc_pidinfo|kinfo_proc|KERN_PROCARGS' "$RUNNER_TEMP/status.txt"; then
+            echo "В снимке снова объяснения вместо чисел." >&2
+            exit 1
+          fi
+          "$RUNNER_TEMP/digitdisk" status --why
+          "$RUNNER_TEMP/digitdisk" status --json > /dev/null

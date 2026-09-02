@@ -619,3 +619,26 @@ func TestDiskErrorIsShownAsAnError(t *testing.T) {
 		t.Errorf("том только для чтения не помечен:\n%s", got)
 	}
 }
+
+// The screen prints the same process sentence the report prints, and for the
+// same reason: a count nobody could take must not appear on it as a zero.
+// macOS is where this bites — the kernel answers about the caller's own
+// processes only, unless the caller is the administrator.
+func TestScreenDoesNotInventProcessCounts(t *testing.T) {
+	st := sysinfo.Status{
+		Processes: sysinfo.Processes{Total: 906, Running: 5, Threads: 1487, WithDetail: 214},
+		Missing:   map[string]string{sysinfo.FactBlocked: "система не различает такие процессы"},
+	}
+	s := newTestScreen(st, true, 120)
+	for _, got := range []string{
+		plain(strings.Join(s.overview(), "\n")),
+		plain(strings.Join(s.processes(), "\n")),
+	} {
+		if strings.Contains(got, "заблокировано 0") {
+			t.Errorf("незамеренный счётчик напечатан нулём:\n%s", got)
+		}
+		if !strings.Contains(got, "замерено по 214 процессам") {
+			t.Errorf("неполный счёт не назвал охват:\n%s", got)
+		}
+	}
+}
