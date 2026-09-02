@@ -253,8 +253,9 @@ func Analyze(w io.Writer, r scan.Result) {
 	p("")
 	rem := r.ByVerdict[core.VerdictRemovable]
 	p("ПРЕДЛОЖЕНО УБРАТЬ  %d записей, %s", rem.Count, Bytes(rem.Bytes))
+	p("  (analyze только считает; убирает `digitdisk clean`, и тоже не сразу)")
 	if len(r.Removable) == 0 {
-		p("  — нечего (ничего не удаляется в любом случае: digitdisk только смотрит)")
+		p("  — нечего")
 	} else {
 		for _, e := range r.Removable {
 			p("  %10s  %-12s %5.0f дн  %s", Bytes(e.Size), e.Class, e.AgeDays, cut(e.Path, 80))

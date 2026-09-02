@@ -78,6 +78,22 @@ type Decision struct {
 	Weight  float64 `json:"вес"`
 }
 
+// Thresholder is an optional capability a decision layer may also offer: the
+// порог in days it applied to a разряд.  The host asks for it only to print
+// why a verdict came out the way it did — "возраст 41 дн ≥ порог 7 дн" — so
+// that the number in the explanation comes from the layer that decided, not
+// from a copy of it kept in the host.  A host that copied the thresholds would
+// go on printing 7 after the rule changed to 5, and the explanation would be a
+// lie about a decision that was still correct.
+//
+// A Decider need not implement it; a host that finds it missing says порог "—"
+// rather than guessing.
+type Thresholder interface {
+	// Threshold returns the age threshold in days the layer uses for a
+	// разряд, and whether the разряд has one at all.
+	Threshold(Class) (float64, bool)
+}
+
 // Decider is the whole surface the host requires of the decision layer.
 type Decider interface {
 	// Decide classifies one record.  It must be safe for repeated calls and

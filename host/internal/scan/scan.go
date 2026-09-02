@@ -66,6 +66,21 @@ type Options struct {
 	Top         int  // how many entries to keep in each ranking
 	MaxDepth    int  // 0 = unlimited
 	FollowRoot  bool // resolve the root itself if it is a symlink
+
+	// Prune, when set, is asked about every entry below the root before the
+	// entry is accounted.  Returning true drops it whole: not counted, not
+	// decided about, not descended into.  The walk keeps no tally of its
+	// own for pruned entries — the caller wrote the rule and is the one who
+	// can say what it excluded.  The root itself is never pruned: the
+	// caller chose it.
+	Prune func(path string) bool
+
+	// Observe, when set, is called once for every accounted entry, with the
+	// Entry the walk built and the fs.FileInfo lstat returned (nil when the
+	// entry could not be lstat'ed).  It exists so a caller can keep every
+	// entry instead of only the top N: the rankings in Result are a report,
+	// and a work list is not a report.
+	Observe func(Entry, fs.FileInfo)
 }
 
 // Entry is one path kept for a ranking, with the verdict it received.
@@ -282,6 +297,9 @@ func Walk(opt Options) (Result, error) {
 		if d.Verdict == core.VerdictRemovable {
 			removable.add(e)
 		}
+		if opt.Observe != nil {
+			opt.Observe(e, info)
+		}
 	}
 
 	noteSkip := func(path string, err error) {
@@ -320,6 +338,9 @@ func Walk(opt Options) (Result, error) {
 		}
 		for _, de := range entries {
 			child := filepath.Join(cur.path, de.Name())
+			if opt.Prune != nil && opt.Prune(child) {
+				continue
+			}
 			info, err := de.Info()
 			if err != nil {
 				noteSkip(child, err)

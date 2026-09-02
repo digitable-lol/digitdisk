@@ -58,6 +58,47 @@ func (b *Bridge) Failures() (int, error) {
 	return b.failures, b.firstErr
 }
 
+// classVariant maps разряд onto the sum type of the flang module.
+func classVariant(c core.Class) (rt.Value, bool) {
+	switch c {
+	case core.ClassCache:
+		return flang.VariantKesh(), true
+	case core.ClassLog:
+		return flang.VariantZhurnal(), true
+	case core.ClassBuild:
+		return flang.VariantSborka(), true
+	case core.ClassDownload:
+		return flang.VariantZagruzka(), true
+	case core.ClassLarge:
+		return flang.VariantKrupnoe(), true
+	case core.ClassUnknown:
+		return flang.VariantNeizvestnoe(), true
+	}
+	return rt.Nothing(), false
+}
+
+// Threshold implements core.Thresholder by asking «Порог разряда» — the same
+// function the verdict rule itself calls.  The host therefore prints the
+// number the decision was made with, not a copy of it.  «Крупное» and
+// «Неизвестное» answer 0 there because they are not judged by age at all, and
+// that is reported as "no threshold" rather than as a threshold of zero, which
+// would read as "anything of any age".
+func (b *Bridge) Threshold(c core.Class) (float64, bool) {
+	variant, ok := classVariant(c)
+	if !ok {
+		return 0, false
+	}
+	v, err := flang.PorogRazryada(b.ctx, variant)
+	if err != nil {
+		b.note(err)
+		return 0, false
+	}
+	if v.Num <= 0 {
+		return 0, false
+	}
+	return v.Num, true
+}
+
 // kindVariant maps вид onto the sum type of the flang module.
 func kindVariant(k core.Kind) rt.Value {
 	switch k {

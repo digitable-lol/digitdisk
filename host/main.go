@@ -1,15 +1,30 @@
 // SPDX-FileCopyrightText: 2026 Marat Zimnurov <zimtir@mail.ru>
 // SPDX-License-Identifier: BSD-2-Clause
 
-// Command digitdisk looks at a system and at a directory tree, and reports
-// what it found.  It never deletes, moves, or writes anything: the tool only
-// reads what the system publishes about itself — /proc and /sys on Linux,
-// sysctl and getfsstat on macOS — and the tree it is pointed at.
+// Command digitdisk looks at a system and at a directory tree, reports what it
+// found, and — when told to, in as many words — removes files the decision
+// layer marked «МожноУбрать».
+//
+// status and analyze read and nothing else.  clean, restore and purge are the
+// three steps of removal, and they are three because one would be a mistake
+// nobody could take back:
+//
+//	clean <путь>          план: что, сколько, почему.  Ничего не тронуто.
+//	clean <путь> --apply  перенос в корзину внутри корня.  Обратимо.
+//	restore <корзина>     возврат на прежние места.
+//	purge <корзина> --confirm N  стирание.  Необратимо.
+//
+// What may be removed is decided entirely by the layer in core/: exactly the
+// paths it gives the приговор «МожноУбрать» and nothing that merely resembles
+// one.  See internal/clean for the guards around that.
 //
 // Subcommands:
 //
 //	digitdisk status [--json] [--top N] [--sample MS]
 //	digitdisk analyze <путь> [--json] [--top N] [--cross-device] [--max-depth N]
+//	digitdisk clean <путь> [--json] [--apply] [--trash DIR] [--cross-device] [--max-depth N]
+//	digitdisk restore <корзина> [--json] [--dry-run]
+//	digitdisk purge <корзина> [--json] [--confirm N]
 //	digitdisk --version
 package main
 
@@ -20,12 +35,13 @@ import (
 	"os"
 	"time"
 
+	"digitdisk/internal/clean"
 	"digitdisk/internal/report"
 	"digitdisk/internal/scan"
 	"digitdisk/internal/sysinfo"
 )
 
-const usage = `digitdisk — снимок системы и разбор дерева каталогов (только чтение).
+const usage = `digitdisk — снимок системы, разбор дерева каталогов и уборка.
 
 Использование:
   digitdisk status  [--json] [--top N] [--sample MS]
@@ -39,6 +55,22 @@ const usage = `digitdisk — снимок системы и разбор дер�
       границу файловой системы без --cross-device не пересекаем,
       недоступное считается и пропускается.
 
+  digitdisk clean <путь> [--json] [--apply] [--trash КАТ] [--cross-device] [--max-depth N]
+      Уборка. БЕЗ КЛЮЧА --apply НИЧЕГО НЕ ТРОГАЕТ: печатает план — какие файлы,
+      сколько байт и по какому правилу ядра помечены «МожноУбрать». С --apply
+      переносит их в корзину <корень>/.digitdisk-trash/<метка времени>/ и пишет
+      журнал. Перенос — это rename(2): мгновенно, обратимо и НИЧЕГО НЕ
+      ОСВОБОЖДАЕТ, файлы остаются на диске под другим именем.
+
+  digitdisk restore <корзина> [--json] [--dry-run]
+      Возврат корзины на прежние места по её журналу. Ключа не требует: ключи
+      стоят на разрушении, а не на его отмене. Ничего не перезаписывает.
+
+  digitdisk purge <корзина> [--json] [--confirm N]
+      Стирание корзины — единственное необратимое действие. Без --confirm
+      печатает план и число, которое надо назвать. С --confirm N, где N —
+      ровно столько файлов, сколько в корзине, стирает их по одному.
+
   digitdisk --version
       Версия, хеш сборки, инструментарий и решающий слой этого двоичного файла.
 
@@ -50,8 +82,13 @@ const usage = `digitdisk — снимок системы и разбор дер�
                    не зовём)
   --cross-device   заходить на смонтированные другие файловые системы
   --max-depth N    предел глубины обхода (0 — без предела)
+  --apply          clean: перенести в корзину, а не только показать план
+  --trash КАТ      clean: другая корзина; обязана лежать внутри корня
+  --dry-run        restore: показать, что вернулось бы, и не возвращать
+  --confirm N      purge: подтвердить стирание ровно N файлов
 
-Удаления нет ни в каком виде: digitdisk только смотрит и считает.
+Убирается ровно то, чему решающий слой вынес приговор «МожноУбрать», — не
+похожее на него и не совпавшее с маской. status и analyze не пишут ничего.
 `
 
 func main() {
@@ -65,6 +102,12 @@ func main() {
 		err = cmdStatus(os.Args[2:])
 	case "analyze":
 		err = cmdAnalyze(os.Args[2:])
+	case "clean":
+		err = cmdClean(os.Args[2:])
+	case "restore":
+		err = cmdRestore(os.Args[2:])
+	case "purge":
+		err = cmdPurge(os.Args[2:])
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		return
@@ -136,6 +179,121 @@ func cmdAnalyze(args []string) error {
 		return writeJSON(res)
 	}
 	report.Analyze(os.Stdout, res)
+	return nil
+}
+
+// cmdClean prints the plan, and moves files into the корзина only when told
+// to.  The default has to be the harmless one: a person who runs `clean` to
+// find out what it would do must not find out by having it done.
+func cmdClean(args []string) error {
+	fs := flag.NewFlagSet("clean", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "машиночитаемый вывод")
+	apply := fs.Bool("apply", false, "перенести в корзину, а не только показать план")
+	trash := fs.String("trash", "", "корзина (по умолчанию <корень>/"+clean.TrashName+"); обязана лежать внутри корня")
+	cross := fs.Bool("cross-device", false, "заходить на другие файловые системы")
+	maxDepth := fs.Int("max-depth", 0, "предел глубины обхода, 0 — без предела")
+	rest, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(rest) != 1 {
+		return fmt.Errorf("нужен ровно один путь для уборки, получено %d", len(rest))
+	}
+
+	plan, err := clean.Make(clean.Options{
+		Root:        rest[0],
+		Trash:       *trash,
+		CrossDevice: *cross,
+		MaxDepth:    *maxDepth,
+		Decider:     chosenDecider(),
+		Now:         time.Now(),
+		Version:     version,
+	})
+	if err != nil {
+		return err
+	}
+
+	if !*apply {
+		if *asJSON {
+			return writeJSON(plan)
+		}
+		report.CleanPlan(os.Stdout, plan)
+		return nil
+	}
+
+	j, err := clean.Apply(plan, clean.Options{Now: time.Now(), Version: version})
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return writeJSON(j)
+	}
+	report.Applied(os.Stdout, j)
+	return nil
+}
+
+// cmdRestore puts a корзина back.  It acts without a key by design: see the
+// comment on clean.Restore.
+func cmdRestore(args []string) error {
+	fs := flag.NewFlagSet("restore", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "машиночитаемый вывод")
+	dry := fs.Bool("dry-run", false, "показать, что вернулось бы, и не возвращать")
+	rest, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(rest) != 1 {
+		return fmt.Errorf("нужна ровно одна корзина, получено %d", len(rest))
+	}
+
+	j, err := clean.ReadJournal(rest[0])
+	if err != nil {
+		return err
+	}
+	j, err = clean.Restore(j, *dry, time.Now())
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return writeJSON(j)
+	}
+	report.Restored(os.Stdout, j, *dry)
+	return nil
+}
+
+// cmdPurge erases a корзина, and only with the count named.
+func cmdPurge(args []string) error {
+	fs := flag.NewFlagSet("purge", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "машиночитаемый вывод")
+	confirm := fs.Int("confirm", -1, "подтвердить стирание ровно N файлов")
+	rest, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(rest) != 1 {
+		return fmt.Errorf("нужна ровно одна корзина, получено %d", len(rest))
+	}
+
+	j, err := clean.ReadJournal(rest[0])
+	if err != nil {
+		return err
+	}
+	if *confirm < 0 {
+		if *asJSON {
+			return writeJSON(j)
+		}
+		report.PurgePlan(os.Stdout, j)
+		return nil
+	}
+
+	j, err = clean.Purge(j, *confirm, time.Now())
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return writeJSON(j)
+	}
+	report.Purged(os.Stdout, j)
 	return nil
 }
 

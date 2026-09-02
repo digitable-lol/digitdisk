@@ -1,12 +1,19 @@
 **English** · [Русский](README.ru.md)
 
-# digitdisk — where the disk went and how the machine feels, read-only
+# digitdisk — where the disk went, how the machine feels, and what may go
 
-digitdisk prints two readings of a machine and changes nothing while it does:
-**where the disk space went** — directories by size and the largest files — and
-**how the machine is feeling right now** — CPU, memory, disk and network. It
-reads, prints, and exits. There is no cleaning mode, no uninstaller, and no flag
-that removes a file.
+digitdisk prints two readings of a machine — **where the disk space went**,
+directories by size and the largest files, and **how the machine is feeling
+right now**, CPU, memory, disk and network — and it can act on the first of
+them: `clean` removes files, in three steps, none of which is a surprise.
+
+`status` and `analyze` read and write nothing. `clean` shows a plan and needs
+`--apply` to move anything; what it moves goes to a корзина inside the tree you
+named and comes back with `restore`; erasing is a separate command with a
+separate confirmation. **What may be removed is not a list of well-known paths
+and not a pattern**: it is exactly what the decision layer in `core/` gives the
+verdict «МожноУбрать», which is proved to be nothing outside Кэш, Журнал and
+Сборка.
 
 ## What it is made of
 
@@ -146,14 +153,57 @@ and the same Go toolchain give the same archive, byte for byte.
 ./digitdisk --version        # version, build hash, toolchain, decision layer
 ```
 
-Both readings take `--json`. Both commands read. Neither writes.
+Both readings take `--json`. Neither writes anything.
+
+### Cleaning, in three steps
+
+```bash
+./digitdisk clean <path>                    # the plan: what, how much, why. Nothing is touched.
+./digitdisk clean <path> --apply            # move into <path>/.digitdisk-trash/<stamp>/
+./digitdisk restore <trash>                 # put it all back
+./digitdisk purge <trash> --confirm N       # erase. This one cannot be undone.
+```
+
+The default is the harmless one: `clean` without `--apply` opens no file for
+writing and does not even create the корзина, so finding out what it would do
+never means having it done.
+
+`--apply` is a `rename(2)` into a корзина inside the same tree, which is why it
+is instant and reversible — and why it **frees no space at all**: the bytes are
+still there under another name. Only `purge` frees space, it needs `--confirm N`
+with N the exact number of files in the корзина, and the failure message does
+not tell you N — you get it by running `purge` with no flag and reading the
+plan. A confirmation you can satisfy without looking confirms nothing.
+
+Every корзина carries a `journal.json`: what was moved, from where, how many
+bytes, when, and where it went. It is written *before* the first file moves, so
+a crash in the middle still leaves something `restore` can empty back, and it
+survives `purge` as the record of what is gone.
+
+A file that changed between the walk and the move is not moved. digitdisk
+remembers each file's dev/ino, size, mtime and mode, checks them again before
+touching it, and refuses by name — "размер изменился (был 25 Б, стал 30 Б)" —
+rather than removing something it no longer recognises.
 
 ## What it does not do
 
-- **It never deletes anything.** No cleaning, no uninstalling, no `--force`, no
-  quarantine directory. digitdisk prints what it found; what to remove is the
-  reader's decision and somebody else's command. A patch that adds a delete path
-  is out of scope, not a feature request.
+- **It does not delete by pattern, by name, or by a list of known paths.** The
+  only thing `clean` will remove is a path the decision layer gave the verdict
+  «МожноУбрать». The host keeps a veto on top of that and refuses a directory, a
+  symlink or anything unreadable even if the layer were to ask — and when the
+  two disagree it prints the disagreement instead of acting on it.
+- **It never deletes in one step, and never without being asked.** There is no
+  flag that erases without a plan first and a separate confirmation after, and
+  `clean` on its own touches nothing at all.
+- **It does not leave the tree you named.** Every path operation goes through
+  `os.Root` opened on that directory: it resolves each component itself and
+  cannot be walked out of, symbolic links included. The корзина must live inside
+  the same tree — a корзина elsewhere would make every move a cross-filesystem
+  copy, and the cost of reversibility would become the size of the cleanup.
+- **It does not delete recursively.** `os.RemoveAll` appears nowhere in this
+  tree and `tools/check-licensing.py` fails the build if it ever does. Files go
+  one at a time, from a list in a journal; empty directories go through the
+  call that refuses a directory with anything in it.
 - **It does not pretend macOS is finished.** The host builds and runs there,
   and a good part of a snapshot is out of reach without cgo and comes out
   empty; every empty field says which call it would have needed. No Mac has run
@@ -169,12 +219,12 @@ Both readings take `--json`. Both commands read. Neither writes.
 | [`LICENSE`](LICENSE) | the binding text: BSD-2-Clause, verbatim |
 | [`LICENSE-RU.md`](LICENSE-RU.md) | what that licence means, in plain Russian |
 | [`NOTICE`](NOTICE) | where the idea came from, what was deliberately not taken, and why |
-| [`AGENTS.md`](AGENTS.md) | the rules of this tree: write boundary, no GPL, the order of the checks |
+| [`AGENTS.md`](AGENTS.md) | the rules of this tree: write boundary, no GPL, where removal may live, the order of the checks |
 
 ## Checks
 
 ```bash
-python3 tools/check-licensing.py    # no copyleft in the tree; our files carry SPDX BSD-2-Clause
+python3 tools/check-licensing.py    # no copyleft; SPDX headers; removal only in host/internal/clean
 cd host && go vet ./... && go test ./...
 cd host && GOOS=darwin GOARCH=arm64 go build ./... && GOOS=darwin GOARCH=amd64 go build ./...
 cd host && GOOS=darwin go vet ./...  # the macOS host, checked from a machine that is not one
@@ -184,8 +234,8 @@ scripts/build-release.sh            # release archives, sums, formula; verifies 
 ## State
 
 The tree is complete and installable: the licences and the gate, the flang core
-printed into `core/out-go`, the Go host with `status` and `analyze`, and the
-release path — [`scripts/build-release.sh`](scripts/build-release.sh), the
+printed into `core/out-go`, the Go host with `status`, `analyze` and the three
+steps of `clean` / `restore` / `purge`, and the release path — [`scripts/build-release.sh`](scripts/build-release.sh), the
 Homebrew formula, and the tag-driven workflow in
 [`.github/workflows/release.yml`](.github/workflows/release.yml). The version
 lives in one place, [`VERSION`](VERSION); the build stamps it into the binary,

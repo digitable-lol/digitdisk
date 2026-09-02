@@ -1,6 +1,6 @@
 module digitdisk
 
-go 1.24
+go 1.25
 
 // Ядро на flang. Оно печатается в core/out-go и коммитится в дерево
 // (AGENTS.md: «core/out-go печатается, а не пишется»), поэтому путь есть в
