@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"digitdisk/internal/cli"
 	"digitdisk/internal/report"
 	"digitdisk/internal/sysinfo"
 )
@@ -488,4 +489,32 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// commandsPage is the list of subcommands, shown over the body by «?».
+//
+// It comes from internal/cli, the same list the справка and digitdisk.1 are
+// built from, so the screen cannot come to name a command the tool does not
+// have or miss one it does.
+//
+// It SHOWS and does not RUN, on purpose.  This screen is `status`, which reads
+// and writes nothing; a choice here that ran clean would put a command that
+// moves files one keystroke away from a read-only view, and past the --apply
+// and the --confirm that stand in front of removal everywhere else.  Two of
+// the commands need a path the keyboard has not been given anyway.
+func (s *screen) commandsPage() []string {
+	t := s.t
+	out := []string{"", s.caption("КОМАНДЫ"), ""}
+	for _, c := range cli.Commands {
+		var r row
+		r.add("  "+fit(c.Call(), 20), func(x string) string { return t.Bold(t.P.AccentSoft, x) })
+		r.add(fit(c.Gloss, maxInt(1, s.cols-r.w-1)), func(x string) string {
+			return t.Fg(t.P.Foreground, strings.TrimRight(x, " "))
+		})
+		out = append(out, r.String())
+	}
+	out = append(out, "",
+		s.note("Экран ничего не запускает: команды набираются в оболочке."),
+		s.note("Ключи: digitdisk --help.  Подробно: man digitdisk"))
+	return out
 }

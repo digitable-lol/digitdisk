@@ -150,8 +150,9 @@ for target in "${TARGETS[@]}"; do
 	echo "$sum  повторена"
 
 	# В архив едет то, без чего двоичный файл нельзя ни законно раздать, ни
-	# понять: лицензия, происхождение, обе редакции описания, версия.
-	cp LICENSE NOTICE README.md README.ru.md VERSION "$stage/"
+	# понять, ни поставить: лицензия, происхождение, обе редакции описания,
+	# версия и страница руководства — её ставит формула в man1.
+	cp LICENSE NOTICE README.md README.ru.md VERSION digitdisk.1 "$stage/"
 
 	touch -d "@$SOURCE_DATE_EPOCH" "$stage"/* "$stage"
 	tar --sort=name --owner=0 --group=0 --numeric-owner \
@@ -237,6 +238,21 @@ echo "$out" | grep -q "flang" || {
 	echo "build-release: status не отработал" >&2
 	exit 1
 }
-echo "  analyze и status отработали, ядро на flang на месте"
+# Страница руководства обязана уехать в архиве: без неё формула поставит
+# двоичный файл, а `man digitdisk` ответит «нет такой страницы».
+page="$probe/digitdisk-$VERSION-$host_os-$host_arch/digitdisk.1"
+[ -f "$page" ] || {
+	echo "build-release: в архиве нет digitdisk.1 — man ставить нечего" >&2
+	exit 1
+}
+grep -q "^\.Dt DIGITDISK 1$" "$page" || {
+	echo "build-release: digitdisk.1 не объявляет себя страницей раздела 1" >&2
+	exit 1
+}
+"$bin" --help | grep -q "man digitdisk" || {
+	echo "build-release: справка не отсылает к man digitdisk" >&2
+	exit 1
+}
+echo "  analyze и status отработали, ядро на flang на месте, digitdisk.1 в архиве"
 echo
 echo "готово: $DIST"

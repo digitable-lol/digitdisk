@@ -65,6 +65,10 @@ type screen struct {
 	scroll  int
 	paused  bool
 	busying bool
+	// menu shows the list of subcommands over the body.  The screen is
+	// `status`, which reads and writes nothing; the list therefore only
+	// names commands and never runs one — see commandsPage.
+	menu bool
 
 	cpuHist []float64
 	memHist []float64
@@ -258,20 +262,31 @@ func (s *screen) handle(k key, snaps chan sample) bool {
 			s.scroll--
 		case 'g':
 			s.scroll = 0
+		case '?':
+			s.menu = !s.menu
+			s.scroll = 0
 		}
 		if k.r >= '1' && k.r <= '9' {
 			if n := int(k.r - '1'); n < len(sections) {
-				s.tab, s.scroll = n, 0
+				s.tab, s.scroll, s.menu = n, 0, false
 			}
 		}
-	case keyEsc, keyCtrlC:
+	case keyEsc:
+		// Esc backs out of the list first: a key that both closes an
+		// overlay and quits the program would quit it by surprise.
+		if s.menu {
+			s.menu, s.scroll = false, 0
+			return false
+		}
+		return true
+	case keyCtrlC:
 		return true
 	case keyRight, keyTab:
 		s.tab = (s.tab + 1) % len(sections)
-		s.scroll = 0
+		s.scroll, s.menu = 0, false
 	case keyLeft, keyShiftTab:
 		s.tab = (s.tab + len(sections) - 1) % len(sections)
-		s.scroll = 0
+		s.scroll, s.menu = 0, false
 	case keyDown:
 		s.scroll++
 	case keyUp:
@@ -328,6 +343,9 @@ func (s *screen) frame() []string {
 	out = append(out, t.Fg(t.P.Border, strings.Repeat("─", s.cols)))
 
 	body := sections[s.tab].render(s)
+	if s.menu {
+		body = s.commandsPage()
+	}
 	h := s.bodyHeight()
 	if s.scroll > len(body)-1 {
 		s.scroll = len(body) - 1
@@ -454,12 +472,21 @@ func (s *screen) footer(more string) string {
 		r.add(more, func(x string) string { return t.Fg(t.P.Subtle, x) })
 	}
 
-	for _, hint := range []string{
-		"← → разделы · ↑ ↓ прокрутка · p пауза · r замер · q выход ",
-		"← → разделы · p пауза · r замер · q выход ",
+	hints := []string{
+		"← → разделы · ↑ ↓ прокрутка · p пауза · r замер · ? команды · q выход ",
+		"← → разделы · p пауза · r замер · ? команды · q выход ",
+		"← → · p · r · ? команды · q выход ",
 		"← → · p · r · q выход ",
 		exit,
-	} {
+	}
+	if s.menu {
+		hints = []string{
+			"↑ ↓ прокрутка · ? или Esc назад · q выход ",
+			"? назад · q выход ",
+			exit,
+		}
+	}
+	for _, hint := range hints {
 		if r.w+runes(hint)+2 <= s.cols {
 			r.pad(s.cols - runes(hint))
 			r.add(hint, func(x string) string { return t.Fg(t.P.Muted, x) })

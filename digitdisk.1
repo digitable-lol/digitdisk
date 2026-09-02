@@ -1,0 +1,396 @@
+.\" SPDX-FileCopyrightText: 2026 Marat Zimnurov <zimtir@mail.ru>
+.\" SPDX-License-Identifier: BSD-2-Clause
+.Dd September 2, 2026
+.Dt DIGITDISK 1
+.Os
+.Sh NAME
+.Nm digitdisk
+.Nd снимок системы, разбор дерева каталогов и уборка
+.Sh SYNOPSIS
+.Nm digitdisk
+.Op Ar подкоманда
+.Op Ar ключи
+.Nm digitdisk Cm status
+.Op Fl -json
+.Op Fl -why
+.Op Fl -top Ar N
+.Op Fl -sample Ar MS
+.Op Fl -live | Fl -plain
+.Op Fl -interval Ar MS
+.Nm digitdisk Cm analyze Ar путь
+.Op Fl -json
+.Op Fl -top Ar N
+.Op Fl -places Ar файл
+.Op Fl -no-places
+.Op Fl -cross-device
+.Op Fl -max-depth Ar N
+.Nm digitdisk Cm clean Ar путь
+.Op Fl -json
+.Op Fl -apply
+.Op Fl -top Ar N
+.Op Fl -trash Ar каталог
+.Op Fl -protect Ar что
+.Op Fl -protect-file Ar файл
+.Op Fl -places Ar файл
+.Op Fl -no-places
+.Op Fl -cross-device
+.Op Fl -max-depth Ar N
+.Nm digitdisk Cm restore Ar корзина
+.Op Fl -json
+.Op Fl -dry-run
+.Nm digitdisk Cm purge Ar корзина
+.Op Fl -json
+.Op Fl -confirm Ar N
+.Nm digitdisk Cm places
+.Op Fl -json
+.Op Fl -top Ar N
+.Op Fl -places Ar файл
+.Op Fl -no-measure
+.Nm digitdisk Cm history Ar путь
+.Op Fl -json
+.Op Fl -top Ar N
+.Nm digitdisk
+.Fl -help | Fl -version
+.Sh DESCRIPTION
+.Nm
+печатает два чтения машины — куда ушло место на диске и что с машиной
+происходит сейчас — и по отдельной команде убирает файлы.
+.Pp
+Подкоманду можно не называть:
+.Nm
+без доводов делает то же, что
+.Nm Cm status ,
+со всеми его умолчаниями.
+Ключ на месте подкоманды тоже относится к
+.Cm status ,
+поэтому
+.Nm Fl -json
+и
+.Nm Cm status Fl -json
+— одна и та же команда.
+Слово, которое подкоманде не соответствует, командой не считается: оно
+отвергается с кодом 2, а не толкуется как что-нибудь другое.
+.Pp
+.Cm status ,
+.Cm analyze ,
+.Cm places
+и
+.Cm history
+только читают.
+Убирают три команды, и их три:
+.Cm clean
+показывает план и без
+.Fl -apply
+не открывает ни одного файла на запись,
+.Cm restore
+возвращает перенесённое,
+.Cm purge
+стирает.
+.Pp
+Убирается ровно то, чему решающий слой вынес приговор
+.Dq МожноУбрать :
+не похожее на него и не совпавшее с маской.
+.Pp
+Перенос в корзину места не освобождает.
+.Fl -apply
+— это
+.Xr rename 2
+внутри той же файловой системы: файлы остаются на диске под другим именем,
+и число, которое печатает
+.Cm clean Fl -apply ,
+— перенесённое, а не освобождённое.
+Место освобождает только
+.Cm purge ,
+и это необратимо.
+.Sh SUBCOMMANDS
+.Bl -tag -width "history <путь>XX"
+.It Cm status
+Снимок системы: ядро и выпуск, время работы, загрузка, память, процессы,
+диски, сеть, температура.
+Источники платформенные:
+.Pa /proc
+и
+.Pa /sys
+на Linux,
+.Xr sysctl 3
+и libSystem на macOS.
+Чего система не публикует, печатается прочерком, а не нулём, и называется в
+разделе
+.Dq НЕ ПРОЧИТАНО ;
+почему — по
+.Fl -why .
+В терминале рисуется живой экран, в трубу и в файл печатается тот же снимок
+текстом.
+.It Cm analyze Ar путь
+Обход дерева через
+.Xr lstat 2 :
+каталоги по размеру и самые крупные файлы.
+Символические ссылки не раскрываются, границу файловой системы без
+.Fl -cross-device
+обход не пересекает, недоступное считается и пропускается.
+Жёсткая ссылка считается один раз.
+.It Cm clean Ar путь
+План уборки: какие файлы, сколько байт и по какому правилу ядра помечены
+.Dq МожноУбрать .
+Без
+.Fl -apply
+не тронуто ничего.
+С
+.Fl -apply
+помеченное переносится в корзину и записывается журнал.
+.It Cm restore Ar корзина
+Возврат корзины на прежние места по её журналу.
+Ключа не требует и ничего не перезаписывает: занятое имя — это запись
+.Dq не возвращено ,
+а не замена файла.
+.It Cm purge Ar корзина
+Стирание корзины — единственное необратимое действие.
+Без
+.Fl -confirm
+печатает план и число, которое надо назвать.
+.It Cm places
+Справочник известных мест: что
+.Nm
+знает про конкретные кэши и сколько из этого есть на этой машине.
+Справочник — данные: правится без пересборки.
+.It Cm history Ar путь
+Чем кончались прошлые уборки под этим корнем: когда, сколько файлов, сколько
+байт лежит в корзинах, сколько возвращено и сколько стёрто.
+Между прогонами ничего не помнится — всё читается из журналов самих корзин.
+.El
+.Sh OPTIONS
+.Bl -tag -width "--protect-file файлXX"
+.It Fl -json
+Машиночитаемый вывод.
+Принимают все подкоманды.
+У
+.Cm clean
+список работ под
+.Fl -json
+едет целиком и ключом
+.Fl -top
+не режется.
+.It Fl -top Ar N
+Сколько строк в списках: у
+.Cm status
+10, у
+.Cm analyze
+и
+.Cm clean
+15, у
+.Cm places
+40, у
+.Cm history
+20.
+.Ar N
+= 0 — без предела.
+Итоги и разбивка по разрядам считаются по всему плану и от
+.Fl -top
+не зависят.
+.It Fl -why
+.Cm status :
+вместо снимка — что не измерено и почему.
+.It Fl -sample Ar MS
+.Cm status :
+окно замера загрузки ЦП, миллисекунды, по умолчанию 200.
+.It Fl -live
+.Cm status :
+живой экран.
+Без терминала — ошибка, а не тихая печать текстом.
+.It Fl -plain
+.Cm status :
+один снимок текстом, даже когда вывод идёт в терминал.
+.It Fl -interval Ar MS
+.Cm status :
+период обновления живого экрана, миллисекунды, по умолчанию 2000.
+.It Fl -cross-device
+.Cm analyze , clean :
+заходить на смонтированные другие файловые системы.
+По умолчанию обход останавливается на границе.
+.It Fl -max-depth Ar N
+.Cm analyze , clean :
+предел глубины обхода, 0 — без предела.
+.It Fl -places Ar файл
+.Cm analyze , clean , places :
+свой справочник известных мест вместо встроенного.
+.It Fl -no-places
+.Cm analyze , clean :
+судить одними приметами, без справочника.
+.It Fl -no-measure
+.Cm places :
+не считать размеры найденных мест, только назвать их.
+.It Fl -apply
+.Cm clean :
+перенести помеченное в корзину, а не только показать план.
+.It Fl -trash Ar каталог
+.Cm clean :
+другая корзина вместо
+.Pa <корень>/.digitdisk-trash .
+Обязана лежать внутри корня уборки.
+.It Fl -protect Ar что
+.Cm clean :
+не трогать.
+.Ar что
+— это путь или
+.Dq разряд: Ns Ar разряд .
+Ключ можно повторять.
+Защита только вычитает: она переносит запись из плана в
+.Dq ЗАЩИЩЕНО
+и никогда не добавляет файл в план.
+.It Fl -protect-file Ar файл
+.Cm clean :
+защитный список файлом вместо
+.Pa ~/.config/digitdisk/protect.conf .
+.It Fl -dry-run
+.Cm restore :
+показать, что вернулось бы, и не возвращать.
+.It Fl -confirm Ar N
+.Cm purge :
+подтвердить стирание ровно
+.Ar N
+файлов.
+.Ar N
+обязано совпасть с числом файлов в корзине.
+.It Fl -help , Fl h , Cm help
+Справка: подкоманды и ключи одной страницей.
+.It Fl -version , Fl V , Cm version
+Версия, хеш сборки, инструментарий и решающий слой этого двоичного файла.
+.El
+.Sh LIVE SCREEN
+.Nm
+и
+.Nm Cm status
+рисуют живой экран, когда вывод идёт в терминал.
+Клавиши:
+.Pp
+.Bl -tag -width "PgUp, PgDnXX" -compact
+.It Ic \(<-\ \(->, Tab
+предыдущий и следующий раздел
+.It Ic 1\(en9
+раздел сразу
+.It Ic \(ua\ \(da, PgUp, PgDn
+прокрутка длинного раздела
+.It Ic p , Space
+пауза
+.It Ic r
+замер сейчас
+.It Ic \&?
+список команд; он только называет команды, набираются они в оболочке
+.It Ic q , Esc
+выход
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width "XDG_CONFIG_HOMEXX"
+.It Ev DIGITDISK_PALETTE
+Вариант палитры живого экрана:
+.Cm carbon
+(по умолчанию),
+.Cm paper ,
+.Cm signal .
+.It Ev NO_COLOR
+Установленная переменная выключает цвет.
+.It Ev TERM
+.Cm dumb
+или пустое значение — живого экрана нет, печатается текст.
+.It Ev XDG_CONFIG_HOME
+Где искать
+.Pa digitdisk/places.conf
+и
+.Pa digitdisk/protect.conf ;
+по умолчанию
+.Pa ~/.config .
+.It Ev XDG_CACHE_HOME , XDG_DATA_HOME
+Куда справочник целит якоря
+.Dq кэш
+и
+.Dq данные ;
+по умолчанию
+.Pa ~/.cache
+и
+.Pa ~/.local/share .
+.El
+.Sh FILES
+.Bl -tag -width "<корень>/.digitdisk-trash/<метка>/journal.jsonXX"
+.It Pa <корень>/.digitdisk-trash/<метка>/
+Корзина, которую делает
+.Cm clean Fl -apply .
+Она всегда внутри корня уборки; метка — время в UTC вида
+.Pa 2026-09-02T12-00-00Z .
+.It Pa <корень>/.digitdisk-trash/<метка>/files/
+Перенесённые файлы, каждый под своим путём относительно корня.
+.It Pa <корень>/.digitdisk-trash/<метка>/journal.json
+Журнал корзины: откуда взят каждый файл, его размер и отпечаток, что
+возвращено и что стёрто.
+Его читают
+.Cm restore ,
+.Cm purge
+и
+.Cm history ;
+без него каталог не считается корзиной
+.Nm .
+.It Pa ~/.config/digitdisk/places.conf
+Свой справочник известных мест.
+Если файла нет, берётся справочник, встроенный в двоичный файл;
+.Cm places
+печатает, какой из двух взят.
+.It Pa ~/.config/digitdisk/protect.conf
+Защитный список: строки вида
+.Pa путь|<путь>|<почему>
+и
+.Pa разряд|<разряд>|<почему> .
+.El
+.Sh EXIT STATUS
+.Bl -tag -width "0XX" -compact
+.It 0
+Команда отработала.
+.It 1
+Ошибка выполнения: нет пути, каталог не корзина,
+.Fl -confirm
+назвал не то число.
+.It 2
+Неизвестная подкоманда или неразобранный ключ.
+.El
+.Sh EXAMPLES
+Живой экран состояния:
+.Pp
+.Dl $ digitdisk
+.Pp
+Тот же снимок машине:
+.Pp
+.Dl $ digitdisk --json | jq .memory
+.Pp
+Куда ушло место в домашнем каталоге, двадцатью строками:
+.Pp
+.Dl $ digitdisk analyze ~ --top 20
+.Pp
+План уборки; не тронуто ничего:
+.Pp
+.Dl $ digitdisk clean ~
+.Pp
+Перенос в корзину, с двумя изъятиями:
+.Pp
+.Dl $ digitdisk clean ~ --protect ~/projects --protect разряд:сборка --apply
+.Pp
+Передумать:
+.Pp
+.Dl $ digitdisk restore ~/.digitdisk-trash/2026-09-02T12-00-00Z
+.Pp
+Освободить место — необратимо, число называется вслух:
+.Pp
+.Dl $ digitdisk purge ~/.digitdisk-trash/2026-09-02T12-00-00Z
+.Dl $ digitdisk purge ~/.digitdisk-trash/2026-09-02T12-00-00Z --confirm 128
+.Pp
+Что было убрано под этим корнем и что из этого ещё лежит в корзинах:
+.Pp
+.Dl $ digitdisk history ~
+.Sh SEE ALSO
+.Xr df 1 ,
+.Xr du 1 ,
+.Xr find 1 ,
+.Xr lstat 2 ,
+.Xr rename 2
+.Pp
+Исходники и обе редакции описания:
+.Lk https://github.com/digitable-lol/digitdisk
+.Sh AUTHORS
+.An Marat Zimnurov Aq Mt zimtir@mail.ru

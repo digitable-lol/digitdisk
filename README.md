@@ -194,14 +194,20 @@ and the same Go toolchain give the same archive, byte for byte.
 ## Run
 
 ```bash
+./digitdisk                  # no subcommand: the same as `status`, with its defaults
 ./digitdisk analyze <path>   # where the space went: directories by size, the largest files
 ./digitdisk status           # how the machine feels: CPU, memory, disk, network
 ./digitdisk places           # what the tool knows about concrete caches, and what of it is here
 ./digitdisk history <path>   # what past cleanups under this root did
 ./digitdisk --version        # version, build hash, toolchain, decision layer
+./digitdisk --help           # subcommands and flags, one line each
+man digitdisk                # the reference: subcommands, flags, files, examples, exit codes
 ```
 
-All four readings take `--json`. None of them writes anything.
+All four readings take `--json`. None of them writes anything. A word that is
+not a subcommand is refused with code 2, never guessed at; a flag in place of a
+subcommand belongs to `status`, so `digitdisk --json` and `digitdisk status
+--json` are one command.
 
 ### Cleaning, in three steps
 
@@ -379,10 +385,15 @@ and knows they did.
 
 ### The live screen
 
-In a terminal, `digitdisk status` opens a live screen in the Digitable Focus
-palette: the sections of the printed report as pages that keep measuring
-themselves. `← →` and `Tab` move between them, `1`…`9` go straight to one,
-`↑ ↓` scroll a long one, `p` holds, `r` measures now, `q` leaves.
+In a terminal, `digitdisk` and `digitdisk status` open a live screen in the
+Digitable Focus palette: the sections of the printed report as pages that keep
+measuring themselves. `← →` and `Tab` move between them, `1`…`9` go straight to
+one, `↑ ↓` scroll a long one, `p` holds, `r` measures now, `?` lists the
+subcommands, `q` leaves.
+
+The `?` list only names the commands; it runs none of them. This screen is
+`status`, which reads and writes nothing, and `clean` moves files — a command
+that changes the disk is not put one keystroke away from a reading.
 
 Everywhere else it prints, exactly as it always has. A pipe, a file,
 `/dev/null`, `--json`, `TERM=dumb` and an empty `TERM` all receive the text
@@ -438,6 +449,7 @@ colour.
 | [`LICENSE-RU.md`](LICENSE-RU.md) | what that licence means, in plain Russian |
 | [`NOTICE`](NOTICE) | where the idea came from, what was deliberately not taken, and why |
 | [`AGENTS.md`](AGENTS.md) | the rules of this tree: write boundary, no GPL, where removal may live, the order of the checks |
+| [`digitdisk.1`](digitdisk.1) | the manual page: subcommands, every flag, files, examples, exit codes |
 
 ## Checks
 
@@ -445,7 +457,7 @@ colour.
 flang io tools/licensing.flang      # no copyleft; SPDX headers; removal only in host/internal/clean
 flang check core/disk-inventory.flang && flang test core/disk-inventory.flang
 make -C core                        # check, emit to Go and C, cross-check the two emissions
-cd host && go vet ./... && go test ./...
+cd host && go vet ./... && go test -count=1 ./...
 cd host && GOOS=darwin GOARCH=arm64 go build ./... && GOOS=darwin GOARCH=amd64 go build ./...
 cd host && GOOS=darwin go vet ./...  # the macOS host, checked from a machine that is not one
 scripts/build-release.sh            # release archives, sums, formula; verifies the build repeats

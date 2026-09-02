@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"digitdisk/internal/cli"
 	"digitdisk/internal/procfs"
 	"digitdisk/internal/sysinfo"
 )
@@ -640,5 +641,57 @@ func TestScreenDoesNotInventProcessCounts(t *testing.T) {
 		if !strings.Contains(got, "замерено по 214 процессам") {
 			t.Errorf("неполный счёт не назвал охват:\n%s", got)
 		}
+	}
+}
+
+// Список команд на экране — тот же список, из которого строятся справка и
+// страница руководства. Если он разойдётся, разойдутся все три.
+func TestCommandsPageNamesEveryCommand(t *testing.T) {
+	s := newTestScreen(filled(), true, 100)
+	s.menu = true
+	page := strings.Join(s.frame(), "\n")
+	for _, c := range cli.Commands {
+		if !strings.Contains(plain(page), c.Name) {
+			t.Errorf("экран не называет подкоманду %q", c.Name)
+		}
+	}
+	if !strings.Contains(plain(page), "ничего не запускает") {
+		t.Error("экран не говорит, что список только называет команды")
+	}
+	for _, cols := range []int{40, 60, 80, 120, 200} {
+		s := newTestScreen(filled(), true, cols)
+		s.menu = true
+		for _, line := range s.frame() {
+			if w := plainWidth(s.t.clip(line, cols)); w > cols {
+				t.Errorf("список команд на %d колонках: строка в %d ячеек", cols, w)
+			}
+		}
+	}
+}
+
+// «?» открывает и закрывает список, Esc из списка возвращает на экран, а не
+// закрывает программу.
+func TestQuestionMarkOpensTheCommandsAndEscBacksOut(t *testing.T) {
+	s := newTestScreen(filled(), true, 100)
+	ch := make(chan sample, 1)
+	if s.handle(key{kind: keyRune, r: '?'}, ch); !s.menu {
+		t.Fatal("«?» не открыла список команд")
+	}
+	if s.handle(key{kind: keyEsc}, ch) {
+		t.Error("Esc из списка закрыл экран, а должен был вернуть на снимок")
+	}
+	if s.menu {
+		t.Error("Esc не закрыл список")
+	}
+	s.handle(key{kind: keyRune, r: '?'}, ch)
+	if s.handle(key{kind: keyRune, r: '?'}, ch); s.menu {
+		t.Error("повторная «?» не закрыла список")
+	}
+	s.handle(key{kind: keyRune, r: '?'}, ch)
+	if s.handle(key{kind: keyRight}, ch); s.menu {
+		t.Error("переход к разделу оставил список открытым")
+	}
+	if !s.handle(key{kind: keyEsc}, ch) {
+		t.Error("Esc вне списка не закрыл экран")
 	}
 }
