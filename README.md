@@ -229,6 +229,8 @@ and the same Go toolchain give the same archive, byte for byte.
 ./digitdisk status           # how the machine feels: CPU, memory, disk, network
 ./digitdisk places           # what the tool knows about concrete caches, and what of it is here
 ./digitdisk history <path>   # what past cleanups under this root did
+./digitdisk run make -j8     # run somebody else's command and show what it cost
+./digitdisk -c 'make && make test'   # the same, shorter; a line with metacharacters goes through a shell
 ./digitdisk --version        # version, build hash, toolchain, decision layer
 ./digitdisk --help           # subcommands and flags, one line each
 ./digitdisk status --lang ru # this run in Russian; every subcommand takes --lang ru|en
@@ -240,6 +242,53 @@ All four readings take `--json`. None of them writes anything. A word that is
 not a subcommand is refused with code 2, never guessed at; a flag in place of a
 subcommand belongs to `status`, so `digitdisk --json` and `digitdisk status
 --json` are one command.
+
+### Somebody else's command: what it cost
+
+`run` is the one subcommand that does not look at the disk.  It starts what it
+is given, shows the cost live, and says what it cost when it is over.  The
+short spelling is `-c`; `digitdisk -c make -j8` and `digitdisk run make -j8`
+are one command.
+
+```
+$ digitdisk -c go build -a -o /dev/null ./...
+… the command's output goes as it went; on the last row of the terminal, the cost:
+0:04   CPU 10%, avg 474%   memory 22.2 MiB, peak 301.6 MiB   2 processes
+… and when it is over, two lines about what it cost:
+digitdisk: command «go build -a -o /dev/null ./...»: code 0, 8.3 s
+digitdisk: CPU time 1 min 17 s (943% on average), peak memory about 301.6 MiB,
+processes 16; accounting — a /proc walk every 320 ms — the memory peak is approximate
+```
+
+Four things such wrappers usually lie about, and what happens here with each:
+
+- **The tree, not one child.**  `npm ci`, `make -j` and a Go build spawn dozens
+  of processes; measuring the direct child shows almost nothing.  The whole
+  tree is counted: by a control group of our own (cgroup v2 — the kernel
+  counts, exactly) and, where the machine gives none, by a walk over `/proc`
+  along parent links.  The summary names the way that answered, and never
+  passes an approximation off as an exact figure.
+- **The command's output is untouched.**  Not a byte of ours goes to standard
+  output: `digitdisk run make | tee log` puts into the file exactly what `make
+  | tee log` puts there.  The status line lives on the last row of the terminal
+  (through the scroll region) and does not appear at all when standard error is
+  not a terminal.  A full-screen program — `vim`, `ssh`, `less` — takes the
+  terminal for itself, and the line goes away and comes back on its own.
+- **The exit code and the signals are the command's.**  The code travels out
+  unchanged, so the wrapper can be put into a script.  `Ctrl-C` reaches the
+  command: it stays in the wrapper's process group, and the terminal signals
+  both.  A command killed by a signal is repeated on the wrapper with the same
+  signal.
+- **About the video card, only what can be known.**  Memory per process the
+  driver publishes (behind `--gpu-tool`, through `nvidia-smi`); the share of the
+  card's time per process it does not.  The load of the whole card is not
+  counted as the command's: somebody else may be computing beside it.  What
+  cannot be known is said in words.
+
+The wrapper's keys go BEFORE the command, the command's keys after it:
+`digitdisk run --json ls --json` gives the first `--json` to the wrapper and the
+second to `ls`.  The summary and `--json` go to standard error, because standard
+output is taken by the command.
 
 ### The language of the output
 
@@ -610,7 +659,7 @@ first, one and two `←` away from it.
 
 The first section is **КОМАНДЫ** (COMMANDS), and it does more than name. It is
 the same list of subcommands `--help` and the man page are built from, except
-that here the chosen line **runs**: `↑ ↓` and `1`…`7` choose, `Enter` starts.
+that here the chosen line **runs**: `↑ ↓` and `1`…`8` choose, `Enter` starts.
 It is named in the section strip and in the footer at every width from forty
 columns up — no key has to be known in advance; `?` still leads there too.
 

@@ -967,3 +967,36 @@ func TestLanguageKeyWorksWithNowhereToRememberIt(t *testing.T) {
 		t.Errorf("после переключения языка кадр стал %d строк при экране в %d", got, s.rows)
 	}
 }
+
+// Подсказка внизу экрана называет цифры, которыми выбирают команду: «1…7»,
+// «1…8».  Число прибито в тексте (и в его переводе, и в справке, и в man), а
+// клавиши берут предел из len(cli.Commands) — то есть при добавлении восьмой
+// команды код начинает пускать 8, а строка продолжает обещать 7, и заметить
+// это глазами некому.  Тест сверяет обещание с делом.
+func TestTheHintNamesAsManyDigitsAsThereAreCommands(t *testing.T) {
+	want := len(cli.Commands)
+	if want > 9 {
+		t.Fatalf("команд %d — цифрами 1…9 до всех уже не достать", want)
+	}
+	rx := regexp.MustCompile(`1…(\d)`)
+	seen := 0
+	for _, l := range []lang.Lang{lang.RU, lang.EN} {
+		for _, s := range []string{
+			l.T("↑ ↓ и 1…8 выбрать · Enter запустить · ← → разделы · l язык · q выход "),
+			l.T("Экран status: раздел КОМАНДЫ не только называет — ↑ ↓ и 1…8 выбирают,"),
+		} {
+			m := rx.FindStringSubmatch(s)
+			if m == nil {
+				t.Errorf("в подсказке %q нет числа вида «1…N»", s)
+				continue
+			}
+			seen++
+			if got := int(m[1][0] - '0'); got != want {
+				t.Errorf("подсказка обещает 1…%d, а команд %d: %q", got, want, s)
+			}
+		}
+	}
+	if seen != 4 {
+		t.Errorf("сверено %d строк из 4 — перевод потерялся", seen)
+	}
+}

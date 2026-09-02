@@ -638,7 +638,7 @@ func (s *screen) footer(more string) string {
 	}
 	if s.tab == menuTab {
 		hints = []string{
-			s.l.T("↑ ↓ и 1…7 выбрать · Enter запустить · ← → разделы · l язык · q выход "),
+			s.l.T("↑ ↓ и 1…8 выбрать · Enter запустить · ← → разделы · l язык · q выход "),
 			s.l.T("↑ ↓ выбрать · Enter запустить · ← → разделы · q выход "),
 			s.l.T("↑ ↓ · Enter запустить · q выход "),
 			s.l.T("Enter запустить · q выход "),
