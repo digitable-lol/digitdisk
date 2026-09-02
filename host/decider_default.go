@@ -5,8 +5,50 @@
 
 package main
 
-import "digitdisk/internal/core"
+import (
+	"fmt"
+	"os"
+	"sync"
 
-// chosenDecider returns the placeholder decision layer.  See coreflang/bridge.go
-// for how to build against the real one.
-func chosenDecider() core.Decider { return core.Default() }
+	"digitdisk/internal/core"
+)
+
+// Сборка без признака `flangcore` получает заглушку: она отвечает
+// «Неизвестное/НеТрогать» на КАЖДУЮ запись и ничего не решает.
+//
+// ПОЧЕМУ ЗДЕСЬ ШУМ, А НЕ МОЛЧАНИЕ. Выпуск собирается с признаком —
+// `scripts/build-release.sh` зовёт `go build -tags flangcore`, и у того, кто
+// поставил digitdisk из архива или через brew, работает настоящее ядро на
+// flang. Заглушку получает другой человек: тот, кто собрал дерево руками
+// обычным `go build ./host`. Он при этом видит полноценный отчёт, в котором
+// все до единой записи попали в «Неизвестное», и решает, что на диске просто
+// нет ничего интересного. Тихо отданный слой, который на всё отвечает
+// «не знаю», хуже отказа — поэтому он больше не тихий.
+//
+// Шум идёт в поток ОШИБОК, а не в вывод: `--json` обязан остаться
+// машиночитаемым, а текстовый отчёт — прежним. Печатается один раз за прогон и
+// ровно там, где заглушку собираются применить, — `status` решающего слоя не
+// трогает и молчит.
+var предупреждён sync.Once
+
+const заглушкаПредупреждение = `
+┌──────────────────────────────────────────────────────────────────────────┐
+│  ВНИМАНИЕ: digitdisk собран БЕЗ решающего ядра.                          │
+│                                                                          │
+│  Разбора не будет: каждая запись вернётся как «Неизвестное/НеТрогать»,   │
+│  и пустой список «предложено убрать» НЕ означает, что убирать нечего.    │
+│                                                                          │
+│  Соберите с ядром:  go build -tags flangcore -o digitdisk ./host         │
+│  Или поставьте выпуск: brew install digitable-lol/tap/digitdisk          │
+│  (выпуск всегда идёт с ядром — scripts/build-release.sh)                 │
+└──────────────────────────────────────────────────────────────────────────┘
+`
+
+// chosenDecider returns the placeholder decision layer and says so out loud.
+// See coreflang/bridge.go for how to build against the real one.
+func chosenDecider() core.Decider {
+	предупреждён.Do(func() {
+		fmt.Fprint(os.Stderr, заглушкаПредупреждение)
+	})
+	return core.Default()
+}
