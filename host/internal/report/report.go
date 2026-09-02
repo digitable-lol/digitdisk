@@ -9,8 +9,6 @@ package report
 import (
 	"fmt"
 	"io"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -88,13 +86,10 @@ func Status(w io.Writer, st sysinfo.Status) {
 	} else {
 		p("  ядер          —")
 	}
-	switch why, unmeasured := st.Unmeasured(sysinfo.FactCPUBusy); {
-	case st.Load.BusyPercent != nil:
+	if st.Load.BusyPercent != nil {
 		p("  занято ЦП     %.1f%% (замер %d мс)", *st.Load.BusyPercent, st.Load.SampleMillis)
-	case unmeasured:
-		p("  занято ЦП     — (%s)", why)
-	default:
-		p("  занято ЦП     — (замер не делался)")
+	} else {
+		p("  занято ЦП     —")
 	}
 
 	p("")
@@ -110,9 +105,22 @@ func Status(w io.Writer, st sysinfo.Status) {
 			p("  занято        —")
 		}
 		p("  свободно      %s", measured(m, procfs.FieldFree, m.Free))
-		p("  кэш/буферы    %s  (в т.ч. разделяемая %s)",
-			measured(m, procfs.FieldBuffCache, m.BuffCache), measured(m, procfs.FieldShared, m.Shared))
+		// The shared part is a /proc/meminfo key with no counterpart
+		// elsewhere.  Where it was not measured the phrase is dropped
+		// rather than left holding a dash inside a sentence.
+		if m.Has(procfs.FieldShared) {
+			p("  кэш/буферы    %s  (в т.ч. разделяемая %s)",
+				measured(m, procfs.FieldBuffCache, m.BuffCache), UBytes(m.Shared))
+		} else {
+			p("  кэш/буферы    %s", measured(m, procfs.FieldBuffCache, m.BuffCache))
+		}
 		p("  доступно      %s", measured(m, procfs.FieldAvailable, m.Available))
+		if v, ok := m.Raw[procfs.RawWired]; ok {
+			p("  закреплённая  %s", UBytes(v))
+		}
+		if v, ok := m.Raw[procfs.RawCompressed]; ok {
+			p("  сжатая        %s", UBytes(v))
+		}
 		switch {
 		case !m.Has(procfs.FieldSwapTotal):
 			p("  своп          —")
@@ -125,9 +133,7 @@ func Status(w io.Writer, st sysinfo.Status) {
 
 	p("")
 	pr := st.Processes
-	p("ПРОЦЕССЫ  всего %d, потоков %s, выполняется %d, заблокировано %s%s",
-		pr.Total, counted(st, sysinfo.FactThreads, pr.Threads), pr.Running,
-		counted(st, sysinfo.FactBlocked, pr.Blocked), plural(pr.Unreadable))
+	p("ПРОЦЕССЫ  %s", strings.Join(ProcessCounts(st), ", "))
 	if len(pr.TopByMemory) > 0 {
 		p("  десятка по памяти:")
 		for _, x := range pr.TopByMemory {
@@ -181,11 +187,7 @@ func Status(w io.Writer, st sysinfo.Status) {
 	p("")
 	p("ТЕМПЕРАТУРА")
 	if len(st.Sensors) == 0 {
-		if why, ok := st.Unmeasured(sysinfo.FactSensors); ok {
-			p("  — (%s)", why)
-		} else {
-			p("  —")
-		}
+		p("  —")
 	} else {
 		for _, s := range st.Sensors {
 			extra := ""
@@ -196,20 +198,65 @@ func Status(w io.Writer, st sysinfo.Status) {
 		}
 	}
 
-	// Sorted, because this section is read to compare two runs or two
-	// machines, and Go's map order would shuffle it on every run.
-	if len(st.Missing) > 0 {
+	// What is missing is named and left at that.  A reader who wants the
+	// reasons asks for them; a reader who wants the numbers should not have
+	// to read past a paragraph of them to reach the next reading.
+	if names := st.UnmeasuredNames(); len(names) > 0 {
 		p("")
-		p("НЕ ИЗМЕРЕНО (и почему)")
-		names := make([]string, 0, len(st.Missing))
-		for k := range st.Missing {
-			names = append(names, k)
-		}
-		sort.Strings(names)
-		for _, k := range names {
-			p("  %s: %s", k, st.Missing[k])
-		}
+		p("НЕ ИЗМЕРЕНО  %s", strings.Join(names, ", "))
+		p("             почему — digitdisk status --why")
 	}
+}
+
+// Why prints every absence in the snapshot with its reason.  This is the whole
+// of `digitdisk status --why`, and the only place the reasons are printed.
+func Why(w io.Writer, st sysinfo.Status) {
+	p := func(format string, a ...any) { fmt.Fprintf(w, format+"\n", a...) }
+	all := st.UnmeasuredAll()
+	if len(all) == 0 {
+		p("НЕ ИЗМЕРЕНО  ничего: снимок полон")
+		return
+	}
+	p("НЕ ИЗМЕРЕНО  %d", len(all))
+	for _, pair := range all {
+		p("")
+		p("  %s", pair[0])
+		p("      %s", dash(pair[1]))
+	}
+}
+
+// ProcessCounts builds the process line as a sentence of the counts that were
+// actually taken.  A count nobody could take is left out of the sentence and
+// named at the end of the report instead: a dash in the middle of a phrase
+// reads as a number, and this is not a table where a column must be held open.
+//
+// It is exported because the live screen prints the same sentence, and the two
+// must not drift apart: a number that is honest on paper and invented on the
+// screen is worse than either.
+func ProcessCounts(st sysinfo.Status) []string {
+	pr := st.Processes
+	out := []string{fmt.Sprintf("всего %d", pr.Total)}
+	partial := false
+	if _, unmeasured := st.Unmeasured(sysinfo.FactThreads); !unmeasured && pr.WithDetail > 0 {
+		out = append(out, fmt.Sprintf("потоков %d", pr.Threads))
+		partial = partial || pr.WithDetail < pr.Total
+	}
+	if _, unmeasured := st.Unmeasured(sysinfo.FactRunning); !unmeasured {
+		out = append(out, fmt.Sprintf("выполняется %d", pr.Running))
+	}
+	if _, unmeasured := st.Unmeasured(sysinfo.FactBlocked); !unmeasured {
+		out = append(out, fmt.Sprintf("заблокировано %d", pr.Blocked))
+	}
+	if pr.Unreadable > 0 {
+		out = append(out, fmt.Sprintf("не прочитано %d", pr.Unreadable))
+	}
+	// The coverage is its own phrase rather than a bracket on one number:
+	// it qualifies every count that came from reading the processes one by
+	// one, and a bracket would look like it qualified only the last of them.
+	if partial {
+		out = append(out, fmt.Sprintf("замерено по %d процессам", pr.WithDetail))
+	}
+	return out
 }
 
 // Analyze prints the result of a tree walk.
@@ -281,26 +328,11 @@ func measured(m procfs.Memory, field string, v uint64) string {
 	return UBytes(v)
 }
 
-// counted renders a counter the running system may not publish at all.
-func counted(st sysinfo.Status, fact string, v int) string {
-	if _, unmeasured := st.Unmeasured(fact); unmeasured {
-		return "—"
-	}
-	return strconv.Itoa(v)
-}
-
 func pct(a, b uint64) float64 {
 	if b == 0 {
 		return 0
 	}
 	return 100 * float64(a) / float64(b)
-}
-
-func plural(unreadable int) string {
-	if unreadable == 0 {
-		return ""
-	}
-	return fmt.Sprintf(", не прочитано %d", unreadable)
 }
 
 func firstNonEmpty(a, b string) string {

@@ -82,11 +82,18 @@ type Proc struct {
 
 // Processes is the process section.
 type Processes struct {
-	Total       int    `json:"total"`
-	Running     int    `json:"running"`
-	Blocked     int    `json:"blocked"`
-	Threads     int    `json:"threads"`
-	Unreadable  int    `json:"unreadable"`
+	Total      int `json:"total"`
+	Running    int `json:"running"`
+	Blocked    int `json:"blocked"`
+	Threads    int `json:"threads"`
+	Unreadable int `json:"unreadable"`
+	// WithDetail is how many of Total the memory, thread and processor
+	// figures actually cover.  On Linux that is every process; on macOS the
+	// kernel answers only about processes belonging to the same user, so a
+	// snapshot taken without administrator rights covers a part of the list
+	// and says how large a part.  Zero means the figures were not collected
+	// at all, and the report prints dashes rather than a partial sum.
+	WithDetail  int    `json:"with_detail"`
 	TopByMemory []Proc `json:"top_by_memory"`
 	TopByCPU    []Proc `json:"top_by_cpu"`
 }

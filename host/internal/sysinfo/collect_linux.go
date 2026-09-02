@@ -163,6 +163,9 @@ func (c Collector) Collect() Status {
 	}
 	st.Processes.Total = len(procs)
 	st.Processes.Unreadable = unreadable
+	// Every process /proc let us open was read whole: Linux publishes a
+	// process's memory and threads to anybody who can list it.
+	st.Processes.WithDetail = len(procs)
 
 	byMem := append([]Proc(nil), procs...)
 	sort.Slice(byMem, func(i, j int) bool {

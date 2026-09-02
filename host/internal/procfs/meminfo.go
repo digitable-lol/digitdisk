@@ -70,6 +70,20 @@ const (
 	FieldSwapUsed  = "swap_used_bytes"
 )
 
+// Keys the macOS collector adds to Raw, in bytes.  They have no counterpart in
+// /proc/meminfo and no field of their own, because only one system publishes
+// them — but wired and compressed memory are the two numbers a Mac owner reads
+// first, so the report prints them when they are there.
+const (
+	RawWired       = "wired_bytes"
+	RawCompressed  = "compressed_bytes"
+	RawActive      = "active_bytes"
+	RawInactive    = "inactive_bytes"
+	RawSpeculative = "speculative_bytes"
+	RawPurgeable   = "purgeable_bytes"
+	RawAnonymous   = "anonymous_bytes"
+)
+
 // Has reports whether the named field carries a measurement.
 //
 // A nil Present map answers true: a Memory built by hand (a test, a caller

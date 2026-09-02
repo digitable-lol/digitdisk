@@ -3,9 +3,11 @@
 
 //go:build darwin
 
-// The macOS half of the collector.  Everything here asks the kernel through
-// sysctl(3), getfsstat(2) and the routing socket; the decoding of what comes
-// back lives in internal/darwinsys and is built and tested everywhere.
+// The macOS half of the collector.  Everything here asks the kernel — through
+// sysctl(3), getfsstat(2), the routing socket, and the libSystem functions
+// wrapped in internal/libsystem.  The decoding of what comes back lives in
+// internal/darwinsys and is built and tested everywhere, including on machines
+// that are not Macs.
 //
 // WHERE EVERY FACT COMES FROM.  The interfaces are the documented ones, and
 // nothing below is read out of another project's source:
@@ -17,34 +19,31 @@
 //	время работы            sysctl kern.boottime (struct timeval)
 //	средняя загрузка        sysctl vm.loadavg (struct loadavg)
 //	ядер                    sysctl hw.logicalcpu, hw.ncpu
-//	память всего            sysctl hw.memsize
+//	память всего, страница  sysctl hw.memsize, hw.pagesize
 //	своп                    sysctl vm.swapusage (struct xsw_usage)
+//	занято ЦП               host_statistics(HOST_CPU_LOAD_INFO)
+//	разбивка памяти         host_statistics64(HOST_VM_INFO64)
 //	процессы                sysctl kern.proc.all (struct kinfo_proc)
+//	память и потоки, время  proc_pidinfo(PROC_PIDTASKINFO)
+//	командные строки        sysctl KERN_PROCARGS2 (по MIB, с pid)
 //	диски                   getfsstat(2) (struct statfs)
 //	интерфейсы, адреса      net.Interfaces (стандартная библиотека)
 //	счётчики интерфейсов    sysctl NET_RT_IFLIST2 (struct if_msghdr2/if_data64)
 //
-// WHAT MACOS DOES NOT GIVE US WITHOUT cgo, AND IS THEREFORE LEFT EMPTY.  Each
-// of these is named in Status.Missing with its reason, and the report prints
-// the reason where the number would have been:
+// WHAT IS STILL NOT MEASURED, AND WHY.  Two kinds, and they are not the same
+// kind:
 //
-//   - the CPU busy share and the per-process CPU time: host_statistics with
-//     HOST_CPU_LOAD_INFO, and the task port of each process.  Mach calls, not
-//     system calls: reaching them means either cgo or issuing Mach traps by
-//     hand, which Apple does not support from outside libSystem.
-//   - free / active / inactive / wired / compressed memory:
-//     host_statistics64 with HOST_VM_INFO64, a Mach call again.  The total and
-//     the swap come from sysctl and are real; the breakdown is empty.
-//   - resident memory per process and its command line: libproc
-//     (proc_pidinfo, proc_pidpath) and KERN_PROCARGS2, which needs a pid
-//     argument the standard library's Sysctl cannot pass.
-//   - temperatures: the SMC, reached through IOKit, a framework rather than a
-//     system call.
+//   - Closed by permission, not by the language.  A process belonging to
+//     another user answers neither proc_pidinfo nor KERN_PROCARGS2 unless the
+//     caller is the administrator — the kernel checks the uid and refuses.
+//     Running the tool under sudo fills those rows in; nothing else will.
+//   - Not published by the system in a form anybody may rely on.  Die
+//     temperature comes from the SMC through IOKit, and Apple documents no
+//     interface to it: what circulates is a reverse-engineered structure.  A
+//     number read that way would be a guess wearing a unit, so there is none.
 //
-// The price of taking cgo for any of them is the same one every time, and it
-// is the reason the answer is no: the release build is cross-compiled and
-// byte-for-byte repeatable with CGO_ENABLED=0 (scripts/build-release.sh), and
-// cgo ends both properties at once.
+// Both are named in Status.Missing, in one short phrase each.  The report
+// prints the names and nothing else; `--why` prints the phrases.
 package sysinfo
 
 import (
@@ -58,6 +57,7 @@ import (
 	"time"
 
 	"digitdisk/internal/darwinsys"
+	"digitdisk/internal/libsystem"
 	"digitdisk/internal/procfs"
 )
 
@@ -71,13 +71,14 @@ const (
 // Collector reads a snapshot of this Mac.
 //
 // It has no filesystem roots to point at: macOS publishes these facts through
-// sysctl, not through files, so the seam the Linux collector opens for its
-// tests is not available here.  What is testable — every structure the kernel
-// answers with — is tested in internal/darwinsys instead.
+// sysctl and libSystem, not through files, so the seam the Linux collector
+// opens for its tests is not available here.  What is testable — every
+// structure the kernel answers with — is tested in internal/darwinsys instead,
+// and what can only be checked on a Mac is checked on the Mac, at run time,
+// before any of it is published.
 type Collector struct {
-	// SampleWindow is accepted so `--sample` reads the same on every
-	// system, and is not slept through here: the only fact it would time,
-	// the CPU busy share, comes from a Mach call this build cannot make.
+	// SampleWindow is how long the CPU delta sample runs, for the machine
+	// as a whole and for each process.  Zero disables sampling.
 	SampleWindow time.Duration
 	// Top is how many processes to list per ranking.
 	Top int
@@ -94,8 +95,7 @@ func New() Collector {
 // written for string-valued nodes: it strips one trailing NUL.  A numeric or
 // structure node therefore arrives up to one byte short, and darwinsys.Padded
 // puts that byte back — see its comment for why that is exact rather than
-// hopeful.  The alternatives are issuing the sysctl trap by hand, which Apple
-// does not support from outside libSystem, and cgo.
+// hopeful.
 func sysctlRaw(name string) ([]byte, error) {
 	s, err := syscall.Sysctl(name)
 	if err != nil {
@@ -127,8 +127,8 @@ func (c Collector) Collect() Status {
 
 	c.host(&st)
 	c.load(&st)
-	c.processes(&st)
 	c.memory(&st)
+	c.sample(&st)
 
 	disks, err := c.Disks()
 	if err != nil {
@@ -138,7 +138,7 @@ func (c Collector) Collect() Status {
 	st.Network = c.network(&st)
 
 	st.Sensors = nil
-	st.Missing[FactSensors] = "температуру на маке отдаёт SMC через IOKit — фреймворк, а не системный вызов; из Go без cgo не читается"
+	st.Missing[FactSensors] = "macOS не публикует показания датчиков, а угадывать их формат нельзя"
 
 	if len(st.Missing) == 0 {
 		st.Missing = nil
@@ -190,7 +190,7 @@ func (c Collector) host(st *Status) {
 	}
 	boot, ok := darwinsys.ParseTimeval(b)
 	if !ok {
-		st.Missing["kern.boottime"] = "ответ не разбирается как struct timeval — время работы не считаем"
+		st.Missing["kern.boottime"] = "ответ не читается как момент времени — время работы не считаем"
 		return
 	}
 	st.Host.BootTime = boot.Unix()
@@ -206,10 +206,11 @@ func (c Collector) load(st *Status) {
 	} else if one, five, fifteen, ok := darwinsys.ParseLoadAvg(b); ok {
 		st.Load.One, st.Load.Five, st.Load.Fifteen = one, five, fifteen
 	} else {
-		st.Missing["vm.loadavg"] = "ответ не разбирается как struct loadavg — средние не показываем"
+		st.Missing["vm.loadavg"] = "ответ не читается как средние загрузки — не показываем"
 	}
-	// /proc/loadavg carries three more numbers macOS does not publish.
-	st.Missing[FactLoadEntities] = "число задач в очереди и последний pid — это ключи /proc/loadavg; на маке их нет"
+	// /proc/loadavg carries three more numbers macOS does not publish.  The
+	// report never prints them, so this is a note for the JSON only.
+	st.Missing[FactLoadEntities] = "macOS не публикует длину очереди планировщика"
 
 	for _, name := range []string{"hw.logicalcpu", "hw.ncpu"} {
 		if n, err := syscall.SysctlUint32(name); err == nil && n > 0 {
@@ -217,11 +218,10 @@ func (c Collector) load(st *Status) {
 			break
 		}
 	}
-	st.Missing[FactCPUBusy] = "доля занятого процессора живёт в host_statistics(HOST_CPU_LOAD_INFO) — это вызов Mach, а не системный; из Go без cgo не делается"
 }
 
 func (c Collector) memory(st *Status) {
-	m := procfs.Memory{Present: map[string]bool{}}
+	m := procfs.Memory{Present: map[string]bool{}, Raw: map[string]uint64{}}
 	if b, err := sysctlRaw("hw.memsize"); err != nil {
 		st.Missing["hw.memsize"] = err.Error()
 	} else if v, ok := darwinsys.ParseUint64(b); ok {
@@ -239,78 +239,384 @@ func (c Collector) memory(st *Status) {
 		m.Present[procfs.FieldSwapFree] = true
 		m.Present[procfs.FieldSwapUsed] = true
 	} else {
-		st.Missing["vm.swapusage"] = "ответ не разбирается как struct xsw_usage — своп не показываем"
+		st.Missing["vm.swapusage"] = "ответ не читается как сведения о свопе — не показываем"
 	}
-	st.Memory = m
 
-	st.Missing[FactMemoryPages] = "свободная, активная, неактивная, сжатая и проводная память живёт в host_statistics64(HOST_VM_INFO64) — вызов Mach; из Go без cgo не делается. Всего и своп — измерены"
+	c.pages(st, &m)
+	st.Memory = m
 }
 
-func (c Collector) processes(st *Status) {
-	st.Missing[FactProcessRSS] = "занятая процессом память живёт в libproc (proc_pidinfo) и в порте задачи Mach — из Go без cgo не читается, поэтому десятки по памяти нет"
-	st.Missing[FactProcessArgs] = "командная строка живёт в sysctl KERN_PROCARGS2, а он требует довода-pid, которого syscall.Sysctl передать не умеет; показываем короткое имя из kinfo_proc"
-	st.Missing[FactThreads] = "число потоков процесса есть только в task_info Mach — в kinfo_proc его нет"
-	st.Missing[FactBlocked] = "непрерываемый сон в состояниях kinfo_proc не различается: маковский SSTOP — это остановленный, а не заблокированный"
+// pages fills the breakdown from host_statistics64, and is where the page
+// counts become bytes.
+//
+// Nothing is written into the snapshot until darwinsys.ParseVMStat64 has
+// checked the answer against the machine's own page count, which came from a
+// different source — hw.memsize and hw.pagesize.  Two sources agreeing is the
+// whole warrant for printing any of these numbers.
+func (c Collector) pages(st *Status, m *procfs.Memory) {
+	notes := func(why string) { st.Missing[FactMemoryPages] = why }
+
+	pageSize, err := syscall.SysctlUint32("hw.pagesize")
+	if err != nil || pageSize == 0 {
+		notes("без размера страницы разбивку памяти не пересчитать в байты")
+		return
+	}
+	if m.Total == 0 {
+		notes("без объёма памяти разбивку не с чем сверить")
+		return
+	}
+
+	b, err := libsystem.HostStatistics64(darwinsys.FlavorVMInfo64, darwinsys.VMInfo64Count)
+	if err != nil {
+		notes("ядро не дало разбивку памяти: " + err.Error())
+		return
+	}
+	v, ok := darwinsys.ParseVMStat64(b, m.Total/uint64(pageSize))
+	if !ok {
+		notes("разбивка памяти не сошлась с объёмом памяти машины — не публикуем")
+		return
+	}
+
+	p := uint64(pageSize)
+	// The kernel folds the read-ahead pages into its free count, so what is
+	// really free is what is left after taking them back out.
+	m.Free = v.TrulyFree() * p
+	m.Present[procfs.FieldFree] = true
+	// External pages are the ones backed by a file: the page cache, and the
+	// nearest thing macOS has to the buff/cache column of a Linux report.
+	m.BuffCache = v.External * p
+	m.Present[procfs.FieldBuffCache] = true
+	// Available and used are the two sides of one statement: memory that is
+	// neither free nor file cache is in use.  It is the same reading free(1)
+	// gives on Linux, and the report prints the arithmetic next to the
+	// number so nobody has to take it on trust.
+	m.Available = m.Free + m.BuffCache
+	m.Present[procfs.FieldAvailable] = true
+	if m.Available <= m.Total {
+		m.Used = m.Total - m.Available
+		m.Present[procfs.FieldUsed] = true
+	}
+	// Wired and compressed are what a Mac owner is used to seeing, and both
+	// are counts the kernel keeps itself.
+	m.Raw[procfs.RawWired] = v.Wired * p
+	m.Raw[procfs.RawCompressed] = v.Compressor * p
+	m.Raw[procfs.RawActive] = v.Active * p
+	m.Raw[procfs.RawInactive] = v.Inactive * p
+	m.Raw[procfs.RawSpeculative] = v.Speculative * p
+	m.Raw[procfs.RawPurgeable] = v.Purgeable * p
+	m.Raw[procfs.RawAnonymous] = v.Internal * p
+}
+
+// procSample is one process as one pass saw it.
+type procSample struct {
+	proc Proc
+	// cpuNanos is processor time consumed since the process started.  It is
+	// only set when proc_pidinfo answered, which for a process belonging to
+	// somebody else it will not.
+	cpuNanos uint64
+	detailed bool
+	// running says the process had at least one thread on a processor when
+	// it was read.
+	running bool
+	// at is when this process was read.  A pass over nine hundred processes
+	// is not instantaneous, so a CPU delta is divided by each process's own
+	// interval rather than by the nominal window.
+	at time.Time
+}
+
+// sample takes the whole time-dependent half of the snapshot: the machine's
+// busy share and every process, both measured across one window.
+func (c Collector) sample(st *Status) {
+	if c.SampleWindow <= 0 {
+		// Everything measured across a window is measured across no
+		// window at all, which is not a measurement.
+		st.Missing[FactCPUBusy] = "окно замера нулевое — доля занятого процессора не измерялась"
+		st.Missing[FactProcessCPU] = "окно замера нулевое — процессорное время процессов не измерялось"
+		if after, ok := c.snapProcesses(st, true); ok {
+			c.rank(st, nil, after)
+		}
+		return
+	}
+
+	ticksBefore, haveTicks := c.cpuTicks()
+	started := time.Now()
+	before, _ := c.snapProcesses(st, false)
+	time.Sleep(c.SampleWindow)
+	after, gotProcs := c.snapProcesses(st, true)
+
+	c.busyShare(st, ticksBefore, haveTicks, started)
+
+	if gotProcs {
+		c.rank(st, before, after)
+	}
+}
+
+// busyShare closes the CPU sample, waiting longer if the counters have not
+// moved yet.
+//
+// A machine whose processors did nothing at all in two hundred milliseconds
+// has counters that did not move, and there is nothing to divide by.  That is
+// not hypothetical: on a virtual Mac the tick counters advance in steps
+// coarser than the sample window, and a single window lands between two of
+// them about half the time.  Waiting out another window or two turns a dash
+// that means "the machine was idle" into the number the reader asked for,
+// and the window that is finally reported is the one that was really used.
+func (c Collector) busyShare(st *Status, before darwinsys.CPUTicks, have bool, started time.Time) {
+	if !have {
+		st.Missing[FactCPUBusy] = "ядро не дало счётчики процессорного времени"
+		return
+	}
+	for attempt := 0; ; attempt++ {
+		if now, ok := c.cpuTicks(); ok {
+			if share, ok := before.BusyShare(now); ok {
+				st.Load.BusyPercent = &share
+				st.Load.SampleMillis = time.Since(started).Milliseconds()
+				return
+			}
+		}
+		if attempt >= busyRetries {
+			st.Missing[FactCPUBusy] = "за окно замера счётчики процессора не сдвинулись"
+			return
+		}
+		time.Sleep(c.SampleWindow)
+	}
+}
+
+// busyRetries is how many extra windows the CPU sample may wait for the
+// counters to move.  Three is enough for the coarsest step seen on a virtual
+// Mac and still bounded: with the default window the whole snapshot cannot
+// grow past a second because of it.
+const busyRetries = 3
+
+// cpuTicks reads the machine-wide processor tick counters.
+func (c Collector) cpuTicks() (darwinsys.CPUTicks, bool) {
+	b, err := libsystem.HostStatistics(darwinsys.FlavorCPULoad, darwinsys.CPULoadCount)
+	if err != nil {
+		return darwinsys.CPUTicks{}, false
+	}
+	return darwinsys.ParseCPUTicks(b)
+}
+
+// snapProcesses reads the process table once.  The bool says whether anything
+// came back at all; report says whether the reasons for what is missing should
+// be written into the snapshot, so the first of two passes stays silent.
+func (c Collector) snapProcesses(st *Status, report bool) (map[int]procSample, bool) {
+	notes := func(key, why string) {
+		if report {
+			st.Missing[key] = why
+		}
+	}
 
 	b, err := sysctlGrowing("kern.proc.all", 3)
 	if err != nil {
-		st.Missing["kern.proc.all"] = err.Error()
-		return
+		notes("kern.proc.all", err.Error())
+		return nil, false
 	}
 	procs, ok := darwinsys.ParseProcs(b)
 	if !ok {
-		st.Missing["kern.proc.all"] = "ответ не делится на записи kinfo_proc — список процессов не публикуем"
-		return
+		notes("kern.proc.all", "ответ не делится на записи процессов — список не публикуем")
+		return nil, false
 	}
 	if !darwinsys.Verify(procs, os.Getpid(), os.Getppid(), os.Getuid()) {
-		st.Missing["kern.proc.all"] = "самопроверка записи kinfo_proc не сошлась: свой pid, родитель и пользователь читаются не там, где мы их ждём. Числа из такой записи не публикуем"
+		notes("kern.proc.all", "самопроверка записи о процессе не сошлась — числа из неё не публикуем")
+		return nil, false
+	}
+
+	// The self-check for the second source.  proc_pidinfo is asked about
+	// this very process first, and its answer is checked against what this
+	// process knows about itself: it is running, so it holds pages and has
+	// at least one thread.  Until that agrees, no process's memory is
+	// published — a table of misread numbers is worse than an empty one.
+	memTotal := st.Memory.Total
+	detailOK := memTotal > 0 && c.selfTaskInfo(memTotal)
+	if !detailOK && report {
+		st.Missing[FactProcessRSS] = "самопроверка памяти процессов не сошлась — их память и потоки не публикуем"
+		st.Missing[FactThreads] = "самопроверка памяти процессов не сошлась — их память и потоки не публикуем"
+	}
+
+	out := make(map[int]procSample, len(procs))
+	denied := 0
+	for _, p := range procs {
+		s := procSample{
+			at: time.Now(),
+			proc: Proc{
+				PID: p.PID, PPID: p.PPID, UID: p.UID,
+				State: p.State, Comm: p.Comm,
+			},
+		}
+		if detailOK {
+			if ti, ok := taskInfo(p.PID, memTotal); ok {
+				s.proc.RSSBytes = int64(ti.ResidentBytes)
+				s.proc.VSizeBytes = ti.VirtualBytes
+				s.proc.Threads = ti.Threads
+				s.cpuNanos = ti.CPUNanos
+				s.running = ti.Running > 0
+				s.detailed = true
+			} else {
+				denied++
+			}
+		}
+		out[p.PID] = s
+	}
+
+	if report {
+		st.Processes.Total = len(procs)
+		// How many processes are running is counted in rank, from the
+		// thread counts: the scheduler state in a process record says
+		// "runnable" for every process that is merely alive, and counting
+		// by it reported the whole list as running.
+		if !detailOK {
+			st.Missing[FactRunning] = "сколько процессов работает прямо сейчас, видно только по их потокам"
+		}
+		// A process belonging to another user is not a process we failed
+		// to read: the kernel refused on purpose, and it refuses the same
+		// way to every tool that is not the administrator.
+		if detailOK && denied > 0 {
+			st.Missing[FactOtherUsers] = "память, потоки и командные строки чужих процессов видны только администратору — запустите под sudo"
+		}
+		// The scheduler state macOS keeps in a process record does not
+		// separate uninterruptible sleep from ordinary sleep.
+		st.Missing[FactBlocked] = "macOS не различает заблокированные процессы среди спящих"
+	}
+	return out, true
+}
+
+// selfTaskInfo is the run-time proof that struct proc_taskinfo is laid out the
+// way darwinsys describes it.  This process is running, so it holds resident
+// pages and has threads; a decoder reading the wrong offsets does not produce
+// a small plausible pair of numbers on a live process, it produces nonsense
+// that ParseTaskInfo refuses.
+func (c Collector) selfTaskInfo(memTotal uint64) bool {
+	ti, ok := taskInfo(os.Getpid(), memTotal)
+	return ok && ti.ResidentBytes > 0 && ti.Threads >= 1
+}
+
+func taskInfo(pid int, memTotal uint64) (darwinsys.TaskInfo, bool) {
+	b, err := libsystem.ProcTaskInfo(pid, darwinsys.TaskInfoFlavor, darwinsys.TaskInfoSize)
+	if err != nil {
+		return darwinsys.TaskInfo{}, false
+	}
+	return darwinsys.ParseTaskInfo(b, memTotal)
+}
+
+// rank turns two passes into the two lists the report prints.
+func (c Collector) rank(st *Status, before, after map[int]procSample) {
+	procs := make([]Proc, 0, len(after))
+	detailed := 0
+	for pid, s := range after {
+		if s.detailed {
+			detailed++
+			st.Processes.Threads += s.proc.Threads
+			if s.running {
+				st.Processes.Running++
+			}
+		}
+		if b, ok := before[pid]; ok && b.detailed && s.detailed {
+			window := s.at.Sub(b.at).Seconds()
+			if window > 0 && s.cpuNanos >= b.cpuNanos {
+				pct := float64(s.cpuNanos-b.cpuNanos) / 1e9 * 100 / window
+				s.proc.CPUPercent = &pct
+			}
+		}
+		procs = append(procs, s.proc)
+	}
+	st.Processes.WithDetail = detailed
+	if detailed == 0 {
+		if _, named := st.Unmeasured(FactProcessCPU); !named {
+			st.Missing[FactProcessCPU] = "без памяти процессов их процессорное время тоже не публикуем"
+		}
 		return
 	}
 
-	st.Processes.Total = len(procs)
+	byMem := make([]Proc, 0, len(procs))
 	for _, p := range procs {
-		if p.State == darwinsys.StateRunning {
-			st.Processes.Running++
+		if p.RSSBytes > 0 || p.Threads > 0 {
+			byMem = append(byMem, p)
 		}
 	}
+	sort.Slice(byMem, func(i, j int) bool {
+		if byMem[i].RSSBytes != byMem[j].RSSBytes {
+			return byMem[i].RSSBytes > byMem[j].RSSBytes
+		}
+		return byMem[i].PID < byMem[j].PID
+	})
+	st.Processes.TopByMemory = head(byMem, c.Top)
 
-	// p_pctcpu is a leftover of BSD accounting, and a kernel that no longer
-	// keeps it leaves it zero for everybody.  A column of zeros is not a
-	// measurement, so it is published only when somebody in the list is
-	// busy — and then only if the numbers stay inside what the machine can
-	// physically do.
-	if !darwinsys.AnyCPU(procs) {
-		st.Missing[FactProcessCPU] = "ядро не заполняет p_pctcpu в kinfo_proc (ноль у всех процессов) — десятки по процессору нет"
-		return
-	}
-	ceiling := 100 * float64(max(st.Load.CPUCount, 1))
-	out := make([]Proc, 0, len(procs))
-	for _, p := range procs {
-		if p.PctCPU > ceiling+1 {
-			st.Missing[FactProcessCPU] = "p_pctcpu показал больше, чем машина может занять всеми ядрами, — такой записи не верим и десятку по процессору не публикуем"
-			return
-		}
-		pct := p.PctCPU
-		out = append(out, Proc{
-			PID: p.PID, PPID: p.PPID, UID: p.UID, State: p.State,
-			Comm: p.Comm, CPUPercent: &pct,
-		})
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if a, b := cpuOrZero(out[i]), cpuOrZero(out[j]); a != b {
+	byCPU := append([]Proc(nil), procs...)
+	sort.Slice(byCPU, func(i, j int) bool {
+		if a, b := cpuOrZero(byCPU[i]), cpuOrZero(byCPU[j]); a != b {
 			return a > b
 		}
-		return out[i].PID < out[j].PID
+		return byCPU[i].PID < byCPU[j].PID
 	})
-	st.Processes.TopByCPU = head(out, c.Top)
-	// Names are looked up for the listed processes only.  In a build
-	// without cgo os/user reads /etc/passwd, which on macOS holds the
-	// system accounts and not the human ones, so this often stays empty —
-	// and an empty name prints as "—", not as a wrong one.
-	for i := range st.Processes.TopByCPU {
-		if u, err := user.LookupId(strconv.Itoa(st.Processes.TopByCPU[i].UID)); err == nil {
-			st.Processes.TopByCPU[i].User = u.Username
+	if len(byCPU) > 0 && byCPU[0].CPUPercent == nil {
+		if _, named := st.Unmeasured(FactProcessCPU); !named {
+			st.Missing[FactProcessCPU] = "ни один процесс не прожил всё окно замера"
 		}
+		st.Processes.TopByCPU = nil
+	} else {
+		st.Processes.TopByCPU = head(byCPU, c.Top)
+	}
+
+	// The command line reader checks itself once, so it is built once and
+	// handed to both lists.
+	args := argsReader(st)
+	describe(args, st.Processes.TopByMemory)
+	describe(args, st.Processes.TopByCPU)
+}
+
+// describe fills in the command line and the user name of the processes that
+// made it into a list — and only those.  Asking the kernel for nine hundred
+// argument blocks to print twenty of them would cost a megabyte of copying per
+// process for nothing.
+func describe(args func(int) (string, bool), list []Proc) {
+	for i := range list {
+		if u, err := user.LookupId(strconv.Itoa(list[i].UID)); err == nil {
+			list[i].User = u.Username
+		}
+		if args != nil {
+			if line, ok := args(list[i].PID); ok {
+				list[i].Cmdline = line
+			}
+		}
+	}
+}
+
+// argsReader returns a function that reads one process's command line, or nil
+// when command lines are not to be published at all.
+//
+// The self-check is the strongest one in this file, and it is worth saying why
+// it is strong: the argument block of this very process is decoded and then
+// compared, string by string, with os.Args — which the Go runtime received
+// from the same kernel by a completely different road.  Two roads agreeing on
+// every word of a real command line is not something a misread layout does.
+//
+// The check runs once per snapshot, and its result is cached in the closure.
+func argsReader(st *Status) func(int) (string, bool) {
+	argmax, err := syscall.SysctlUint32("kern.argmax")
+	if err != nil || argmax == 0 {
+		st.Missing[FactProcessArgs] = "ядро не назвало предельный размер блока аргументов"
+		return nil
+	}
+	read := func(pid int) ([]string, bool) {
+		b, err := libsystem.SysctlRaw(darwinsys.ArgsMIB(pid), int(argmax))
+		if err != nil {
+			return nil, false
+		}
+		_, argv, ok := darwinsys.ParseProcArgs2(b)
+		return argv, ok
+	}
+	mine, ok := read(os.Getpid())
+	if !ok || !darwinsys.SameArgv(mine, os.Args) {
+		st.Missing[FactProcessArgs] = "самопроверка командной строки не сошлась — чужих командных строк не публикуем"
+		return nil
+	}
+	return func(pid int) (string, bool) {
+		argv, ok := read(pid)
+		if !ok || len(argv) == 0 {
+			return "", false
+		}
+		return strings.Join(argv, " "), true
 	}
 }
 
@@ -372,12 +678,12 @@ func (c Collector) network(st *Status) []Iface {
 
 	counters := map[int]darwinsys.IfCounters{}
 	if b, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, 0); err != nil {
-		st.Missing[FactNetCounters] = "список интерфейсов маршрутного сокета не прочитался: " + err.Error()
+		st.Missing[FactNetCounters] = "список интерфейсов не прочитался: " + err.Error()
 	} else if got := darwinsys.ParseIfList2(b); darwinsys.VerifyIfList(got, mtus) {
 		counters = got
-		st.Missing[FactNetTxDrops] = "в struct if_data64 нет счётчика отброшенных исходящих пакетов — tx_dropped остаётся пустым"
+		st.Missing[FactNetTxDrops] = "macOS не считает отброшенные исходящие пакеты"
 	} else {
-		st.Missing[FactNetCounters] = "разбор struct if_data64 не сошёлся с MTU, который система называет сама, — счётчиков не публикуем"
+		st.Missing[FactNetCounters] = "самопроверка счётчиков интерфейсов не сошлась — не публикуем"
 	}
 
 	addrs := interfaceAddresses()
