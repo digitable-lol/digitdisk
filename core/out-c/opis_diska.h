@@ -1,5 +1,5 @@
 /*
- * Сгенерировано flang (бэкенд C, flang/src/emit/c.mjs). Не редактировать руками.
+ * Сгенерировано flang (бэкенд C, flang/self/emit-c.flang). Не редактировать руками.
  * Модуль flang: «Опись диска».
  * Файл: объявления: конструкторы значений и функции программы.
  * Правьте исходник на flang и печатайте заново: любая правка здесь потеряется.
@@ -95,6 +95,80 @@ fl_status opis_diska_porog_zhurnala(fl_ctx *ctx, fl_value *result, fl_error *err
 fl_status opis_diska_porog_zagruzki(fl_ctx *ctx, fl_value *result, fl_error *error);
 
 /*
+ * Функция flang «Составляющие пути».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @return значение: список: строка
+ */
+fl_status opis_diska_sostavlyayuschie_puti(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Имя в пути».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @return значение: строка
+ */
+fl_status opis_diska_imya_v_puti(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Есть составляющая».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @param imya — «имя»: строка
+ * @return значение
+ */
+fl_status opis_diska_est_sostavlyayuschaya(fl_ctx *ctx, fl_value put, fl_value imya, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Оканчивается на».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param tekst — «текст»: строка
+ * @param hvost — «хвост»: строка
+ * @return значение
+ */
+fl_status opis_diska_okanchivaetsya_na(fl_ctx *ctx, fl_value tekst, fl_value hvost, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Шестнадцатеричный знак».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param znak — «знак»: строка
+ * @return значение
+ */
+fl_status opis_diska_shestnadcaterichnyy_znak(fl_ctx *ctx, fl_value znak, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Похоже на отпечаток».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param chast — «часть»: строка
+ * @return значение
+ */
+fl_status opis_diska_pohozhe_na_otpechatok(fl_ctx *ctx, fl_value chast, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Адресуется содержимым».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @return значение
+ */
+fl_status opis_diska_adresuetsya_soderzhimym(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Под системным временным».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @return значение
+ */
+fl_status opis_diska_pod_sistemnym_vremennym(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error);
+
+/*
  * Функция flang «Примета кэша».
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
@@ -129,6 +203,24 @@ fl_status opis_diska_primeta_sborki(fl_ctx *ctx, fl_value put, fl_value *result,
  * @return значение
  */
 fl_status opis_diska_primeta_zagruzki(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Есть примета».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @return значение
+ */
+fl_status opis_diska_est_primeta(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Разряд решён размером».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param razryad — «разряд»: «Разряд»
+ * @return значение
+ */
+fl_status opis_diska_razryad_reshyon_razmerom(fl_ctx *ctx, fl_value razryad, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «Разряд находки».
@@ -414,5 +506,21 @@ fl_status opis_diska_ves_obosnovan(fl_ctx *ctx, fl_value nahodka, fl_value prigo
  */
 fl_status opis_diska_call(fl_ctx *ctx, const char *name, const fl_value *args, size_t count,
                     fl_value *result, fl_error *error);
+
+/*
+ * ТО ЖЕ, НО ЧЕРЕЗ ГРАНИЦУ ВХОДА: объявленные типы сверяются ДО вызова.
+ * Значения, пришедшие снаружи — из JSON, из другого языка, от человека, —
+ * обязаны заходить ЗДЕСЬ: `_call` их не сверяет, а доказательство завершения
+ * `тотальной` стоит НА ТИПЕ и вместе с типом теряется.
+ */
+fl_status opis_diska_enter(fl_ctx *ctx, const char *name, const fl_value *args, size_t count,
+                    fl_value *result, fl_error *error);
+
+/*
+ * Объявленные типы параметров — данными. Прогонщик сверяет по ним значения,
+ * пришедшие снаружи, ДО вызова: доказательство завершения `тотальной` стоит
+ * на типе, и значение вне типа выносит вместе с типом и доказательство.
+ */
+const fl_entry_table *opis_diska_entry(void);
 
 #endif /* OPIS_DISKA_H */

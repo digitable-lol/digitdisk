@@ -1,7 +1,10 @@
-// Сгенерировано flang (бэкенд Go, flang/src/emit/go.mjs). Не редактировать руками.
+// Сгенерировано flang (бэкенд Go, flang/self/emit-go.flang). Не редактировать руками.
 // Модуль flang: «Опись диска».
 // Файл: рантайм: значения, числа, строки, диагностики.
 // Правьте исходник на flang и печатайте заново: любая правка здесь потеряется.
+
+// SPDX-FileCopyrightText: 2026 Digitable (Marat Zimnurov)
+// SPDX-License-Identifier: BSD-2-Clause
 
 // Рантайм flang для бэкенда Go.
 //
@@ -114,6 +117,28 @@ type Field struct {
 	Value Value
 }
 
+// Grow — общая на все копии массива отметка «сколько ячеек уже занято».
+//
+// Нужна ровно одному месту — «добавить» (см. BAppend): без неё накопление
+// списка n вызовами стоит O(n²), потому что каждый вызов копирует весь список.
+// Это не теория: точка сетки «Строить скобки» от 42 и 0 и 0 и "" и [] при
+// объявленном пределе 5 000 000 шагов не отвечала и за 60 с — то есть предел
+// шагов переставал быть сроком. Тот же приём и по той же причине стоит в
+// бэкендах C (fl_b_dobavit) и Rust (Items::grown).
+//
+// Инвариант, он же доказательство неизменяемости: Filled только растёт, и
+// занять ячейку Filled вправе единственный список — тот, чей конец совпал с
+// Filled. Значит ячейки внутри списка не пишет никто, а ячейка за концом
+// занимается не более одного раза за жизнь массива: второе «добавить» к тому же
+// значению видит Filled больше своего конца и уходит на копию.
+type Grow struct {
+	// Total — ёмкость исходного выделения: по ней и по cap среза считается,
+	// на каком месте массива этот срез начинается.
+	Total int
+	// Filled — сколько ячеек массива уже занято.
+	Filled int
+}
+
 // Value — значение flang. Ровно одно представление на все виды: см. шапку файла.
 type Value struct {
 	Tag    Tag
@@ -122,6 +147,11 @@ type Value struct {
 	Str    string // строка либо имя варианта
 	List   []Value
 	Fields []Field
+	// Grow — отметка занятого у общего массива; nil, если запаса нет. Живёт
+	// только у списков, которые выдало «добавить»: срез чужого массива
+	// («хвост», литерал, отобразить) её не наследует, и продлить его на месте
+	// нельзя — только копией.
+	Grow *Grow
 }
 
 // Nothing возвращает «ничто».
@@ -546,6 +576,10 @@ func Trampoline(ctx *Ctx, step StepFunc, args []Value, function string) (Value, 
 // FieldGet — доступ к полю записи.
 func FieldGet(ctx *Ctx, target Value, name string) (Value, error) {
 	if target.Tag == TagVariant {
+		// Поле СУММЫ ИЗ ОДНОГО ВАРИАНТА. Что вариант ровно один, проверила проверка типов, поэтому сюда приезжает значение, у которого поле есть. Отказ ниже остаётся прежним: он про сумму из двух и более.
+		if value, found := lookup(target.Fields, name); found {
+			return value, nil
+		}
 		return Nothing(), Fail(CodeType,
 			"поле «%s» нельзя взять у варианта «%s» — нужен разбор", name, target.Str)
 	}
@@ -595,6 +629,23 @@ func Post(ctx *Ctx, value Value, property, function string) (bool, error) {
 	if value.Tag != TagFlag {
 		return false, Fail(CodeType,
 			"постусловие «%s» функции «%s» должно давать признак, получено %s",
+			property, function, TypeName(value))
+	}
+	return value.Flag, nil
+}
+
+// Pre — значение предусловия: обязано быть признаком.
+//
+// Отдельно от Post, а не тот же помощник со вторым текстом: слова отказа
+// дословно те же, что у интерпретатора (checkPreconditions в
+// flang/src/interpret.mjs), и одно сообщение на две разные вещи разошлось бы
+// молча. Зовёт это ТОЛЬКО дверь программы — вызов по имени (Call): внутри
+// программы предусловие снял вызывающий на проверке, и проверять его там
+// значило бы платить временем за доказанное.
+func Pre(ctx *Ctx, value Value, property, function string) (bool, error) {
+	if value.Tag != TagFlag {
+		return false, Fail(CodeType,
+			"предусловие «%s» функции «%s» должно давать признак, получено %s",
 			property, function, TypeName(value))
 	}
 	return value.Flag, nil
@@ -840,6 +891,64 @@ func BSubstring(ctx *Ctx, text, from, to Value) (Value, error) {
 	return Text(string(runes[int(begin):int(end)])), nil
 }
 
+// ── Одна мера: где начинается знак ──────────────────────────────────────────
+//
+// «длина», «подстрока», «символ» и «разложить … на символы» ходят по []rune, а
+// strings.Contains, strings.HasPrefix и strings.Split — по октетам. На
+// правильном UTF-8 это одно и то же, а на неправильном — нет, и неправильный
+// сюда приезжает: строка Go это произвольные октеты. Замер библиотечным входом
+// 22 августа 2026: «мама» содержит октет D0 — true, начинается с него — true,
+// разделить по нему — пять кусков, хотя знаков в «маме» четыре и ни один из них
+// этому октету не равен.
+//
+// Поэтому вхождение засчитывается, только если оба его края стоят на начале
+// руны — на том самом делении, по которому строку режет []rune.
+func runeStarts(source string) []bool {
+	starts := make([]bool, len(source)+1)
+	for index := range source {
+		starts[index] = true
+	}
+	starts[len(source)] = true
+	return starts
+}
+
+// findAligned — первое вхождение, не разрезающее знак ни началом, ни концом.
+func findAligned(source, part string, from int) int {
+	if part == "" {
+		return from
+	}
+	starts := runeStarts(source)
+	for index := from; index+len(part) <= len(source); index++ {
+		if starts[index] && starts[index+len(part)] && source[index:index+len(part)] == part {
+			return index
+		}
+	}
+	return -1
+}
+
+// splitAligned — разделение по тем же границам, что у поиска.
+func splitAligned(source, mark string) []string {
+	parts := []string{}
+	from := 0
+	for {
+		at := findAligned(source, mark, from)
+		if at < 0 {
+			break
+		}
+		parts = append(parts, source[from:at])
+		from = at + len(mark)
+	}
+	return append(parts, source[from:])
+}
+
+// glueFuses — слипнутся ли на стыке два знака в один. Считается прямо: мера
+// склейки против суммы мер. Склейка и так копирует обе строки, поэтому лишний
+// проход её порядка не меняет.
+func glueFuses(left, right string) bool {
+	return utf8.RuneCountInString(left+right) !=
+		utf8.RuneCountInString(left)+utf8.RuneCountInString(right)
+}
+
 // BJoin — «соединить». Две формы: строка со строкой и список с разделителем;
 // различаются по типу первого аргумента, как в builtins.mjs.
 func BJoin(ctx *Ctx, left, right Value) (Value, error) {
@@ -857,6 +966,27 @@ func BJoin(ctx *Ctx, left, right Value) (Value, error) {
 			}
 			parts[index] = item.Str
 		}
+		tail := ""
+		for index, part := range parts {
+			if index != 0 {
+				if glueFuses(tail, separator) {
+					return Nothing(), Fail(CodeBuiltinArgs,
+						"«соединить»: на стыке октет продолжения прирос бы к последнему знаку "+
+							"левой строки — два знака слились бы в один")
+				}
+				if separator != "" {
+					tail = separator
+				}
+			}
+			if glueFuses(tail, part) {
+				return Nothing(), Fail(CodeBuiltinArgs,
+					"«соединить»: на стыке октет продолжения прирос бы к последнему знаку "+
+						"левой строки — два знака слились бы в один")
+			}
+			if part != "" {
+				tail = part
+			}
+		}
 		return Text(strings.Join(parts, separator)), nil
 	}
 	first, err := expectString("соединить", left, "первая строка")
@@ -866,6 +996,11 @@ func BJoin(ctx *Ctx, left, right Value) (Value, error) {
 	second, err := expectString("соединить", right, "вторая строка")
 	if err != nil {
 		return Nothing(), err
+	}
+	if glueFuses(first, second) {
+		return Nothing(), Fail(CodeBuiltinArgs,
+			"«соединить»: на стыке октет продолжения прирос бы к последнему знаку левой "+
+				"строки — два знака слились бы в один")
 	}
 	return Text(first + second), nil
 }
@@ -883,12 +1018,59 @@ func BSplit(ctx *Ctx, text, separator Value) (Value, error) {
 	if mark == "" {
 		return Nothing(), Fail(CodeBuiltinArgs, "«разделить»: разделитель не может быть пустым")
 	}
-	parts := strings.Split(source, mark)
+	parts := splitAligned(source, mark)
 	items := make([]Value, len(parts))
 	for index, part := range parts {
 		items[index] = Text(part)
 	}
 	return List(items), nil
+}
+
+// ── Доказанный путь четырёх форм: то же действие без сторожа частичности ────
+//
+// Частичная форма отказывает не всегда, а на пустом. Там, где непустота
+// ДОКАЗАНА проверкой типов (flang/src/types.mjs, «длинаНиз»), узел приезжает с
+// отметкой «доказана», и печать зовёт эти функции. Сверка типа остаётся:
+// expectList ловит не пустоту, а другой вид значения.
+func BSplitProven(ctx *Ctx, text, separator Value) (Value, error) {
+	source, err := expectString("разделить", text, "строка")
+	if err != nil {
+		return Nothing(), err
+	}
+	mark, err := expectString("разделить", separator, "разделитель")
+	if err != nil {
+		return Nothing(), err
+	}
+	parts := splitAligned(source, mark)
+	items := make([]Value, len(parts))
+	for index, part := range parts {
+		items[index] = Text(part)
+	}
+	return List(items), nil
+}
+
+func BCharCodeProven(ctx *Ctx, text Value) (Value, error) {
+	source, err := expectString("код символа", text, "строка")
+	if err != nil {
+		return Nothing(), err
+	}
+	return Number(float64([]rune(source)[0])), nil
+}
+
+func BHeadProven(ctx *Ctx, value Value) (Value, error) {
+	items, err := expectList("голова", value, "аргумент")
+	if err != nil {
+		return Nothing(), err
+	}
+	return items[0], nil
+}
+
+func BTailProven(ctx *Ctx, value Value) (Value, error) {
+	items, err := expectList("хвост", value, "аргумент")
+	if err != nil {
+		return Nothing(), err
+	}
+	return List(items[1:]), nil
 }
 
 // BCharacters — «символы»: разложение строки в список односимвольных строк.
@@ -925,6 +1107,28 @@ func BCharCode(ctx *Ctx, text Value) (Value, error) {
 	return Number(float64(runes[0])), nil
 }
 
+// BCharFromCode — «символ по коду»: строка ровно из одного символа.
+//
+// string(rune(...)) годится только ПОСЛЕ обеих проверок: на непригодной руне
+// Go молча подставляет U+FFFD, то есть портит данные вместо отказа. Суррогат
+// отвергается потому, что строка Go — UTF-8, и половина пары в неё не
+// записывается; тот же отказ дают все восемь целей.
+func BCharFromCode(ctx *Ctx, code Value) (Value, error) {
+	point, err := expectInteger("символ по коду", code, "код")
+	if err != nil {
+		return Nothing(), err
+	}
+	if point < 0 || point > 1114111 {
+		return Nothing(), Fail(CodeBuiltinArgs,
+			"«символ по коду»: код %s вне диапазона Unicode [0, 1114111]", NumberText(point))
+	}
+	if point >= 55296 && point <= 57343 {
+		return Nothing(), Fail(CodeBuiltinArgs,
+			"«символ по коду»: код %s — половина суррогатной пары, а не символ", NumberText(point))
+	}
+	return Text(string(rune(int32(point)))), nil
+}
+
 // BContains — «содержит»: подстрока в строке либо значение в списке.
 func BContains(ctx *Ctx, left, right Value) (Value, error) {
 	if left.Tag == TagList {
@@ -943,7 +1147,7 @@ func BContains(ctx *Ctx, left, right Value) (Value, error) {
 	if err != nil {
 		return Nothing(), err
 	}
-	return Flag(strings.Contains(source, part)), nil
+	return Flag(findAligned(source, part, 0) >= 0), nil
 }
 
 // BStartsWith — «начинается с».
@@ -956,7 +1160,11 @@ func BStartsWith(ctx *Ctx, text, prefix Value) (Value, error) {
 	if err != nil {
 		return Nothing(), err
 	}
-	return Flag(strings.HasPrefix(source, start)), nil
+	if !strings.HasPrefix(source, start) {
+		return Flag(false), nil
+	}
+	// Левый край у префикса и у строки один, сторожится правый.
+	return Flag(runeStarts(source)[len(start)]), nil
 }
 
 // isJSSpace — пробел по правилам ECMAScript String.prototype.trim.
@@ -1146,16 +1354,57 @@ func BTail(ctx *Ctx, value Value) (Value, error) {
 }
 
 // BAppend — «добавить … к …»: дописывает в конец, исходный список не меняется.
-// Копия обязательна: «хвост» отдаёт срез чужого массива, и append дописал бы в
-// него, испортив значение, на которое ещё кто-то смотрит.
+//
+// За постоянное время, когда ячейка за концом ещё ничья, и копией во всех
+// остальных случаях. Разбор приёма и доказательство неизменяемости — при типе
+// Grow. Безусловная копия была верна, но делала накопление списка квадратичным,
+// а вместе с ним и предел шагов — не сроком, а числом на бумаге.
+//
+// Голый append(items, item) здесь недопустим: срез чужого массива с запасом
+// дописал бы в чужую ячейку, и два «добавить» от одного списка испортили бы
+// друг друга. Разрешение спрашивается у Grow, а не у cap.
 func BAppend(ctx *Ctx, item, value Value) (Value, error) {
 	items, err := expectList("добавить", value, "второй аргумент")
 	if err != nil {
 		return Nothing(), err
 	}
-	result := make([]Value, len(items)+1)
+	if grow := value.Grow; grow != nil {
+		// Начало среза в массиве: ёмкость исходного выделения минус ёмкость,
+		// оставшаяся от этого места до конца.
+		start := grow.Total - cap(items)
+		end := start + len(items)
+		if end == grow.Filled && end < grow.Total {
+			grown := items[:len(items)+1]
+			grown[len(items)] = item
+			grow.Filled = end + 1
+			return Value{Tag: TagList, List: grown, Grow: grow}, nil
+		}
+	}
+	// Копия — с запасом, чтобы следующие «добавить» шли уже на месте. Запас
+	// равен длине, то есть массив удваивается: за n «добавить» перевыделений
+	// log₂n, а не n.
+	capacity := 2 * (len(items) + 1)
+	result := make([]Value, len(items)+1, capacity)
 	copy(result, items)
 	result[len(items)] = item
+	return Value{Tag: TagList, List: result, Grow: &Grow{Total: capacity, Filled: len(result)}}, nil
+}
+
+// BPrepend — «приписать … к …»: тот же список с элементом впереди.
+// Копия, и постоянного времени здесь быть не может: срез Go не умеет смотреть на
+// ячейку ПЕРЕД своим началом, поэтому запаса спереди в нём не завести — для этого
+// список пришлось бы представлять не срезом, а записью с общим буфером. Зато
+// копия ОДНА на вызов, а не одна на элемент, как у свёртки, которой приписывание
+// в начало писали до появления формы. Цена по всем восьми целям — в SPEC, раздел
+// «Стоимость встроенных форм».
+func BPrepend(ctx *Ctx, item, value Value) (Value, error) {
+	items, err := expectList("приписать", value, "второй аргумент")
+	if err != nil {
+		return Nothing(), err
+	}
+	result := make([]Value, len(items)+1)
+	result[0] = item
+	copy(result[1:], items)
 	return List(result), nil
 }
 
@@ -1183,4 +1432,235 @@ func BPercentOf(ctx *Ctx, left, right Value) (Value, error) {
 		return Nothing(), err
 	}
 	return Number((percent / 100) * value), nil
+}
+
+// ───────────────────────────── граница входа ─────────────────────────────
+//
+// Объявленные типы параметров — ДАННЫМИ. Прогонщик сверяет по ним значения,
+// пришедшие снаружи, ДО вызова функции.
+//
+// Зачем это здесь, а не в самих функциях. Доказательство завершения
+// `тотальной` стоит НА ТИПЕ: у `неотрицательное` есть дно 0 и потолок 2^53−1, ниже
+// которого `н минус 1` точно меньше `н`, и сторож убывания в такую функцию не
+// печатается вовсе. Значение вне типа выносит вместе с типом и доказательство:
+// `1e300 минус 1` равно `1e300`, цепочка вечна, а ловить её нечем. Поэтому
+// дверь одна и стоит она ДО вычисления.
+//
+// Таблицу печатает бэкенд вместе с программой (`Entry`), а строит её
+// `flang/src/types.mjs` (`таблицаВхода`) — тем же пониманием слов «значение
+// подходит типу», каким сверяется `flang run --args`.
+
+// TypeKind — вид объявленного типа.
+type TypeKind uint8
+
+// Виды объявленного типа. TypeUnknown — значение-функция, параметр
+// полиморфизма и применение типа с аргументами: одной таблицы им мало, и они
+// не сверяются вовсе.
+const (
+	TypeUnknown TypeKind = iota
+	TypeNumber
+	TypeText
+	TypeFlag
+	TypeNull
+	TypeList
+	TypeRecord
+	TypeSum
+)
+
+// TypeField — поле записи или варианта: имя и место его типа в таблице типов.
+type TypeField struct {
+	Name string
+	Type int
+}
+
+// TypeVariant — вариант суммы: имя дискриминанта и отрезок его полей.
+type TypeVariant struct {
+	Name       string
+	FieldFrom  int
+	FieldCount int
+}
+
+// Type — объявленный тип. Поля и варианты лежат сплошными отрезками общих
+// массивов, а тип называет своё начало и длину.
+type Type struct {
+	Kind         TypeKind
+	Name         string // печатное имя типа: «неотрицательное», «список числа»
+	Owner        string // имя записи или суммы без кавычек — для текстов о полях
+	Optional     bool   // «… или ничто»: отсутствие значения законно
+	Integral     bool
+	Bounded      bool // есть ли конечный отрезок (у `число` его нет)
+	Low          float64
+	High         float64
+	Of           int // тип элемента списка
+	FieldFrom    int
+	FieldCount   int
+	VariantFrom  int
+	VariantCount int
+}
+
+// EntryParam — параметр функции: чей он, как называется и какого он типа.
+type EntryParam struct {
+	Function string
+	Name     string
+	Type     int
+}
+
+// EntryTable — граница входа программы целиком.
+type EntryTable struct {
+	Types    []Type
+	Fields   []TypeField
+	Variants []TypeVariant
+	Params   []EntryParam
+}
+
+func checkNumberType(spec *Type, value Value, label string) error {
+	if value.Tag != TagNumber || math.IsNaN(value.Num) || math.IsInf(value.Num, 0) {
+		return Fail(CodeType, "%s не соответствует типу %s", label, spec.Name)
+	}
+	// Целость проверяется ДО отрезка и на ней же кончается: у свидетеля тот же
+	// порядок, и второй отказ на одном значении был бы вторым текстом про одну беду.
+	if spec.Integral && math.Floor(value.Num) != value.Num {
+		return Fail(CodeType, "%s: %s не целое, а тип %s — целый", label, NumberText(value.Num), spec.Name)
+	}
+	if spec.Bounded && (value.Num < spec.Low || value.Num > spec.High) {
+		return Fail(CodeType, "%s: %s вне %s", label, NumberText(value.Num), spec.Name)
+	}
+	return nil
+}
+
+func checkFields(table *EntryTable, from, count int, given []Field, label, owner string, ofVariant bool) error {
+	for index := 0; index < count; index++ {
+		declared := table.Fields[from+index]
+		found := -1
+		for at, field := range given {
+			if field.Name == declared.Name {
+				found = at
+				break
+			}
+		}
+		if found < 0 {
+			// Необязательное поле можно не задавать: отсутствие — это «ничто».
+			if table.Types[declared.Type].Optional {
+				continue
+			}
+			if ofVariant {
+				return Fail(CodeType, "%s: вариант «%s» требует поле «%s»", label, owner, declared.Name)
+			}
+			return Fail(CodeType, "%s: не задано поле «%s» записи «%s»", label, declared.Name, owner)
+		}
+		inner := fmt.Sprintf("%s.%s", label, declared.Name)
+		if err := checkTyped(table, declared.Type, given[found].Value, inner); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkTyped(table *EntryTable, index int, value Value, label string) error {
+	if index < 0 || index >= len(table.Types) {
+		return nil
+	}
+	spec := &table.Types[index]
+	// Необязательный аргумент можно не задавать: отсутствие — это «ничто», а не
+	// пропуск. Так же считает и ядро FTS.
+	if spec.Optional && value.Tag == TagNothing {
+		return nil
+	}
+	mismatch := func() error {
+		return Fail(CodeType, "%s не соответствует типу %s", label, spec.Name)
+	}
+	switch spec.Kind {
+	case TypeNumber:
+		return checkNumberType(spec, value, label)
+	case TypeText:
+		if value.Tag != TagString {
+			return mismatch()
+		}
+	case TypeFlag:
+		if value.Tag != TagFlag {
+			return mismatch()
+		}
+	case TypeNull:
+		if value.Tag != TagNothing {
+			return mismatch()
+		}
+	case TypeList:
+		if value.Tag != TagList {
+			return mismatch()
+		}
+		for at, item := range value.List {
+			if err := checkTyped(table, spec.Of, item, fmt.Sprintf("%s[%d]", label, at)); err != nil {
+				return err
+			}
+		}
+	case TypeRecord:
+		if value.Tag != TagRecord {
+			return mismatch()
+		}
+		if err := checkFields(table, spec.FieldFrom, spec.FieldCount, value.Fields, label, spec.Owner, false); err != nil {
+			return err
+		}
+		// Лишнее поле — тоже несоответствие типу: запись flang тотальна, и поля
+		// сверх объявленных в ней взяться неоткуда.
+		for _, field := range value.Fields {
+			declared := false
+			for at := 0; at < spec.FieldCount; at++ {
+				if table.Fields[spec.FieldFrom+at].Name == field.Name {
+					declared = true
+					break
+				}
+			}
+			if !declared {
+				return Fail(CodeType, "%s: запись «%s» не имеет поля «%s»", label, spec.Owner, field.Name)
+			}
+		}
+	case TypeSum:
+		if value.Tag != TagVariant && value.Tag != TagRecord {
+			return mismatch()
+		}
+		found := -1
+		if value.Tag == TagVariant {
+			for at := 0; at < spec.VariantCount; at++ {
+				if table.Variants[spec.VariantFrom+at].Name == value.Str {
+					found = spec.VariantFrom + at
+					break
+				}
+			}
+		}
+		if found < 0 {
+			return Fail(CodeType, "%s: ожидался вариант типа «%s»", label, spec.Owner)
+		}
+		variant := table.Variants[found]
+		return checkFields(table, variant.FieldFrom, variant.FieldCount, value.Fields, label, variant.Name, true)
+	}
+	return nil
+}
+
+// CheckEntry сверяет набор значений с объявленными типами параметров функции.
+//
+// Молчит там, где сверять нечем: имени в таблице нет, число значений с числом
+// параметров не сошлось (об этом скажет диспетчер своим текстом), тип приехал
+// видом TypeUnknown. Тексты отказов дословно те же, что у `checkValue` свидетеля.
+func CheckEntry(table *EntryTable, name string, args []Value) error {
+	declared := 0
+	for _, param := range table.Params {
+		if param.Function == name {
+			declared++
+		}
+	}
+	if declared == 0 || declared != len(args) {
+		return nil
+	}
+	at := 0
+	for _, param := range table.Params {
+		if param.Function != name {
+			continue
+		}
+		label := fmt.Sprintf("вызов функции «%s»: аргумент «%s»", name, param.Name)
+		if err := checkTyped(table, param.Type, args[at], label); err != nil {
+			return err
+		}
+		at++
+	}
+	return nil
 }
