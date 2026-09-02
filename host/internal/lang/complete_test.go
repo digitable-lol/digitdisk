@@ -44,6 +44,7 @@ var outputPackages = []string{
 	"internal/report",
 	"internal/ui",
 	"internal/cli",
+	"internal/run",
 }
 
 // wrappers are the calls that put a Russian wording into the dictionary's

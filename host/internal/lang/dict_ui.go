@@ -43,7 +43,7 @@ func init() {
 		"1 КОМАНДЫ · q выход ": "1 COMMANDS · q quit ",
 
 		// Подвал раздела КОМАНДЫ: там клавиши другие — выбор и запуск.
-		"↑ ↓ и 1…7 выбрать · Enter запустить · ← → разделы · l язык · q выход ": "↑ ↓ 1…7 choose · Enter runs · ← → sections · l lang · q quit ",
+		"↑ ↓ и 1…8 выбрать · Enter запустить · ← → разделы · l язык · q выход ": "↑ ↓ 1…8 choose · Enter runs · ← → sections · l lang · q quit ",
 		"↑ ↓ выбрать · Enter запустить · ← → разделы · q выход ":                "↑ ↓ choose · Enter runs · ← → sections · q quit ",
 		"↑ ↓ · Enter запустить · q выход ":                                      "↑ ↓ · Enter runs · q quit ",
 		"Enter запустить · q выход ":                                            "Enter runs · q quit ",
