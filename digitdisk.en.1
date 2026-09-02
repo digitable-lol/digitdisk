@@ -57,6 +57,15 @@
 .Op Fl -json
 .Op Fl -lang Ar language
 .Op Fl -top Ar N
+.Nm digitdisk Cm run
+.Op Fl -json
+.Op Fl -lang Ar language
+.Op Fl -plain
+.Op Fl -interval Ar MS
+.Op Fl -gpu-tool
+.Ar command Op Ar arguments
+.Nm digitdisk
+.Fl c Ar command Op Ar arguments
 .Nm digitdisk
 .Fl -help | Fl -version
 .Sh DESCRIPTION
@@ -211,6 +220,57 @@ ended: when, how many files, how many bytes are lying in trashes, how much
 was restored and how much was erased.
 Nothing is remembered between runs — all of it is read
 from the journals of the trashes themselves.
+.It Cm run Ar command
+Runs somebody else's command and shows what it cost: a status line on the
+last row of the terminal while it works, and a two-line summary after.
+.Pp
+The WHOLE TREE of processes is counted, not the direct child alone:
+a parallel
+.Xr make 1 ,
+npm and a Go build spawn dozens, and
+measuring one child would show almost nothing.
+There are three ways to count, and the summary names
+the one that answered: a control group of our own
+(cgroup v2 — the kernel counts, exactly, losing nothing
+between two samples), a walk over
+.Pa /proc
+by parent links (an approximation by sampling — a process
+that lives and dies between two samples is not seen, and
+a sum of RSS counts a shared page once per process
+holding it), and the total from
+.Xr wait4 2
+(the exact CPU time of the command and of everything it
+waited for, and the exact peak of the largest single process).
+.Pp
+Standard output belongs to the command.
+Neither the status line, nor the summary, nor
+.Fl -json
+is written there: everything the wrapper prints goes to standard error, and
+.Pp
+.Dl $ digitdisk run make | tee log
+.Pp
+puts into the file exactly what
+.Ql make | tee log
+would put there.
+There is no status line at all when standard error is not a terminal; a
+full-screen program
+.Pq Xr vim 1 , Xr ssh 1 , Xr less 1
+takes the terminal for itself, and the line goes away and comes back on its
+own.
+.Pp
+The wrapper's own keys go BEFORE the command, the command's keys after it:
+.Nm Cm run Fl -json Cm ls Fl -json
+gives the first
+.Fl -json
+to the wrapper and the second to
+.Xr ls 1 .
+The short spelling of the same thing is
+.Fl c .
+One word holding spaces and shell metacharacters is handed to the shell from
+.Ev SHELL
+.Pq or Pa /bin/sh ;
+anything else is started directly, with no shell standing between the
+wrapper and the command.
 .El
 .Sh OPTIONS
 .Bl -tag -width "--protect-file fileXX"
@@ -252,12 +312,18 @@ instead of the snapshot — what was not measured and why.
 .Cm status :
 the window over which CPU load is measured, milliseconds, 200 by default.
 .It Fl -gpu-tool
-.Cm status :
+.Cm status , run :
 allow an outside program to be run (
 .Xr nvidia-smi 1 ) for the video-card numbers the driver publishes in no file
 at all.
 By default digitdisk only reads files; under every card it says where its
 numbers came from.
+.Cm run
+asks exactly one thing: how much video memory the command's own processes
+hold.
+Per-process card load is published nowhere by the driver, and instead of an
+invented number the summary says so in words: the load of the whole card is
+not the load of the command while anything else is computing beside it.
 .It Fl -live
 .Cm status :
 the live screen.
@@ -265,9 +331,29 @@ Without a terminal it is an error, not a quiet fall back to text.
 .It Fl -plain
 .Cm status :
 one snapshot as text, even when the output goes to a terminal.
+.Cm run :
+no status line, even where there is a terminal.
 .It Fl -interval Ar MS
 .Cm status :
 how often the live screen is refreshed, milliseconds, 2000 by default.
+.Cm run :
+how often the status line is refreshed, 1000 by default.
+The tree of processes is read more often than the line is drawn, and the
+reading thins itself out when it turns out to cost more than a twentieth of
+its own period; what it came to is said in the summary and in
+.Fl -json .
+.It Fl c Ar command
+The short spelling of
+.Cm run :
+everything AFTER
+.Fl c
+belongs to the command, everything before it to the wrapper.
+A word that is not a subcommand ends the search for
+.Fl c :
+.Nm Cm clean Pa ~ Fl c
+is a key of
+.Cm clean ,
+not a wrapper.
 .It Fl -cross-device
 .Cm analyze , clean :
 walk into other file systems that are mounted there.
@@ -437,7 +523,22 @@ A failure while running: no such path, a directory that is no trash,
 naming the wrong number.
 .It 2
 An unknown subcommand or a key that was not parsed.
+.It 126
+.Cm run :
+the command is there and will not run.
+.It 127
+.Cm run :
+there is no such command.
 .El
+.Pp
+Under
+.Cm run
+the exit code is the COMMAND's, not the wrapper's: 0 and 1 mean what they
+mean for it, and the wrapper can be put into a script without changing it.
+A command killed by a signal is repeated on the wrapper with the same signal,
+so the shell sees exactly what it would have seen without one.
+Ctrl-C reaches the command by itself: it stays in
+the wrapper's process group, and the terminal signals both.
 .Sh EXAMPLES
 The live screen of the state:
 .Pp

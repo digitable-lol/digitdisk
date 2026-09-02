@@ -21,6 +21,7 @@ func init() {
 		// доводы подкоманд: то, что человек подставляет своим
 		"<путь>":    "<path>",
 		"<корзина>": "<trash>",
+		"<команда>": "<command>",
 
 		// однострочные пояснения подкоманд (cli.Commands)
 		"снимок системы: ЦП, память, диски, сеть; в терминале — живой экран": "a system snapshot: CPU, memory, disks, network; live screen in a terminal",
@@ -30,9 +31,13 @@ func init() {
 		"стереть корзину: необратимо, требует --confirm N":                   "erase a trash: irreversible, requires --confirm N",
 		"справочник известных мест и что из него есть на этой машине":        "the known-places directory and what of it is on this machine",
 		"чем кончались прошлые уборки под этим корнем":                       "how past cleanups under this root ended",
+		"запустить команду и показать, во что она обошлась":                  "run a command and show what it cost",
 
 		// ── справка: ключи, по строке на каждый ──────────────────────
 		"Ключи:": "Keys:",
+		"  -c <команда>      короткий вид run: всё после -c принадлежит команде,":         "  -c <command>      the short spelling of run: all after -c is the command's,",
+		"                    свои ключи ставятся до неё; одна строка с пробелами":         "                    ours go before it; one word holding spaces and shell",
+		"                    и метасимволами исполняется оболочкой ($SHELL)":              "                    metacharacters is handed to the shell ($SHELL)",
 		"  --json            машиночитаемый вывод; принимают все подкоманды":              "  --json            machine-readable output; every subcommand takes it",
 		"  --lang ЯЗЫК       ru или en на этот запуск; принимают все подкоманды":          "  --lang LANG       ru or en for this run; every subcommand takes it",
 		"  --top N           строк в списках: status 10, analyze и clean 15,":             "  --top N           rows in the lists: status 10, analyze and clean 15,",
@@ -40,8 +45,10 @@ func init() {
 		"  --why             status: что не измерено и почему":                            "  --why             status: what was not measured, and why",
 		"  --sample MS       status: окно замера загрузки ЦП, по умолчанию 200":           "  --sample MS       status: CPU-busy sampling window, 200 by default",
 		"  --live            status, analyze: живой экран; без терминала — ошибка":        "  --live            status, analyze: the live screen; error without a terminal",
-		"  --plain           status, analyze: печать без экрана, даже в терминале":        "  --plain           status, analyze: print without the screen, even in one",
-		"  --interval MS     status: период обновления живого экрана, 2000":               "  --interval MS     status: live-screen refresh period, 2000",
+		"  --plain           status, analyze: печать без экрана; run: без строки":         "  --plain           status, analyze: print without the screen; run: no",
+		"                    состояния — и то и другое даже в терминале":                  "                    status line — either way, even in a terminal",
+		"  --interval MS     status: период обновления живого экрана, 2000;":              "  --interval MS     status: live-screen refresh period, 2000;",
+		"                    run: период обновления строки состояния, 1000":               "                    run: status-line refresh period, 1000",
 		"  --cross-device    analyze, clean: заходить на другие файловые системы":         "  --cross-device    analyze, clean: cross into other filesystems",
 		"  --max-depth N     analyze, clean: предел глубины обхода; 0 — без предела":      "  --max-depth N     analyze, clean: walk depth limit; 0 — no limit",
 		"  --places ФАЙЛ     analyze, clean, places: свой справочник известных мест":      "  --places FILE     analyze, clean, places: your own known-places file",
@@ -53,6 +60,11 @@ func init() {
 		"  --protect-file Ф  clean, analyze: защитный список файлом":                      "  --protect-file F  clean, analyze: the protect list as a file",
 		"  --dry-run         restore: показать, что вернулось бы, и не возвращать":        "  --dry-run         restore: show what would come back, restore nothing",
 		"  --confirm N       purge: подтвердить стирание ровно N файлов":                  "  --confirm N       purge: confirm erasing exactly N files",
+
+		"Строка состояния run: последняя строка терминала, вывод команды её не":      "run status line: the last row of the terminal; the command's output never",
+		"  задевает; в трубу и в файл её нет вовсе. Полноэкранная программа (vim,":   "  touches it, and into a pipe or a file there is none at all. A full-screen",
+		"  ssh, less) забирает терминал — строка уходит и возвращается сама.":        "  program (vim, ssh, less) takes the terminal — the line goes and comes back.",
+		"  Код возврата и сигнал — команды, не обёртки. Сводка идёт в поток ошибок.": "  The exit code and signal are the command's own. The summary goes to stderr.",
 
 		"Экран status: ← → разделы (их десять), 1…9 раздел сразу, ↑ ↓ PgUp/PgDn прокрутка,": "status screen: ← → the ten sections, 1…9 a section at once, ↑ ↓ PgUp/PgDn scroll,",
 		"  p пауза, r замер, l язык, ? команды, q выход.":                                   "  p pause, r sample, l language, ? commands, q quit.",
