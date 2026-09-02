@@ -185,6 +185,28 @@ remembers each file's dev/ino, size, mtime and mode, checks them again before
 touching it, and refuses by name — "размер изменился (был 25 Б, стал 30 Б)" —
 rather than removing something it no longer recognises.
 
+### The live screen
+
+In a terminal, `digitdisk status` opens a live screen in the Digitable Focus
+palette: the sections of the printed report as pages that keep measuring
+themselves. `← →` and `Tab` move between them, `1`…`9` go straight to one,
+`↑ ↓` scroll a long one, `p` holds, `r` measures now, `q` leaves.
+
+Everywhere else it prints, exactly as it always has. A pipe, a file,
+`/dev/null`, `--json`, `TERM=dumb` and an empty `TERM` all receive the text
+report: the screen is never drawn into something that is not a terminal, so
+scripts see what they have always seen.
+
+| | |
+|---|---|
+| `--plain` | print the snapshot once, even in a terminal |
+| `--live` | demand the screen; fail rather than print if there is none |
+| `--interval MS` | how often the screen measures again (default 2000) |
+| `DIGITDISK_PALETTE` | `carbon` (default), `paper`, `signal` — the palettes of the stack |
+
+`NO_COLOR` is honoured: the screen still runs, it is simply drawn without
+colour.
+
 ## What it does not do
 
 - **It does not delete by pattern, by name, or by a list of known paths.** The
