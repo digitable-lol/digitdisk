@@ -38,21 +38,65 @@ import (
 //     not in a footnote.
 //   - Putting it back is here too, and it asks in the same way.
 //
-// What erases — `purge` — is deliberately NOT here.  It is the one irreversible
-// step, and the screen would have to ask harder than it can ask well; the
-// command exists and names itself in the journal section.
+// ERASING FOR GOOD IS ALSO HERE, on забой, and it goes down THAT SAME ROAD.
+// The корзина is what it does not use; the plan is not what it does not use.
+// Every line above holds for it word for word — what may go is what clean.Make
+// put in a plan, marking narrows and never widens, nothing happens before the
+// plan is on the screen — and it adds exactly two things of its own:
+//
+//   - the plan says «стереть насовсем» and «корзины не будет» where the other
+//     one says «перенести» and names a корзина, because a screen that shows the
+//     same words for two different fates is a screen that lies once;
+//   - HOW HARD IT ASKS DEPENDS ON HOW MUCH IS GOING, and on nothing else.  A
+//     handful of small files, all of them listed in front of the reader: one
+//     key, «y».  Anything above that: the exact number of files, typed, the way
+//     `purge --confirm N` asks.  Where "above that" is, is not this screen's
+//     opinion — see eraseAtOnce below.
+//
+// `purge` itself is still not here, and that has not changed: it empties a
+// корзина, the screen has no корзина open, and the journal section names the
+// command for the reader who wants one.
 
 // overlay is what the screen is asking about, drawn over the section body.
 type overlay int
 
 const (
-	overlayNone overlay = iota
-	overlayPath         // where to walk
-	overlayPlan         // what would be moved, and the number to type
-	overlayBack         // what would be put back, and the number to type
-	overlayNote         // one answer to read and dismiss
-	overlayKeys         // what the keys do
+	overlayNone  overlay = iota
+	overlayPath          // where to walk
+	overlayPlan          // what would be moved, and the number to type
+	overlayErase         // what would be erased for good, and how it is confirmed
+	overlayBack          // what would be put back, and the number to type
+	overlayNote          // one answer to read and dismiss
+	overlayKeys          // what the keys do
 )
+
+// How much may go on one keystroke.
+//
+// The question does not scroll: frame() zeroes w.scroll while a question is up,
+// so whatever does not fit under the title is not shown at all.  A list the
+// reader cannot see through is a list they cannot check, and a confirmation
+// given without checking confirms nothing.  Both halves of the rule follow from
+// that one fact:
+//
+//   - eraseAtOnce is how many paths the question prints IN FULL.  Seven is what
+//     is left under the head of the question in a window of 24 rows by 80 — the
+//     size tools/sverka-ui.sh draws the screen at, and the smallest anybody
+//     really works in.  It is measured, not chosen:
+//     TestSevenIsWhatFitsInTheSmallestWindow counts the lines and fails if the
+//     question or the window ever changes shape.  Above seven the list is cut
+//     with «…и ещё N», and a cut list means the number gets typed.
+//   - Size is not visible as length: one file of forty gigabytes fits on one
+//     line.  So the volume has a ceiling too, and THE SCREEN DOES NOT PICK IT.
+//     It is «Порог крупного», the size at which the decision layer stops
+//     calling a file ordinary, carried on the plan (clean.Plan.LargeBytes, see
+//     core.Sizer).  A layer that does not state one leaves the screen with no
+//     idea what large means, and then the number is typed every time.
+const eraseAtOnce = 7
+
+// askChrome is how many lines askLines draws around a question's own: a blank,
+// the title, a blank above, and a blank and the hint below.  fitsOnScreen adds
+// it back to ask whether the whole question is visible.
+const askChrome = 5
 
 // ask is the state of a question the screen is asking.
 type ask struct {
@@ -67,6 +111,12 @@ type ask struct {
 	box     string // корзина the question is about
 	plan    *clean.Plan
 	journal *clean.Journal
+
+	// quick says this question may be answered with one key — «y» — because
+	// what it is asking about is small enough to be shown whole and small
+	// enough by the decision layer's own reckoning.  It is only ever set on
+	// overlayErase; see eraseAtOnce.
+	quick bool
 }
 
 // openPath asks where to walk.  It starts from the root of the last walk, so
@@ -279,6 +329,21 @@ func (w *walkScreen) accepted(r jobResult) {
 			w.ask.kind = overlayNote
 			w.ask.hint = w.l.T("любая клавиша — закрыть")
 		}
+	case overlayErase:
+		p := r.plan
+		if len(p.Items) == 0 {
+			w.tell(w.l.T("СТИРАТЬ НЕЧЕГО"), w.eraseNothing(p, r.where))
+			return
+		}
+		lines := w.eraseLines(p, r.where)
+		a := &ask{kind: overlayErase, title: w.l.T("СТЕРЕТЬ НАСОВСЕМ"), plan: p,
+			want: len(p.Items), lines: lines, quick: w.quickEnough(p, lines)}
+		if a.quick {
+			a.hint = w.l.F("y — стереть насовсем (%d); Esc — отменить, ничего не тронуть", a.want)
+		} else {
+			a.hint = w.l.F("наберите число файлов (%d) и Enter — стереть насовсем; Ctrl-U стереть, Esc отменить", a.want)
+		}
+		w.ask = a
 	case overlayBack:
 		j := r.journal
 		// A dry run moves nothing and therefore stamps nothing: what would
@@ -332,6 +397,189 @@ func (w *walkScreen) proposeClean() {
 		}
 		return jobResult{kind: overlayPlan, plan: p, where: where}
 	})
+}
+
+// quickEnough decides whether this erasure may go on one keystroke.  All three
+// have to hold, and every one of them is about what the reader can actually
+// check before answering — see eraseAtOnce for why.
+func (w *walkScreen) quickEnough(p *clean.Plan, lines []string) bool {
+	switch {
+	case len(p.Items) > eraseAtOnce:
+		return false // the list is cut, and a cut list is not read
+	case len(lines)+askChrome > w.bodyHeight():
+		return false // it does not fit THIS window, and the question does not scroll
+	case p.LargeBytes <= 0:
+		return false // the layer named no size at which large begins
+	default:
+		return p.Bytes <= p.LargeBytes
+	}
+}
+
+// proposeErase asks the decision layer what, out of the ground the reader
+// pointed at, may go — and then shows it as what it is: a removal with no
+// корзина behind it.
+//
+// THE GROUND IS WHAT WAS MARKED, or the row under the cursor when nothing was.
+// That is the whole of what забой decides.  What may go on that ground is not
+// its business and never becomes its business: the same w.o.Plan the «c» key
+// calls is called here, with the same корень and the same справочник and the
+// same защитный список, and it answers with the same приговор ядра.  A path the
+// layer did not mark cannot be erased by pointing at it harder.
+func (w *walkScreen) proposeErase() {
+	if w.o.Plan == nil || w.o.Erase == nil {
+		w.tell(w.l.T("СТЕРЕТЬ НАСОВСЕМ"), []string{w.l.T("этот экран собран без стирания")})
+		return
+	}
+	only := w.markedPaths()
+	where := w.l.F("отмечено каталогов: %d", len(only))
+	if len(only) == 0 {
+		n, ok := w.rowNode()
+		if !ok {
+			return // rowNode has said why
+		}
+		only = []string{n.path()}
+		where = w.l.F("под курсором: %s", tail(n.path(), 52))
+	}
+	root, plan, l := w.walkRoot, w.o.Plan, w.l
+	w.work(w.l.T("СЧИТАЕТСЯ СТИРАНИЕ"), []string{
+		where,
+		"",
+		w.l.T("дерево обходится заново, и заново судится решающим слоем:"),
+		w.l.T("стирается только то, чему ядро вынесло «МожноУбрать» СЕЙЧАС."),
+		w.l.T("пока считается, не тронут ни один файл."),
+	}, func() jobResult {
+		p, err := plan(root, only)
+		if err != nil {
+			return jobResult{title: l.T("СТИРАНИЕ НЕ ВЫШЛО"), err: lang.InLang(err, l)}
+		}
+		return jobResult{kind: overlayErase, plan: p, where: where}
+	})
+}
+
+// rowNode is the directory the cursor stands on.  Only a directory: the row
+// that stands for the files lying here is not a place, and erasing "a row"
+// would mean something different from erasing every other row on the screen.
+func (w *walkScreen) rowNode() (*wnode, bool) {
+	rows := w.here()
+	if len(w.sel) == 0 || len(rows) == 0 {
+		w.tell(w.l.T("СТЕРЕТЬ НАСОВСЕМ"), []string{w.l.T("здесь нет строки, на которую наведён курсор")})
+		return nil, false
+	}
+	i := w.sel[len(w.sel)-1]
+	if i < 0 || i >= len(rows) || rows[i].node == nil {
+		w.tell(w.l.T("СТЕРЕТЬ НАСОВСЕМ"), []string{
+			w.l.F("Стирается каталог, а не строка «%s».", ownFilesRow(w.l)),
+			w.l.T("Она стоит за файлы, которые лежат прямо здесь; чтобы взять их,"),
+			w.l.T("отметьте сам этот каталог — «.» отмечает тот, в котором стоите.")})
+		return nil, false
+	}
+	return rows[i].node, true
+}
+
+// eraseLines is the question as the reader reads it.  The two numbers that
+// matter stand FIRST, before the ground and before the list: a question longer
+// than the window is cut from the bottom, and «сколько файлов» must not be what
+// gets cut.
+func (w *walkScreen) eraseLines(p *clean.Plan, where string) []string {
+	out := []string{
+		w.l.F("стереть насовсем  %s файлов, %s", w.l.Num(int64(len(p.Items))), w.l.Bytes(p.Bytes)),
+		w.l.F("освободится %s — на этот раз по-настоящему", w.l.Bytes(p.FreeableBytes)),
+		w.l.T("корзины не будет: файлы уходят с диска, и вернуть их нечем."),
+		"",
+		where,
+	}
+	if n := len(p.Protected); n > 0 {
+		out = append(out, w.l.F("защитный список оставил на месте %d (%s)", n, w.l.Bytes(p.ProtectedBytes)))
+	}
+	if n := len(p.Refused); n > 0 {
+		out = append(out, w.l.F("хозяин отказался трогать %d — слои разошлись, см. `digitdisk clean`", n))
+	}
+	out = append(out, "", w.l.T("исчезнет:"))
+	for i, it := range p.Items {
+		if i >= eraseAtOnce {
+			out = append(out, w.l.F("   …и ещё %d", len(p.Items)-i))
+			break
+		}
+		out = append(out, fmt.Sprintf("   %10s  %-12s %s",
+			w.l.Bytes(it.Size), w.l.Word(string(it.Class)), tail(it.Path, 52)))
+	}
+	return out
+}
+
+// eraseNothing is the answer when the ground held nothing the layer would let
+// go.  It says WHICH of the three possible reasons it was, because "нечего" on
+// its own is indistinguishable from a tool that did not look.
+func (w *walkScreen) eraseNothing(p *clean.Plan, where string) []string {
+	out := []string{where, "", w.l.T("к стиранию 0 файлов.")}
+	if n := len(p.Protected); n > 0 {
+		out = append(out, "", w.l.F("защитный список оставил на месте %d (%s):", n, w.l.Bytes(p.ProtectedBytes)))
+		for i, pr := range p.Protected {
+			if i >= 4 {
+				out = append(out, w.l.F("   …и ещё %d", len(p.Protected)-i))
+				break
+			}
+			out = append(out, "   "+tail(pr.Path, 44)+" — "+pr.Rule.In(w.l))
+		}
+	}
+	if n := len(p.Refused); n > 0 {
+		out = append(out, "", w.l.F("хозяин отказался трогать %d:", n))
+		for i, r := range p.Refused {
+			if i >= 4 {
+				out = append(out, w.l.F("   …и ещё %d", len(p.Refused)-i))
+				break
+			}
+			out = append(out, "   "+tail(r.Path, 44)+" — "+r.Reason.In(w.l))
+		}
+	}
+	if len(p.Protected) == 0 && len(p.Refused) == 0 {
+		out = append(out, "",
+			w.l.T("решающий слой не пометил «МожноУбрать» ничего из отмеченного."),
+			w.l.T("отметка не делает файл убираемым — приговор выносит ядро."))
+	}
+	return out
+}
+
+// applyErase erases what the question listed, once it has been confirmed.
+func (w *walkScreen) applyErase() {
+	a := w.ask
+	if a == nil || a.plan == nil || w.o.Erase == nil {
+		return
+	}
+	erase, plan, l := w.o.Erase, a.plan, w.l
+	w.work(w.l.T("СТИРАНИЕ ИДЁТ"), []string{
+		w.l.F("файлов %s", w.l.Num(int64(len(plan.Items)))),
+		"",
+		w.l.T("журнал пишется до того, как исчезнет первый файл."),
+	}, func() jobResult {
+		j, err := erase(plan)
+		if err != nil {
+			return jobResult{title: l.T("СТИРАНИЕ НЕ ВЫШЛО"), err: lang.InLang(err, l)}
+		}
+		return jobResult{kind: overlayNote, title: l.T("СТЁРТО НАСОВСЕМ"),
+			where: strings.Join(erasedLines(l, j), "\n")}
+	})
+}
+
+// erasedLines is what came of the erasure.
+func erasedLines(l lang.Lang, j *clean.Journal) []string {
+	n, bytes := j.Purged()
+	lines := []string{
+		l.F("стёрто          %s файлов, %s", l.Num(int64(n)), l.Bytes(bytes)),
+		l.T("место освобождено: этих файлов на диске больше нет, и возврата нет."),
+		"",
+		l.F("журнал: %s", j.Path()),
+		l.T("он называет всё, что исчезло, и стоит в разделе ЖУРНАЛ как стирание."),
+	}
+	if f := j.Failed(); len(f) > 0 {
+		lines = append(lines, "", l.F("не тронуто %d — файл изменился между обходом и стиранием:", len(f)))
+		for i, it := range f {
+			if i >= 4 {
+				break
+			}
+			lines = append(lines, "   "+tail(it.Path, 50)+" — "+it.Failed.In(l))
+		}
+	}
+	return lines
 }
 
 // planLines is the plan as the reader reads it.
@@ -536,13 +784,16 @@ func (w *walkScreen) askKey(k key) bool {
 			w.complete(false)
 		}
 		return false
-	case overlayPlan, overlayBack:
+	case overlayPlan, overlayErase, overlayBack:
 		switch k.kind {
 		case keyEsc:
 			w.ask = nil
 		case keyCtrlC:
 			return true
 		case keyBack:
+			// Here забой is a text key and nothing else: this is a line
+			// being typed, and a question already on the screen is not
+			// answered by the key that opened it.
 			if n := len(a.input); n > 0 {
 				a.input = a.input[:n-1]
 			}
@@ -551,20 +802,39 @@ func (w *walkScreen) askKey(k key) bool {
 			a.input, a.err = "", ""
 		case keyEnter:
 			typed := strings.TrimSpace(a.input)
+			if typed == "" && a.quick {
+				a.err = w.l.T("стирание подтверждает «y», а не Enter")
+				return false
+			}
 			if typed != fmt.Sprint(a.want) {
 				a.err = w.l.F("названо %q, а файлов %d — ничего не тронуто", typed, a.want)
 				a.input = ""
 				return false
 			}
-			if a.kind == overlayPlan {
+			switch a.kind {
+			case overlayPlan:
 				w.applyClean()
-			} else {
+			case overlayErase:
+				w.applyErase()
+			default:
 				w.applyRestore()
 			}
 		case keyRune:
 			if k.r >= '0' && k.r <= '9' {
 				a.input += string(k.r)
 				a.err = ""
+				return false
+			}
+			// «y» — and «н», which is the same physical key on a Russian
+			// layout, the way «q» is also «й» everywhere else on this
+			// screen.  It answers only the question that offered it, and
+			// only while that question is the small one.
+			if a.kind == overlayErase && (k.r == 'y' || k.r == 'Y' || k.r == 'н' || k.r == 'Н') {
+				if a.quick {
+					w.applyErase()
+					return false
+				}
+				a.err = w.l.F("файлов %d — столько одной клавишей не стирается, назовите число", a.want)
 			}
 		}
 		return false
@@ -592,7 +862,7 @@ func (w *walkScreen) askLines() []string {
 			}
 		}
 	}
-	if a.kind == overlayPlan || a.kind == overlayBack {
+	if a.kind == overlayPlan || a.kind == overlayBack || (a.kind == overlayErase && !a.quick) {
 		out = append(out, "", w.t.Fg(t.P.AccentSoft, "  "+w.l.T("число файлов: ")+a.input+"▏"))
 	}
 	if a.err != "" {
@@ -610,9 +880,10 @@ func (w *walkScreen) keysLines() []string {
 		{"Tab, 1…8", w.l.T("разделы")},
 		{"↑ ↓, k j", w.l.T("строка; g G — начало и конец")},
 		{"→, Enter", w.l.T("внутрь каталога (в разделе ДЕРЕВО)")},
-		{w.l.T("←, забой"), w.l.T("назад из каталога")},
+		{w.l.T("←"), w.l.T("назад из каталога")},
 		{w.l.T("Пробел"), w.l.T("отметить каталог; «.» — тот, в котором стоите")},
 		{"c", w.l.T("план уборки по отмеченному и подтверждение")},
+		{w.l.T("забой"), w.l.T("СТЕРЕТЬ НАСОВСЕМ отмеченное, а без отметок — строку под курсором")},
 		{"o", w.l.T("обойти другой каталог (Tab дополняет путь)")},
 		{"Enter " + w.l.T("в ЖУРНАЛЕ"), w.l.T("вернуть корзину на прежние места")},
 		{"l", w.l.T("язык экрана: русский или English")},
@@ -647,7 +918,9 @@ func (w *walkScreen) keysLines() []string {
 	}
 	out = append(out, "",
 		w.note(w.l.T("уборка с экрана идёт тем же путём, что `digitdisk clean`: приговор ядра, план, подтверждение числом.")),
-		w.note(w.l.T("стирание — только отдельной командой `digitdisk purge`: это единственный необратимый шаг.")))
+		w.note(w.l.T("забой идёт тем же путём и тем же приговором ядра, но без корзины: стёртое не возвращается.")),
+		w.note(w.l.T("сколько-то файлов — подтверждается одной «y»; больше или крупнее — только числом файлов.")),
+		w.note(w.l.T("корзину целиком стирает отдельная команда `digitdisk purge`; с экрана она не запускается.")))
 	return out
 }
 
@@ -726,12 +999,23 @@ func (w *walkScreen) journalSection() []string {
 			r.plain("   ")
 		}
 		r.add(fit(filepath.Base(e.Box), 20)+" ", func(x string) string { return w.t.Fg(w.t.P.Foreground, x) })
-		r.add(right(w.l.F("%s файл.", w.l.Num(int64(e.Moved))), 14)+" ", func(x string) string { return w.t.Fg(w.t.P.Muted, x) })
-		r.add(right(w.l.Bytes(e.MovedBytes), 11)+"  ", func(x string) string { return w.t.Fg(w.t.P.Muted, x) })
+		// An erasure counted nothing into a корзина, so the two columns that
+		// say "how much is lying there" say what went instead.
+		count, bytes := e.Moved, e.MovedBytes
+		if e.Way == clean.WayErase {
+			count, bytes = e.Purged, e.PurgedBytes
+		}
+		r.add(right(w.l.F("%s файл.", w.l.Num(int64(count))), 14)+" ", func(x string) string { return w.t.Fg(w.t.P.Muted, x) })
+		r.add(right(w.l.Bytes(bytes), 11)+"  ", func(x string) string { return w.t.Fg(w.t.P.Muted, x) })
 		state := w.l.T("в корзине")
 		switch {
 		case !e.Problem.Empty():
 			state = w.l.F("беда: %s", e.Problem.In(w.l))
+		case e.Way == clean.WayErase:
+			// Never «стёрто N» plain: that is also what a purged корзина
+			// says, and those two differ in whether anything was ever
+			// restorable.  Here nothing ever was.
+			state = w.l.F("стёрто насовсем %d — возврата нет", e.Purged)
 		case e.Purged > 0:
 			state = w.l.F("стёрто %d", e.Purged)
 		case e.Restored > 0:
@@ -744,6 +1028,7 @@ func (w *walkScreen) journalSection() []string {
 	}
 	out = append(out, "",
 		w.note(w.l.T("Enter — вернуть выбранную корзину на прежние места (спросит число файлов)")),
+		w.note(w.l.T("запись «стёрто насовсем» вернуть нельзя: файлов нет, есть только список того, что было")),
 		w.note(w.l.T("стирание корзины — только командой `digitdisk purge <корзина> --confirm N`")))
 	return out
 }

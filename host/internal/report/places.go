@@ -111,6 +111,14 @@ func History(w io.Writer, l lang.Lang, h *clean.History, now time.Time, top int)
 		}
 		pr(fmt.Sprintf("  %-22s %8s %10s %8s %8s  %s", when, l.Num(int64(e.Moved)),
 			l.Bytes(e.MovedBytes), l.Num(int64(e.Restored)), l.Num(int64(e.Purged)), cut(e.Box, 46)))
+		// Стирание насовсем стоит в том же журнале, что и уборка, и не
+		// имеет права выглядеть как она: у него нулевые «в корзине» и
+		// «возвращ.», и без этой строки читатель принял бы его за
+		// корзину, которую кто-то потом выпорожнил.
+		if e.Way == clean.WayErase {
+			pr(l.F("      стёрто насовсем %d файлов (%s) — корзины не было, возвращать нечего",
+				e.Purged, l.Bytes(e.PurgedBytes)))
+		}
 		if !e.Problem.Empty() {
 			pr(l.F("      беда: %s", e.Problem.In(l)))
 		}
@@ -129,6 +137,18 @@ func History(w io.Writer, l lang.Lang, h *clean.History, now time.Time, top int)
 	}
 	pr("")
 	if newest == nil {
+		erasures := 0
+		for _, e := range h.Entries {
+			if e.Way == clean.WayErase {
+				erasures++
+			}
+		}
+		if erasures == len(h.Entries) {
+			// «Пусто» было бы неправдой: в этих корзинах никогда ничего
+			// и не лежало, и вернуть нечего не потому, что вынесли.
+			pr(l.F("  Возвращать нечего: все %d записи — стирание насовсем.", erasures))
+			return
+		}
 		pr(l.T("  Возвращать нечего: во всех корзинах пусто."))
 		return
 	}

@@ -122,9 +122,15 @@ inside the same file system: the files stay on the disk under another name,
 and the number
 .Cm clean Fl -apply
 prints is what was moved, not what was freed.
-Only
+From the shell only
 .Cm purge
 frees space, and that is irreversible.
+Past the trash erases the
+.Ic Backspace
+key of the live
+.Cm analyze
+screen \(em by the same plan and the same verdict of the decision layer, but
+with no way back.
 .Pp
 The language is asked once.
 On the first run at a terminal
@@ -433,9 +439,36 @@ Cleaning from the screen goes the way
 .Cm clean
 goes: the decision layer's verdict, the plan, and the exact number of files
 typed out by hand.
+.Pp
+In the
+.Sy ДЕРЕВО
+section the same road and the same verdict carry the
+.Ic Backspace
+key, only with no trash: it erases FOR GOOD what was ticked with
+.Ic Space ,
+or the directory under the cursor when nothing was.
+The same plan is shown first, and the confirmation is the harder the more is
+going: up to seven files, all of them visible on the screen, and a volume below
+the decision layer's
+.Dq Порог крупного
+\(em one key,
+.Ic y ;
+otherwise the exact number of files, the way
+.Cm purge Fl -confirm
+asks for it.
+What was erased goes into the same journal with
+.Dq способ
+set to
+.Dq стирание ,
+and both
+.Cm restore
+and
 .Cm purge
-is started from no screen under any condition \(em it is the one irreversible
-step, and it is typed out in the shell in full.
+refuse such a journal: there is nothing to put back, but what vanished is on
+record.
+.Cm purge
+is started from no screen under any condition: it empties a whole trash, and
+the screen has none open.
 A subcommand run from the screen prints as it always prints, and
 .Ic Enter
 brings the status screen back: the program does not restart in between.

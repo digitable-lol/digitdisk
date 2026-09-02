@@ -43,6 +43,8 @@ func init() {
 		"  ВНИМАНИЕ: настоящий разбор не выполнялся — все записи возвращены как":             "  WARNING: no real analysis was made — every entry came back as",
 		"  ВНИМАНИЕ: слой — заглушка. Она никому не выносит «%s», поэтому список ниже":       "  WARNING: the layer is a stub. It hands nobody a «%s», so the list below",
 		"  Возвращать нечего: во всех корзинах пусто.":                                       "  Nothing to restore: every trash box is empty.",
+		"  Возвращать нечего: все %d записи — стирание насовсем.":                            "  Nothing to restore: all %d entries are erasures for good.",
+		"      стёрто насовсем %d файлов (%s) — корзины не было, возвращать нечего":          "      %d files erased for good (%s) — there was no trash, nothing to put back",
 		"  Место НЕ освобождено: файлы лежат на той же файловой системе под другим":          "  Space was NOT freed: the files lie on the same filesystem under another",
 		"  Настоящий разбор: go build -tags flangcore -o digitdisk ./host":                   "  Real analysis: go build -tags flangcore -o digitdisk ./host",
 		"  Разряд из справочника не смягчает приговора: пороги, каталоги, ссылки и":          "  A class from the directory softens no verdict: thresholds, directories,",

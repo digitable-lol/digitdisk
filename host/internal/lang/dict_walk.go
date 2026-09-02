@@ -39,10 +39,15 @@ func init() {
 		" ОБХОД ":           " WALK ",
 		"  %s записей · %s": "  %s entries · %s",
 
-		// Подсказки клавиш, по одной на каждую ширину.
-		"Tab разделы · ↑ ↓ строка · → внутрь · Пробел отметить · c убрать · l язык · ? клавиши · q выход ": "Tab sections · ↑ ↓ row · → into · Space mark · c clean · l lang · ? keys · q quit ",
-		"Tab · ↑ ↓ · → внутрь · Пробел отметить · c убрать · l язык · ? · q выход ":                        "Tab · ↑ ↓ · → into · Space mark · c clean · l lang · ? · q quit ",
-		"Tab · ↑ ↓ · → ← · c убрать · l · ? · q выход ":                                                    "Tab · ↑ ↓ · → ← · c clean · l · ? · q quit ",
+		// Подсказки клавиш, по одной на каждую ширину. Забой назван в
+		// каждой, где вообще названы клавиши, и назван тем, что делает:
+		// «стереть насовсем» — erase for good. Клавиша без корзины не
+		// может в подвале выглядеть мягче, чем в вопросе, который она
+		// открывает, ни на одном из двух языков.
+		"Tab разделы · ↑ ↓ строка · → внутрь · Пробел отметить · c убрать · забой стереть насовсем · l язык · ? клавиши · q выход ": "Tab sections · ↑ ↓ row · → into · Space mark · c clean · Backspace erase for good · l lang · ? keys · q quit ",
+		"Tab · ↑ ↓ · → внутрь · Пробел отметить · c убрать · забой стереть насовсем · l язык · ? · q выход ":                        "Tab · ↑ ↓ · → into · Space mark · c clean · Backspace erase for good · l lang · ? · q quit ",
+		"Tab · ↑ ↓ · → ← · c убрать · забой стереть насовсем · l · ? · q выход ":                                                    "Tab · ↑ ↓ · → ← · c clean · Backspace erase for good · l · ? · q quit ",
+		"c убрать · забой стереть насовсем · ? · q выход ":                                                                          "c clean · Backspace erase for good · ? · q quit ",
 		"? клавиши · q выход ":       "? keys · q quit ",
 		"Esc — отменить, q — выход ": "Esc cancel, q quit ",
 		"Esc · q ": "Esc · q ",
@@ -90,9 +95,9 @@ func init() {
 		"%s · %s записей":   "%s · %s entries",
 		"подкаталогов %s":   "subdirectories %s",
 		"дерево не собрано": "the tree was not built",
-		"крупнейший файл прямо здесь: %s (%s)":                     "largest file right here: %s (%s)",
-		"Пробел — отметить каталог, «.» — этот, «c» — план уборки": "Space marks a directory, «.» this one, «c» plans the cleaning",
-		"отмечено каталогов: %d — «c» покажет план уборки":         "directories marked: %d — «c» shows the cleaning plan",
+		"крупнейший файл прямо здесь: %s (%s)":                                               "largest file right here: %s (%s)",
+		"Пробел — отметить каталог, «.» — этот, «c» — план уборки, забой — стереть насовсем": "Space marks a directory, «.» this one, «c» plans the cleaning, Backspace erases for good",
+		"отмечено каталогов: %d — «c» в корзину, забой стереть насовсем":                     "directories marked: %d — «c» to the trash, Backspace erases for good",
 
 		// Крупнейшее и можно убрать.
 		"КРУПНЕЙШИЕ ЗАПИСИ — %d": "LARGEST ENTRIES — %d",
@@ -194,6 +199,43 @@ func init() {
 		"стереть насовсем — только отдельной командой:":                    "erasing for good is a separate command only:",
 		"не тронуто %d — файл изменился между обходом и переносом:":        "%d not touched — the file changed between the walk and the move:",
 
+		// Стирание насовсем — то же, что уборка, кроме корзины, и по-английски
+		// разница обязана быть слышна там же, где по-русски: «убрать» против
+		// «стереть насовсем» — clean против erase for good. Слово «erase» без
+		// «for good» уже занято корзиной (`purge`), и одного его мало.
+		"СТЕРЕТЬ НАСОВСЕМ":               "ERASE FOR GOOD",
+		"СЧИТАЕТСЯ СТИРАНИЕ":             "WORKING OUT THE ERASURE",
+		"СТИРАНИЕ ИДЁТ":                  "ERASING",
+		"СТЁРТО НАСОВСЕМ":                "ERASED FOR GOOD",
+		"СТИРАТЬ НЕЧЕГО":                 "NOTHING TO ERASE",
+		"СТИРАНИЕ НЕ ВЫШЛО":              "THE ERASURE DID NOT HAPPEN",
+		"этот экран собран без стирания": "this screen was built without erasing",
+		"стирается только то, чему ядро вынесло «МожноУбрать» СЕЙЧАС.": "only what the core calls «МожноУбрать» NOW is erased.",
+		"пока считается, не тронут ни один файл.":                      "while it is being worked out, not one file is touched.",
+		"под курсором: %s": "under the cursor: %s",
+		"здесь нет строки, на которую наведён курсор":                 "there is no row here for the cursor to stand on",
+		"Стирается каталог, а не строка «%s».":                        "A directory is erased, not the row «%s».",
+		"стереть насовсем  %s файлов, %s":                             "erase for good  %s files, %s",
+		"освободится %s — на этот раз по-настоящему":                  "%s will be freed — really freed, this time",
+		"корзины не будет: файлы уходят с диска, и вернуть их нечем.": "there will be no trash: the files leave the disk and nothing can bring them back.",
+		"исчезнет:":            "what will vanish:",
+		"к стиранию 0 файлов.": "0 files to erase.",
+		"защитный список оставил на месте %d (%s):":                                           "the protect list left %d in place (%s):",
+		"хозяин отказался трогать %d:":                                                        "the host refused %d:",
+		"y — стереть насовсем (%d); Esc — отменить, ничего не тронуть":                        "y erases for good (%d); Esc cancels and touches nothing",
+		"наберите число файлов (%d) и Enter — стереть насовсем; Ctrl-U стереть, Esc отменить": "type the number of files (%d) and Enter to erase for good; Ctrl-U clears, Esc cancels",
+		"стирание подтверждает «y», а не Enter":                                               "an erasure is confirmed by «y», not by Enter",
+		"файлов %d — столько одной клавишей не стирается, назовите число":                     "%d files — that many are not erased on one key, name the number",
+		"журнал пишется до того, как исчезнет первый файл.":                                   "the journal is written before the first file vanishes.",
+		"стёрто          %s файлов, %s":                                                       "erased        %s files, %s",
+		"место освобождено: этих файлов на диске больше нет, и возврата нет.":                 "the space is freed: these files are off the disk, and there is no way back.",
+		"журнал: %s": "journal: %s",
+		"он называет всё, что исчезло, и стоит в разделе ЖУРНАЛ как стирание.":                   "it names everything that vanished and stands in the JOURNAL section as an erasure.",
+		"не тронуто %d — файл изменился между обходом и стиранием:":                              "%d not touched — the file changed between the walk and the erasure:",
+		"забой в разделе ДЕРЕВО стирает то же самое насовсем, минуя корзину.":                    "Backspace in the TREE section erases the same for good, past the trash.",
+		"стёрто насовсем %d — возврата нет":                                                      "%d erased for good — no way back",
+		"запись «стёрто насовсем» вернуть нельзя: файлов нет, есть только список того, что было": "an «erased for good» entry cannot be restored: the files are gone, only the list of them is left",
+
 		// Возврат.
 		"ВОЗВРАТ":            "RESTORE",
 		"ВОЗВРАТ ИДЁТ":       "RESTORING",
@@ -218,14 +260,18 @@ func init() {
 		"план уборки по отмеченному и подтверждение":    "the cleaning plan for what is marked, and its confirmation",
 		"обойти другой каталог (Tab дополняет путь)":    "walk another directory (Tab completes the path)",
 		"в ЖУРНАЛЕ": "in JOURNAL",
-		"язык экрана: русский или English":   "the language of the screen: Russian or English",
-		"эта справка":                        "this help",
-		"←, забой":                           "←, Backspace",
-		"Пробел":                             "Space",
+		"язык экрана: русский или English": "the language of the screen: Russian or English",
+		"эта справка":                      "this help",
+		"←":                                "←",
+		"забой":                            "Backspace",
+		"СТЕРЕТЬ НАСОВСЕМ отмеченное, а без отметок — строку под курсором": "ERASE FOR GOOD what is marked, or the row under the cursor when nothing is",
+		"Пробел": "Space",
 		"любая клавиша — закрыть":            "any key closes it",
 		"выход; отчёт печатается как всегда": "quit; the report is printed as always",
 		"уборка с экрана идёт тем же путём, что `digitdisk clean`: приговор ядра, план, подтверждение числом.": "cleaning from the screen goes the way `digitdisk clean` goes: the core's verdict, a plan, a confirmation by count.",
-		"стирание — только отдельной командой `digitdisk purge`: это единственный необратимый шаг.":            "erasing is `digitdisk purge` and nothing else: it is the one step that cannot be undone.",
+		"забой идёт тем же путём и тем же приговором ядра, но без корзины: стёртое не возвращается.":           "Backspace goes the same way and by the same verdict of the core, but with no trash: what it erases does not come back.",
+		"сколько-то файлов — подтверждается одной «y»; больше или крупнее — только числом файлов.":             "a few files are confirmed by one «y»; more of them, or bigger, only by the number of files.",
+		"корзину целиком стирает отдельная команда `digitdisk purge`; с экрана она не запускается.":            "a whole trash is erased by the separate command `digitdisk purge`; no screen starts it.",
 
 		// Отказы экрана.
 		"обход прерван":                  "the walk was stopped",

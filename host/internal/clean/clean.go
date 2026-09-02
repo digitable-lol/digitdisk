@@ -303,6 +303,14 @@ type Plan struct {
 	// files inside them: a pruned directory is never opened, so nobody here
 	// knows how much was in it.
 	PrunedTrash int `json:"своих_корзин_пропущено"`
+
+	// LargeBytes is «Порог крупного» as the decision layer states it, or 0
+	// when this layer has no such threshold to state.  It decides nothing
+	// about the plan; it is carried so that a caller which must judge
+	// whether this plan is big — the забой key of the walk screen judges
+	// exactly that before choosing how hard to ask — judges it by the
+	// layer's number and not by one of its own.  See core.Sizer.
+	LargeBytes int64 `json:"порог_крупного,omitempty"`
 }
 
 // ClassSum is the plan broken down by разряд.  It is computed over EVERY item,
@@ -355,6 +363,11 @@ func Make(opt Options) (Plan, error) {
 	}
 
 	thresholds, _ := opt.Decider.(core.Thresholder)
+	if sizer, ok := opt.Decider.(core.Sizer); ok {
+		if n, has := sizer.LargeBytes(); has {
+			p.LargeBytes = n
+		}
+	}
 
 	// Only is taken as absolute paths under the корень; anything outside it
 	// is dropped rather than silently widening the ground.

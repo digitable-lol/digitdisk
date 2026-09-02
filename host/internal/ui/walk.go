@@ -95,6 +95,13 @@ type WalkOptions struct {
 	Restore func(box string, dryRun bool) (*clean.Journal, error)
 	History func(root string) (*clean.History, error)
 	Places  func() (origin string, found []PlaceRow, err error)
+
+	// Erase takes the SAME plan Apply takes and removes what it lists for
+	// good, without a корзина.  It is a second verb on one plan, not a
+	// second plan: the screen has no way to hand it a path clean.Make did
+	// not put there, which is the property that keeps забой inside the
+	// decision layer's answer instead of beside it.
+	Erase func(p *clean.Plan) (*clean.Journal, error)
 }
 
 // After is what the walk screen does the moment its walk finishes.
@@ -603,7 +610,18 @@ func (w *walkScreen) handle(k key) bool {
 			w.enter()
 		}
 	case keyBack:
-		w.up()
+		// ЗАБОЙ СТИРАЕТ НАСОВСЕМ — в ДЕРЕВЕ, где есть что стирать: отмеченное,
+		// а без отметок — каталог под курсором.  Ходить назад по дереву он
+		// больше не помогает: одна клавиша не может быть двумя вещами, а
+		// «назад» и так делает ←, и раздел клавиш называет обе.
+		//
+		// Ключ необратимый, и поэтому он не действует, а СПРАШИВАЕТ: считает
+		// план тем же слоем, что и «c», показывает его и ждёт подтверждения.
+		if inTree {
+			w.proposeErase()
+		} else {
+			w.up()
+		}
 	case keyEsc, keyCtrlC:
 		return true
 	case keyTab:
@@ -1004,10 +1022,14 @@ func (w *walkScreen) footer(more string) string {
 
 	// Every width is its own line: the same thing said shorter is another
 	// sentence, not the first one cut off, and it is translated as one.
+	// Забой стоит в подсказке рядом с «c» и назван тем, что делает: «стереть
+	// насовсем», а не «удалить». Клавиша, которая уносит файл без корзины, не
+	// может называться в подвале мягче, чем в вопросе, который она открывает.
 	hints := []string{
-		w.l.T("Tab разделы · ↑ ↓ строка · → внутрь · Пробел отметить · c убрать · l язык · ? клавиши · q выход "),
-		w.l.T("Tab · ↑ ↓ · → внутрь · Пробел отметить · c убрать · l язык · ? · q выход "),
-		w.l.T("Tab · ↑ ↓ · → ← · c убрать · l · ? · q выход "),
+		w.l.T("Tab разделы · ↑ ↓ строка · → внутрь · Пробел отметить · c убрать · забой стереть насовсем · l язык · ? клавиши · q выход "),
+		w.l.T("Tab · ↑ ↓ · → внутрь · Пробел отметить · c убрать · забой стереть насовсем · l язык · ? · q выход "),
+		w.l.T("Tab · ↑ ↓ · → ← · c убрать · забой стереть насовсем · l · ? · q выход "),
+		w.l.T("c убрать · забой стереть насовсем · ? · q выход "),
 		w.l.T("? клавиши · q выход "),
 		exit,
 	}
@@ -1348,9 +1370,9 @@ func (w *walkScreen) browse() []string {
 	rows := w.here()
 	out := []string{""}
 	out = append(out, w.kv(w.l.T("каталог"), tail(n.path(), maxInt(10, w.cols-22)), ""))
-	marked := w.l.T("Пробел — отметить каталог, «.» — этот, «c» — план уборки")
+	marked := w.l.T("Пробел — отметить каталог, «.» — этот, «c» — план уборки, забой — стереть насовсем")
 	if len(w.marks) > 0 {
-		marked = w.l.F("отмечено каталогов: %d — «c» покажет план уборки", len(w.marks))
+		marked = w.l.F("отмечено каталогов: %d — «c» в корзину, забой стереть насовсем", len(w.marks))
 	}
 	out = append(out, w.kv(w.l.T("в нём"), w.l.F("%s · %s записей",
 		w.l.Bytes(n.bytes), w.l.Num(int64(n.entries))),
@@ -1382,6 +1404,7 @@ func (w *walkScreen) removable() []string {
 	// removes is `clean`, and it does not remove at once either: the command
 	// is spelled out here so the next step is a decision and not a keypress.
 	out = append(out, "", w.note(w.l.T("убрать можно отсюда: «c» строит план и спрашивает число файлов.")))
+	out = append(out, w.note(w.l.T("забой в разделе ДЕРЕВО стирает то же самое насовсем, минуя корзину.")))
 	out = append(out, w.note(w.l.T("отметьте каталоги в разделе ДЕРЕВО, чтобы взять только их; без отметок — всё дерево.")))
 	out = append(out, "", w.note(w.l.T("та же уборка одной командой, если экран не нужен:")))
 	out = append(out, w.t.Fg(w.t.P.AccentSoft, "    digitdisk clean "+w.walkRoot))

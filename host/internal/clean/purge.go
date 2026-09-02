@@ -37,6 +37,11 @@ func Purge(j *Journal, confirm int, now time.Time) (*Journal, error) {
 	if now.IsZero() {
 		now = time.Now()
 	}
+	// See Restore: a journal of a стирание is not a корзина, and «пуста» would
+	// be a misleading way to say that its files were erased long ago.
+	if j.Erasure() {
+		return nil, lang.Errorf("%s — журнал стирания, а не корзины: эти файлы уже стёрты, стирать нечего", j.Box)
+	}
 	inBox, bytes := j.Moved()
 	if confirm < 0 {
 		return nil, lang.Errorf("--confirm не может быть отрицательным")

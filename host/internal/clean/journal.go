@@ -22,8 +22,16 @@ import (
 // It is written twice.  Once before anything moves, with every intended
 // путь → в_корзине pair and no outcomes — so that a crash leaves something
 // restorable.  Once after, with the outcomes filled in.
+//
+// A journal records ONE OF TWO THINGS and says which in «способ».  A journal
+// of a перенос has a корзина with the files in it and every entry restorable;
+// a journal of a стирание has a корзина holding nothing but the journal
+// itself, because the files it names are gone.  The two are never told apart
+// by guessing from the counts: `restore` and `purge` read «способ» and refuse
+// a journal of the other kind out loud.
 type Journal struct {
 	Version         int       `json:"версия_журнала"`
+	Way             Way       `json:"способ"`
 	Tool            string    `json:"инструмент"`
 	ContractVersion int       `json:"версия_договора"`
 	Decider         string    `json:"решающий_слой"`
@@ -41,6 +49,26 @@ type Journal struct {
 	// the directory is renamed.
 	path string
 }
+
+// Way is «способ» — what the journal's корзина did with the files it names.
+// It travels in JSON and in the journal file as the Russian word, for the
+// reason the разряд and the приговор do: it is a name of a record, not a line
+// of output.  The screen translates the WORD it shows for it and leaves this
+// alone.
+type Way string
+
+const (
+	// WayMove — перенос: the files are in the корзина and restore puts
+	// them back.  An empty «способ» means this too, so a journal written
+	// by an older digitdisk keeps its meaning.
+	WayMove Way = "перенос"
+	// WayErase — стирание: the files were removed and there is nothing to
+	// put back.  The корзина of such a journal holds the journal alone.
+	WayErase Way = "стирание"
+)
+
+// Erasure reports whether this journal records a стирание.
+func (j *Journal) Erasure() bool { return j.Way == WayErase }
 
 // Path is the file this journal lives in.
 func (j *Journal) Path() string { return j.path }
