@@ -635,6 +635,101 @@ scripts see what they have always seen.
 `NO_COLOR` is honoured: the screen still runs, it is simply drawn without
 colour.
 
+### The analyze screen: a place to work from
+
+In a terminal `digitdisk analyze` shows not only the result but the walk
+itself, and once the walk is over it becomes the place the work is done from.
+
+**While the walk runs.** A walk over millions of entries takes minutes, and for
+those minutes the walk **is** what is happening: the entry count and the byte
+total climb, the directory being read right now is named, so is the rate, and
+the top-level directories fill up in front of you — shares, bars, and an order
+that rearranges itself as they grow. **Until the walk ends, the largest
+directory is a guess, not a result**: the next directory read can overturn it.
+The list is therefore marked with one word — `ПРЕДВАРИТЕЛЬНО`, preliminary —
+and the mark comes off exactly when the walk finishes. `q` stops the walk and
+yields no report: half a walk presented as a whole one is exactly the lie this
+screen must not tell.
+
+**When the walk is over** — eight sections (total, tree, largest, removable,
+classes, skipped, places, journal) and a keyboard:
+
+| | |
+|---|---|
+| `Tab`, `1`…`8` | sections |
+| `↑ ↓` `k j` | rows; `g` `G` to the top and the bottom |
+| `→` `Enter` | into a directory |
+| `←` `Backspace` | back out |
+| `Space` | tick a directory; `.` ticks the one you stand in |
+| `c` | the cleaning plan for what is ticked, and its confirmation |
+| `o` | walk another directory (`Tab` completes the path, `Ctrl-U` clears it) |
+| `Enter` in JOURNAL | put a корзина back where it came from |
+| `l` | the language of the screen — the key `status` gives it |
+| `?` | keys and commands |
+| `q` | leave; the report is printed afterwards as always |
+
+The vim `h`/`l` pair is deliberately not here: `l` is the language, the same key
+on both screens, and one letter cannot mean two things. The vim movement keys
+`j k g G` stay; into and out of a directory is the arrows, `Enter` and
+Backspace. The whole screen speaks both languages — headings, numbers (`1,4 МиБ`
+against `1.4 MiB`), the cleaning plan and its confirmation.
+
+<a id="cleaning-from-the-screen"></a>
+
+### Cleaning from the screen: the same road `clean` takes
+
+Ticking directories, seeing what the decision layer says about them and asking
+for them to go — all without leaving. **No second road to removal is built for
+it**, and that is the whole point:
+
+- What goes is exactly what `clean.Make` put in a plan: **what the decision
+  layer gave the verdict «МожноУбрать»** and the host's own guard let past.
+  A tick **narrows** the ground the plan is made on and can add no path to it:
+  «Спросить» and «НеТрогать» items inside a ticked directory are not in the
+  plan, however hard they are ticked.
+- The **plan** comes first: how many files, how many bytes, broken down by
+  разряд, into which корзина. Building it walks the tree again, so the plan is
+  always about what is on the disk now.
+- Then the **exact number of files** is asked for, the way `purge --confirm N`
+  asks. A different number moves nothing, and the screen says so.
+- The move is the same `rename(2)` into a корзина inside the корень. **It frees
+  no space**, and the line saying so stands next to the number of bytes rather
+  than in a footnote.
+- **Putting it back is here too**: the ЖУРНАЛ section, `Enter` on a корзина,
+  the same confirmation by count.
+
+**There is no erasing from the screen.** `purge` is the one irreversible step
+and stays a separate command; the screen names it, together with the number it
+will demand.
+
+**Memory.** Walking the tree is possible because the tree of directories is
+held in memory: over `/srv` (5,446,842 entries, 574,005 directories) that is
+291 MiB of peak RSS against 22 MiB for the same walk without the screen — about
+320 bytes per directory. The path map lives only in screen mode and is dropped
+the moment the walk ends; `analyze --plain` and `analyze --json` build no tree
+at all, so scripts and other people's pipelines stay at the 22 MiB they always
+had. Past a million directories everything is still counted, not all of the
+tree can be walked, and the screen says so.
+
+**The drawing does not slow the walk down.** The screen redraws four times a
+second, but the walk hands over a snapshot of its counters no more often than
+once every thousand entries, and only when the screen has asked for one;
+nothing is summed up the tree per entry and nothing takes a lock. The plan and
+the move run off the drawing loop: the screen says work is in progress and
+listens to no key until it is back — otherwise a confirmation could be given
+blind.
+
+The comparison is the "время" line `analyze` prints itself: `digitdisk analyze
+/srv --plain` against `digitdisk analyze /srv` in a terminal, over a tree of
+5,446,842 entries and 434.8 GiB. The calm of the live list is measured too, not
+promised: `cd host && DIGITDISK_TREE=/srv go test ./internal/ui/ -run Calm -v`
+prints in how many frames the first ten rows changed order.
+
+The output rule is the one `status` follows: a pipe, a file, `/dev/null`,
+`--json`, `TERM=dumb` and an empty `TERM` all receive what they have always
+received, byte for byte. `--plain` prints the report even in a terminal;
+`--live` demands the screen.
+
 ## What it does not do
 
 - **It does not delete by pattern, and it does not delete from a list of

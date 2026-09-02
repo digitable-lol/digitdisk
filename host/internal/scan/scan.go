@@ -81,6 +81,28 @@ type Options struct {
 	// entry instead of only the top N: the rankings in Result are a report,
 	// and a work list is not a report.
 	Observe func(Entry, fs.FileInfo)
+
+	// Watch, when set, is called once for every accounted entry with the
+	// bytes the walk CHARGED for it.  Observe carries the entry's own
+	// st_size, which is the right number for a ranking and the wrong one
+	// for a running total: a directory is charged nothing and a hard link
+	// met a second time is charged nothing, and a total built from st_size
+	// would drift away from the TotalBytes the report prints at the end.
+	// Watch is what a live screen adds up, so the number growing during the
+	// walk is the same number the report finishes with.
+	//
+	// It is deliberately narrow — three fields, no fs.FileInfo — because it
+	// runs on every one of several million entries.
+	Watch func(Step)
+}
+
+// Step is one accounted entry as the walk charged it.  Charged is what
+// TotalBytes received: zero for a directory (du charges a directory nothing
+// for itself) and zero for an inode already counted under another name.
+type Step struct {
+	Path    string
+	Charged int64
+	Kind    core.Kind
 }
 
 // Entry is one path kept for a ranking, with the verdict it received.
@@ -299,6 +321,9 @@ func Walk(opt Options) (Result, error) {
 		}
 		if opt.Observe != nil {
 			opt.Observe(e, info)
+		}
+		if opt.Watch != nil {
+			opt.Watch(Step{Path: path, Charged: charged, Kind: k})
 		}
 	}
 

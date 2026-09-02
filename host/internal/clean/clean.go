@@ -120,6 +120,32 @@ type Options struct {
 	// can say which place claimed an item.  It decides nothing: the разряд
 	// on every item came from the layer.
 	Places *places.Directory
+
+	// Only, when set, narrows the plan to these subtrees of the корень: a
+	// path outside all of them is not walked, not judged and not planned.
+	//
+	// It can only SUBTRACT, like the защитный список and for the same
+	// reason.  The verdict on everything that remains is still the layer's,
+	// with the same thresholds — narrowing the ground never widens what may
+	// be removed on it.  It exists so the живой экран can act on the
+	// directories a person marked instead of on the whole tree, without
+	// growing a second road to removal beside this one.
+	Only []string
+}
+
+// wanted reports whether a path is inside one of the subtrees named by Only,
+// or on the way down to one.  An empty Only wants everything.
+func wanted(only []string, p string) bool {
+	if len(only) == 0 {
+		return true
+	}
+	for _, o := range only {
+		if p == o || strings.HasPrefix(p, o+string(filepath.Separator)) ||
+			strings.HasPrefix(o, p+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 // Identity is what the host remembers about a file between the moment it was
@@ -330,6 +356,23 @@ func Make(opt Options) (Plan, error) {
 
 	thresholds, _ := opt.Decider.(core.Thresholder)
 
+	// Only is taken as absolute paths under the корень; anything outside it
+	// is dropped rather than silently widening the ground.
+	var only []string
+	for _, o := range opt.Only {
+		abs, err := filepath.Abs(o)
+		if err != nil {
+			continue
+		}
+		abs = filepath.Clean(abs)
+		if abs == rootAbs || strings.HasPrefix(abs, rootAbs+string(filepath.Separator)) {
+			only = append(only, abs)
+		}
+	}
+	if len(opt.Only) > 0 && len(only) == 0 {
+		return Plan{}, lang.Errorf("ни один из отмеченных путей не лежит внутри %s", rootAbs)
+	}
+
 	res, err := scan.Walk(scan.Options{
 		Root:        rootAbs,
 		CrossDevice: opt.CrossDevice,
@@ -342,7 +385,7 @@ func Make(opt Options) (Plan, error) {
 				p.PrunedTrash++
 				return true
 			}
-			return false
+			return !wanted(only, path)
 		},
 		Observe: func(e scan.Entry, info fs.FileInfo) {
 			if e.Verdict != core.VerdictRemovable {
