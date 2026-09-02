@@ -24,6 +24,9 @@ const (
 	keyShiftTab
 	keyPgUp
 	keyPgDn
+	keyEnter
+	keyBack
+	keyKill
 )
 
 type key struct {
@@ -47,6 +50,12 @@ func readKeys(tty *os.File, out chan<- key) {
 			out <- key{kind: keyCtrlC}
 		case b == 0x09:
 			out <- key{kind: keyTab}
+		case b == 0x0d, b == 0x0a:
+			out <- key{kind: keyEnter}
+		case b == 0x7f, b == 0x08:
+			out <- key{kind: keyBack}
+		case b == 0x15: // Ctrl-U, the way a shell clears a line
+			out <- key{kind: keyKill}
 		case b == 0x1b:
 			out <- escape(r)
 		case b < 0x20:

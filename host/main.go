@@ -198,11 +198,18 @@ func cmdAnalyze(args []string) error {
 	maxDepth := fs.Int("max-depth", 0, l.T("предел глубины обхода, 0 — без предела"))
 	placesFile := fs.String("places", "", l.T("свой справочник известных мест"))
 	noPlaces := fs.Bool("no-places", false, l.T("судить одними приметами, без справочника"))
+	protectFile := fs.String("protect-file", "", l.T("защитный список файлом"))
+	live := fs.Bool("live", false, l.T("живой экран, даже если о терминале не спрашивали"))
+	plain := fs.Bool("plain", false, l.T("обойти молча и напечатать отчёт, без экрана"))
+	var protectArgs stringList
+	fs.Var(&protectArgs, "protect", l.T("не трогать: путь или «разряд:кэш»; можно повторять"))
 	rest, err := parseFlags(fs, args)
 	if err != nil {
 		return err
 	}
-	if len(rest) != 1 {
+	// More than one path is a mistake; none of them is the screen being
+	// asked for a path, and only in a terminal — see below.
+	if len(rest) > 1 {
 		return lang.Errorf("нужен ровно один путь для обхода, получено %d", len(rest))
 	}
 
@@ -213,14 +220,116 @@ func cmdAnalyze(args []string) error {
 	}
 	sayMoved(l, dir.Moved)
 
-	res, err := scan.Walk(scan.Options{
-		Root:        rest[0],
+	opt := scan.Options{
 		CrossDevice: *cross,
 		MaxDepth:    *maxDepth,
 		Top:         *top,
 		Decider:     decider,
-		Now:         time.Now(),
-	})
+	}
+	if len(rest) == 1 {
+		opt.Root = rest[0]
+	}
+
+	// A machine reader is answered first and never gets the screen, for the
+	// reason status gives: --json is how scripts call this tool.
+	//
+	// The screen is the default only where there is a terminal to draw it on,
+	// and it changes nothing about what is printed: the walk is the same walk,
+	// the result is the same result, and the report goes to standard output
+	// after the screen closes exactly as it always has.
+	if !*asJSON && (*live || (!*plain && ui.Available(os.Stdout))) {
+		guard, err := protect.Load(protect.Options{File: *protectFile, Args: protectArgs})
+		if err != nil {
+			return err
+		}
+
+		// The report printed after the screen closes is printed in the
+		// language the screen closed in.  A reader who switched to English
+		// and quit would otherwise be handed a Russian report by the same
+		// keypress that ended an English screen.
+		shown := l
+		remember := func(chosen lang.Lang) lang.Phrase {
+			shown = chosen
+			return rememberLang(chosen)
+		}
+		res, have, err := ui.RunWalk(ui.WalkOptions{
+			Out:      os.Stdout,
+			Root:     opt.Root,
+			Palette:  ui.PaletteByName(os.Getenv("DIGITDISK_PALETTE")),
+			Lang:     l,
+			Remember: remember,
+			Walk: func(root string, watch func(scan.Step)) (scan.Result, error) {
+				o := opt
+				o.Root, o.Watch, o.Now = root, watch, time.Now()
+				return scan.Walk(o)
+			},
+			// The screen acts through the same calls the subcommands make,
+			// with the same справочник, the same защитный список and the same
+			// decision layer.  It builds nothing of its own: a second road to
+			// removal is exactly what internal/clean exists to prevent.
+			Plan: func(root string, only []string) (*clean.Plan, error) {
+				p, err := clean.Make(clean.Options{
+					Root: root, CrossDevice: *cross, MaxDepth: *maxDepth,
+					Decider: decider, Now: time.Now(), Version: version,
+					Places: dir, Protect: guard, Only: only,
+				})
+				if err != nil {
+					return nil, err
+				}
+				return &p, nil
+			},
+			Apply: func(p *clean.Plan) (*clean.Journal, error) {
+				return clean.Apply(*p, clean.Options{Now: time.Now(), Version: version})
+			},
+			Restore: func(box string, dryRun bool) (*clean.Journal, error) {
+				j, err := clean.ReadJournal(box)
+				if err != nil {
+					return nil, err
+				}
+				return clean.Restore(j, dryRun, time.Now())
+			},
+			History: func(root string) (*clean.History, error) { return clean.ReadHistory(root) },
+			Places: func() (string, []ui.PlaceRow, error) {
+				d, err := places.Load(places.Options{File: *placesFile})
+				if err != nil {
+					return "", nil, err
+				}
+				var rows []ui.PlaceRow
+				// Sizes are not measured here: measuring a hundred places
+				// means a hundred walks, and `digitdisk places` is the
+				// command that does it.
+				for _, f := range d.Look(nil) {
+					if !f.Exists {
+						continue
+					}
+					rows = append(rows, ui.PlaceRow{
+						Class: string(f.Entry.Class), Name: f.Entry.Name, Path: f.Entry.Resolved,
+					})
+				}
+				return d.Origin, rows, nil
+			},
+		})
+		switch {
+		case err == nil:
+			if have {
+				report.Analyze(os.Stdout, shown, res)
+			}
+			return nil
+		case errors.Is(err, ui.ErrWalkStopped):
+			return err
+		case !errors.Is(err, ui.ErrNoTerminal):
+			return err
+		case *live:
+			return lang.Errorf("%s; без --live тот же обход печатается текстом", err)
+		}
+		// The terminal went away between the question and the answer.  Walk.
+	}
+
+	if opt.Root == "" {
+		return lang.Errorf("нужен ровно один путь для обхода, получено %d", 0)
+	}
+	opt.Now = time.Now()
+	res, err := scan.Walk(opt)
 	if err != nil {
 		return err
 	}
