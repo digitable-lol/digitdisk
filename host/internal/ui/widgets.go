@@ -65,12 +65,12 @@ func right(s string, n int) string {
 
 // level is how a share of something full is to be read.  The screen shows the
 // same numbers the report prints; the colour is a reading aid, not a new
-// measurement, and the two thresholds are stated here once.
+// measurement, and the two thresholds are stated once — in levelOf.
 func (t Theme) level(frac float64) slot {
-	switch {
-	case frac >= 0.90:
+	switch levelOf(frac) {
+	case 2:
 		return t.P.Red
-	case frac >= 0.75:
+	case 1:
 		return t.P.Yellow
 	default:
 		return t.P.Green
@@ -90,7 +90,7 @@ func (t Theme) bar(frac float64, n int) string {
 	if frac > 1 {
 		frac = 1
 	}
-	full := int(frac*float64(n) + 0.5)
+	full := barCells(frac, n)
 	var r row
 	r.add(strings.Repeat("█", full), func(s string) string { return t.Fg(t.level(frac), s) })
 	r.add(strings.Repeat("─", n-full), func(s string) string { return t.Fg(t.P.Border, s) })
@@ -107,6 +107,9 @@ func (t Theme) emptyBar(n int) string {
 
 var sparkFaces = []rune("▁▂▃▄▅▆▇█")
 
+// sparkGapFace stands for a sample that was never measured.
+var sparkGapFace = rune(0x00B7) // ·
+
 // spark draws the recent history of one share as a single line.  The history
 // is nothing but the samples already shown at the top of the screen, kept as
 // they scroll by — no source is read for it.
@@ -114,24 +117,20 @@ func (t Theme) spark(history []float64, n int) string {
 	if n <= 0 {
 		return ""
 	}
-	vals := history
-	if len(vals) > n {
-		vals = vals[len(vals)-n:]
-	}
+	vals := sparkTail(history, n)
 	var r row
 	if lead := n - len(vals); lead > 0 {
-		r.add(strings.Repeat("·", lead), func(s string) string { return t.Fg(t.P.Border, s) })
+		r.add(sparkGap(lead), func(s string) string { return t.Fg(t.P.Border, s) })
 	}
 	for _, v := range vals {
 		if v < 0 {
-			r.add("·", func(s string) string { return t.Fg(t.P.Border, s) })
+			r.add(sparkGlyph(v), func(s string) string { return t.Fg(t.P.Border, s) })
 			continue
 		}
 		if v > 1 {
 			v = 1
 		}
-		i := int(v * float64(len(sparkFaces)-1))
-		r.add(string(sparkFaces[i]), func(s string) string { return t.Fg(t.level(v), s) })
+		r.add(sparkGlyph(v), func(s string) string { return t.Fg(t.level(v), s) })
 	}
 	return r.String()
 }
@@ -156,14 +155,6 @@ func (t Theme) gaugeUnmeasured(name string, nameWidth int, note string, barWidth
 	return r.String()
 }
 
-// pctOf is a share of a whole, guarded against a zero whole.
-func pctOf(part, whole uint64) float64 {
-	if whole == 0 {
-		return 0
-	}
-	return float64(part) / float64(whole)
-}
-
 // clip cuts a painted line to n printing cells.  Escape sequences carry no
 // width and are copied through whole, so a line is shortened without its
 // colours coming apart.  A line that overruns the terminal would otherwise
@@ -173,63 +164,5 @@ func (t Theme) clip(s string, n int) string {
 	if n <= 0 {
 		return ""
 	}
-	if plainWidth(s) <= n {
-		return s
-	}
-	rs := []rune(s)
-	var b strings.Builder
-	w, keep := 0, n-1
-	for i := 0; i < len(rs); {
-		if rs[i] != 0x1b {
-			if w >= keep {
-				break
-			}
-			b.WriteRune(rs[i])
-			w++
-			i++
-			continue
-		}
-		j := skipEscape(rs, i)
-		b.WriteString(string(rs[i:j]))
-		i = j
-	}
-	return b.String() + "…" + t.reset()
-}
-
-// plainWidth counts the cells a painted string will occupy, which is its runes
-// less everything inside an escape sequence.
-func plainWidth(s string) int {
-	rs := []rune(s)
-	w := 0
-	for i := 0; i < len(rs); {
-		if rs[i] == 0x1b {
-			i = skipEscape(rs, i)
-			continue
-		}
-		w++
-		i++
-	}
-	return w
-}
-
-// skipEscape returns the index just past the escape sequence starting at i.
-func skipEscape(rs []rune, i int) int {
-	j := i + 1
-	if j < len(rs) && (rs[j] == '[' || rs[j] == ']' || rs[j] == '?') {
-		j++
-		for j < len(rs) && !isFinal(rs[j]) {
-			j++
-		}
-		if j < len(rs) {
-			j++
-		}
-	} else if j < len(rs) {
-		j++
-	}
-	return j
-}
-
-// isFinal reports whether r ends a CSI sequence.
-func isFinal(r rune) bool {
-	return r >= 0x40 && r <= 0x7E && r != '[' && r != ';' && !(r >= '0' && r <= '9')
+	return clipTo(s, n, "…", t.reset())
 }

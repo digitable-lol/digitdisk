@@ -101,6 +101,22 @@ cd host && go build -tags flangcore -o ../digitdisk .
 host builds against a placeholder that counts but decides nothing —
 `digitdisk --version` names which one is inside, so a build is never in doubt.
 
+There are two tags, and the second is not the default yet. `flangui` also puts
+the **screen layout in flang** inside the binary — the
+[flang-tui](https://github.com/digitable-lol/flang-tui) library, wired in as a
+submodule under [`ui-flang/`](ui-flang/README.md):
+
+```bash
+cd host && go build -tags flangcore,flangui -o ../digitdisk .
+```
+
+Both builds print the same bytes — that is a run, not a promise
+(`tools/sverka-ui.sh`). But the flang layout recomputes its postconditions on
+every return and costs **13–21 ms per keystroke** against 0.13–0.19 ms for the
+hand-written Go. A timer redraw hides behind the ≈1.5 s of collection; a
+keystroke is waited for — so the default stays hand-written Go for now. The
+numbers, and what would change the default: [`ui-flang/README.md`](ui-flang/README.md).
+
 <a id="macos"></a>
 
 ### macOS: the same readings, a different source
