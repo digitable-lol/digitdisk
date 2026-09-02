@@ -69,6 +69,10 @@ class Digitdisk < Formula
 
   def install
     bin.install "digitdisk"
+    # man1 — то место, где `man digitdisk` страницу и ищет: Homebrew кладёт
+    # свой share/man в MANPATH сам. Отдельной настройки от поставившего это
+    # не требует, и проверяется ниже, в test do.
+    man1.install "digitdisk.1"
     doc.install "README.md", "README.ru.md", "NOTICE", "LICENSE"
   end
 
@@ -76,8 +80,9 @@ class Digitdisk < Formula
     <<~EOS
       Проверить установку:
         digitdisk --version
-        digitdisk status
+        digitdisk            # снимок системы: то же, что digitdisk status
         digitdisk analyze ~
+        man digitdisk        # ключи, файлы, примеры
 
       status и analyze только читают. Уборка — отдельная команда и три шага:
         digitdisk clean <путь>                 план, ничего не тронуто
@@ -122,5 +127,13 @@ class Digitdisk < Formula
     #    проверяется, а не подразумевается.
     справка = shell_output("#{bin}/digitdisk --help")
     refute_match(/--(delete|remove|clean|force)/, справка)
+
+    # 6. Страница руководства поставлена туда, где её ищет man, и это
+    #    проверяется файлом, а не верой в install. Формула ставит двоичный
+    #    файл; страница едет с ним в том же архиве и без этой строки молча
+    #    осталась бы в нём.
+    страница = man1/"digitdisk.1"
+    assert_path_exists страница
+    assert_match "DIGITDISK 1", страница.read
   end
 end

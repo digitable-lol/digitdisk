@@ -5,9 +5,20 @@
 // found, and — when told to, in as many words — removes files the decision
 // layer marked «МожноУбрать».
 //
-// status and analyze read and nothing else.  clean, restore and purge are the
-// three steps of removal, and they are three because one would be a mistake
-// nobody could take back:
+//	digitdisk [подкоманда] [ключи]
+//
+// The subcommands and their one-line glosses are in internal/cli; the flags
+// are registered in the cmd* functions below.  digitdisk.1 is the reference,
+// and scripts/check-docs.sh holds it to what is registered here.
+//
+// A bare `digitdisk` runs status: reading is the frequent thing and it changes
+// nothing.  A first argument that begins with «-» is status's own flags, so
+// `digitdisk --json` and `digitdisk status --json` are one command; --help and
+// --version stay themselves.  A first argument that is a word and not a
+// subcommand is a mistake, and it is refused rather than guessed at.
+//
+// clean, restore and purge are the three steps of removal, and they are three
+// because one would be a mistake nobody could take back:
 //
 //	clean <путь>          план: что, сколько, почему.  Ничего не тронуто.
 //	clean <путь> --apply  перенос в корзину внутри корня.  Обратимо.
@@ -17,19 +28,6 @@
 // What may be removed is decided entirely by the layer in core/: exactly the
 // paths it gives the приговор «МожноУбрать» and nothing that merely resembles
 // one.  See internal/clean for the guards around that.
-//
-// Subcommands:
-//
-//	digitdisk status [--json] [--top N] [--sample MS] [--live|--plain] [--interval MS]
-//	digitdisk analyze <путь> [--json] [--top N] [--cross-device] [--max-depth N]
-//	digitdisk clean <путь> [--json] [--apply] [--trash DIR] [--cross-device] [--max-depth N]
-//	digitdisk restore <корзина> [--json] [--dry-run]
-//	digitdisk purge <корзина> [--json] [--confirm N]
-//	digitdisk --version
-//
-// `status` draws a live screen when it is talking to a terminal and prints the
-// same snapshot as text when it is not, so a pipe, a file and a script see
-// exactly what they always saw.
 package main
 
 import (
@@ -42,6 +40,7 @@ import (
 	"time"
 
 	"digitdisk/internal/clean"
+	"digitdisk/internal/cli"
 	"digitdisk/internal/core"
 	"digitdisk/internal/places"
 	"digitdisk/internal/protect"
@@ -51,124 +50,61 @@ import (
 	"digitdisk/internal/ui"
 )
 
-const usage = `digitdisk — снимок системы, разбор дерева каталогов и уборка.
-
-Использование:
-  digitdisk status  [--json] [--top N] [--sample MS] [--why] [--live|--plain] [--interval MS]
-      Снимок системы: ядро и выпуск, время работы, загрузка, память, процессы,
-      диски, сеть, температура. Источники платформенные — /proc и /sys на
-      Linux, sysctl и libSystem на macOS. Чего система не публикует, печатается
-      прочерком, а не нулём, и называется одной строкой в конце; почему — по
-      ключу --why.
-      В терминале — живой экран, который обновляется сам; в трубу, в файл и
-      под --json — та же печать текстом, что и всегда.
-
-  digitdisk analyze <путь> [--json] [--top N] [--places Ф] [--no-places] [--cross-device] [--max-depth N]
-      Обход дерева через lstat: символические ссылки не раскрываются,
-      границу файловой системы без --cross-device не пересекаем,
-      недоступное считается и пропускается.
-
-  digitdisk clean <путь> [--json] [--apply] [--top N] [--trash КАТ] [--places Ф]
-                         [--protect ЧТО] [--no-places] [--cross-device] [--max-depth N]
-      Уборка. БЕЗ КЛЮЧА --apply НИЧЕГО НЕ ТРОГАЕТ: печатает план — какие файлы,
-      сколько байт и по какому правилу ядра помечены «МожноУбрать». С --apply
-      переносит их в корзину <корень>/.digitdisk-trash/<метка времени>/ и пишет
-      журнал. Перенос — это rename(2): мгновенно, обратимо и НИЧЕГО НЕ
-      ОСВОБОЖДАЕТ, файлы остаются на диске под другим именем.
-      Перечень режется ключом --top (по умолчанию 15, как у analyze; 0 — весь).
-      Счёт при этом полный: итог и разбивка по разрядам от --top не зависят, а
-      под --json список едет целиком — машине нужен весь список работ.
-
-  digitdisk places [--json] [--top N] [--places ФАЙЛ] [--no-measure]
-      Справочник известных мест: что digitdisk знает про конкретные кэши, и
-      сколько из этого есть на ЭТОЙ машине. Справочник — данные: правится без
-      пересборки, свой берётся из --places или ~/.config/digitdisk/places.conf.
-
-  digitdisk history <путь> [--json] [--top N]
-      Чем кончались прошлые уборки под этим корнем: когда, сколько файлов,
-      сколько байт лежит в корзинах, сколько возвращено и сколько стёрто, и
-      чем вернуть. Ничего не помнится между прогонами — всё читается из
-      журналов самих корзин, тех же, что слушаются restore и purge.
-
-  digitdisk restore <корзина> [--json] [--dry-run]
-      Возврат корзины на прежние места по её журналу. Ключа не требует: ключи
-      стоят на разрушении, а не на его отмене. Ничего не перезаписывает.
-
-  digitdisk purge <корзина> [--json] [--confirm N]
-      Стирание корзины — единственное необратимое действие. Без --confirm
-      печатает план и число, которое надо назвать. С --confirm N, где N —
-      ровно столько файлов, сколько в корзине, стирает их по одному.
-
-  digitdisk --version
-      Версия, хеш сборки, инструментарий и решающий слой этого двоичного файла.
-
-Ключи:
-  --json           машиночитаемый вывод
-  --why            вместо снимка — что не измерено и почему (status)
-  --top N          сколько строк в списках (по умолчанию 10 / 15); 0 — без предела
-  --places ФАЙЛ    свой справочник известных мест вместо встроенного
-  --no-places      судить одними приметами, без справочника
-  --no-measure     places: не считать размеры найденных мест, только назвать их
-  --protect ЧТО    не трогать: путь, или «разряд:кэш». Ключ можно повторять
-  --protect-file Ф защитный список файлом (по умолчанию ~/.config/digitdisk/protect.conf)
-  --sample MS      окно замера загрузки ЦП, мс (status, по умолчанию 200)
-  --cross-device   заходить на смонтированные другие файловые системы
-  --max-depth N    предел глубины обхода (0 — без предела)
-  --apply          clean: перенести в корзину, а не только показать план
-  --trash КАТ      clean: другая корзина; обязана лежать внутри корня
-  --dry-run        restore: показать, что вернулось бы, и не возвращать
-  --confirm N      purge: подтвердить стирание ровно N файлов
-  --live           живой экран; без терминала — ошибка, а не тихая печать
-  --plain          печать одним снимком, даже когда вывод в терминал
-  --interval MS    период обновления живого экрана, мс (по умолчанию 2000)
-
-Живой экран (status):
-  ← →, Tab      предыдущий и следующий раздел      1…9  раздел сразу
-  ↑ ↓, PgUp/Dn  прокрутка длинного раздела         p    пауза
-  r             замер сейчас                       q    выход
-
-  Палитра — Digitable Focus. DIGITDISK_PALETTE=carbon|paper|signal выбирает
-  вариант (по умолчанию carbon); NO_COLOR и TERM=dumb уважаются.
-
-Убирается ровно то, чему решающий слой вынес приговор «МожноУбрать», — не
-похожее на него и не совпавшее с маской. status и analyze не пишут ничего.
-`
-
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprint(os.Stderr, usage)
-		os.Exit(2)
+	os.Exit(run(os.Args[1:]))
+}
+
+// handlers is the other half of cli.Commands: a name there and a function
+// here.  A map rather than a switch so the two lists can be compared by a
+// test instead of by eye.
+var handlers = map[string]func([]string) error{
+	"status":  cmdStatus,
+	"analyze": cmdAnalyze,
+	"clean":   cmdClean,
+	"restore": cmdRestore,
+	"purge":   cmdPurge,
+	"places":  cmdPlaces,
+	"history": cmdHistory,
+}
+
+// run dispatches one command line and returns the code the process exits
+// with.  Three cases have to be kept apart: подкоманду не назвали (do the
+// default), назвали ключ (the default's own flags), and назвали слово,
+// которого нет — refused with code 2, never answered by quietly doing
+// something else.
+func run(args []string) int {
+	if len(args) > 0 {
+		switch {
+		case cli.Is(cli.HelpArgs, args[0]):
+			fmt.Print(cli.Usage())
+			return 0
+		case cli.Is(cli.VersionArgs, args[0]):
+			printVersion(os.Stdout)
+			return 0
+		}
 	}
-	var err error
-	switch os.Args[1] {
-	case "status":
-		err = cmdStatus(os.Args[2:])
-	case "analyze":
-		err = cmdAnalyze(os.Args[2:])
-	case "clean":
-		err = cmdClean(os.Args[2:])
-	case "restore":
-		err = cmdRestore(os.Args[2:])
-	case "purge":
-		err = cmdPurge(os.Args[2:])
-	case "places":
-		err = cmdPlaces(os.Args[2:])
-	case "history":
-		err = cmdHistory(os.Args[2:])
-	case "-h", "--help", "help":
-		fmt.Print(usage)
-		return
-	case "-V", "--version", "version":
-		printVersion(os.Stdout)
-		return
-	default:
-		fmt.Fprintf(os.Stderr, "digitdisk: неизвестная подкоманда %q\n\n%s", os.Args[1], usage)
-		os.Exit(2)
+
+	name, rest := cli.Default, args
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		if !cli.Known(args[0]) {
+			fmt.Fprintf(os.Stderr, "digitdisk: неизвестная подкоманда %q\n\n%s", args[0], cli.Usage())
+			return 2
+		}
+		name, rest = args[0], args[1:]
 	}
-	if err != nil {
+
+	h, ok := handlers[name]
+	if !ok {
+		// cli.Commands and handlers are the same list; a name in one and
+		// not in the other is a defect, and it says so out loud.
+		fmt.Fprintf(os.Stderr, "digitdisk: подкоманда %q объявлена в internal/cli, но не разобрана в main\n", name)
+		return 2
+	}
+	if err := h(rest); err != nil {
 		fmt.Fprintf(os.Stderr, "digitdisk: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 func cmdStatus(args []string) error {

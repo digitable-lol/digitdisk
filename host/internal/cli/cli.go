@@ -1,0 +1,125 @@
+// SPDX-FileCopyrightText: 2026 Marat Zimnurov <zimtir@mail.ru>
+// SPDX-License-Identifier: BSD-2-Clause
+
+// Package cli holds the one list of digitdisk's subcommands and the text of
+// its справка.
+//
+// It exists because the list had started to live in three places at once —
+// the помощь, the live screen and the страница руководства — and three copies
+// of a list are three chances to disagree about what the tool can do.  Here it
+// is data: main dispatches on it, the screen shows it under «?», and
+// scripts/check-docs.sh reads it to make sure digitdisk.1 names the same
+// commands and the same keys the code registers.
+package cli
+
+import (
+	"fmt"
+	"strings"
+)
+
+// A Command is one subcommand: its name, the argument it needs, and one line
+// saying what it does.  One line, because this text has to fit a справка, a
+// footer overlay and a table in the man page without being rewritten for each.
+type Command struct {
+	Name  string
+	Arg   string
+	Gloss string
+}
+
+// Commands is the list.  The order is the order everything shows it: reading
+// first, then the three steps of removal, then the two that look at what has
+// been decided and done.
+var Commands = []Command{
+	{"status", "", "снимок системы: ЦП, память, диски, сеть; в терминале — живой экран"},
+	{"analyze", "<путь>", "обход дерева: каталоги по размеру и самые крупные файлы"},
+	{"clean", "<путь>", "план уборки; переносит в корзину только с --apply"},
+	{"restore", "<корзина>", "вернуть корзину на прежние места"},
+	{"purge", "<корзина>", "стереть корзину: необратимо, требует --confirm N"},
+	{"places", "", "справочник известных мест и что из него есть на этой машине"},
+	{"history", "<путь>", "чем кончались прошлые уборки под этим корнем"},
+}
+
+// Default is the subcommand a bare `digitdisk` runs.  Reading is the frequent
+// thing and it changes nothing, so it is the one that may happen without being
+// asked for by name.
+const Default = "status"
+
+// HelpArgs and VersionArgs are what may stand where a subcommand stands and
+// mean something other than «сделай умолчание».  They are lists rather than a
+// switch in main for the same reason Commands is: digitdisk.1 promises exactly
+// these spellings, and a test compares the two.
+var (
+	HelpArgs    = []string{"-h", "--help", "help"}
+	VersionArgs = []string{"-V", "--version", "version"}
+)
+
+// Is reports whether arg is one of list.
+func Is(list []string, arg string) bool {
+	for _, s := range list {
+		if s == arg {
+			return true
+		}
+	}
+	return false
+}
+
+// Known reports whether name is a subcommand.
+func Known(name string) bool {
+	for _, c := range Commands {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// Call is "clean   <путь>", padded so the glosses line up.
+func (c Command) Call() string {
+	return fmt.Sprintf("%-7s %s", c.Name, c.Arg)
+}
+
+// Usage is the text of --help: what to type, and nothing about why.
+func Usage() string {
+	var b strings.Builder
+	b.WriteString("digitdisk — снимок системы, разбор дерева каталогов и уборка.\n\n")
+	b.WriteString("  digitdisk [подкоманда] [ключи]      без подкоманды — " + Default + "\n\n")
+	b.WriteString("Подкоманды:\n")
+	for _, c := range Commands {
+		b.WriteString(fmt.Sprintf("  %-18s %s\n", strings.TrimRight(c.Call(), " "), c.Gloss))
+	}
+	b.WriteString("  --help, --version  эта справка; версия, сборка и решающий слой\n")
+	b.WriteString(keys)
+	return b.String()
+}
+
+// keys lists every flag the subcommands register, one line each, naming the
+// subcommands that take it.  Nothing here explains itself: a key, what it
+// takes, where it works, what it does.
+const keys = `
+Ключи:
+  --json            машиночитаемый вывод; принимают все подкоманды
+  --top N           строк в списках: status 10, analyze и clean 15,
+                    places 40, history 20; 0 — без предела
+  --why             status: что не измерено и почему
+  --sample MS       status: окно замера загрузки ЦП, по умолчанию 200
+  --live            status: живой экран; без терминала — ошибка
+  --plain           status: один снимок, даже когда вывод в терминал
+  --interval MS     status: период обновления живого экрана, 2000
+  --cross-device    analyze, clean: заходить на другие файловые системы
+  --max-depth N     analyze, clean: предел глубины обхода; 0 — без предела
+  --places ФАЙЛ     analyze, clean, places: свой справочник известных мест
+  --no-places       analyze, clean: судить одними приметами, без справочника
+  --no-measure      places: не считать размеры, только назвать места
+  --apply           clean: перенести в корзину, а не только показать план
+  --trash КАТ       clean: другая корзина; обязана лежать внутри корня
+  --protect ЧТО     clean: не трогать путь или «разряд:кэш»; можно повторять
+  --protect-file Ф  clean: защитный список файлом
+  --dry-run         restore: показать, что вернулось бы, и не возвращать
+  --confirm N       purge: подтвердить стирание ровно N файлов
+
+Живой экран: ← → разделы, 1…9 раздел сразу, ↑ ↓ PgUp/PgDn прокрутка,
+  p пауза, r замер, ? команды, q выход. Палитра: DIGITDISK_PALETTE=
+  carbon|paper|signal, NO_COLOR и TERM=dumb уважаются.
+
+Подробно: man digitdisk
+`
