@@ -145,6 +145,22 @@ func (b *Bridge) Threshold(c core.Class) (float64, bool) {
 	return v.Num, true
 }
 
+// LargeBytes implements core.Sizer by asking «Порог крупного» — the function
+// правило Р5 itself calls, with its own пример «Гибибайт» beside it.  The host
+// keeps no copy: change the number in core/disk-inventory.flang and everything
+// the host says about "large" changes with it.
+func (b *Bridge) LargeBytes() (int64, bool) {
+	v, err := flang.PorogKrupnogo(b.ctx)
+	if err != nil {
+		b.note(err)
+		return 0, false
+	}
+	if v.Num <= 0 {
+		return 0, false
+	}
+	return int64(v.Num), true
+}
+
 // kindVariant maps вид onto the sum type of the flang module.
 func kindVariant(k core.Kind) rt.Value {
 	switch k {

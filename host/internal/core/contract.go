@@ -99,6 +99,26 @@ type Thresholder interface {
 	Threshold(Class) (float64, bool)
 }
 
+// Sizer is another optional capability, and it exists for the same reason
+// Thresholder does: a number the host shows must be the layer's number.
+//
+// «Порог крупного» is the size at which the decision layer stops calling a
+// file ordinary.  The host asks for it when it has to decide HOW HARD to ask
+// before doing something irreversible — see the забой key of the walk screen,
+// which confirms a small erasure with one key and a large one only by count.
+// "Large" there means large by the layer's reckoning, not by a number typed
+// into the screen: a screen holding its own gigabyte would go on calling
+// 900 МиБ small after the rule said otherwise.
+//
+// A Decider need not implement it.  A host that finds it missing does not
+// guess a size — it takes the strict road every time, which is the safe answer
+// to "I do not know how large is large".
+type Sizer interface {
+	// LargeBytes returns the size in bytes at which the layer calls a file
+	// «Крупное», and whether the layer has such a threshold at all.
+	LargeBytes() (int64, bool)
+}
+
 // Decider is the whole surface the host requires of the decision layer.
 type Decider interface {
 	// Decide classifies one record.  It must be safe for repeated calls and

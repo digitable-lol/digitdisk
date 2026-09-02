@@ -460,6 +460,13 @@ func analyze(args []string, after ui.After) (printed bool, err error) {
 			Apply: func(p *clean.Plan) (*clean.Journal, error) {
 				return clean.Apply(*p, clean.Options{Now: time.Now(), Version: version})
 			},
+			// The same plan, the other verb: what забой does after the
+			// question is confirmed.  It is handed the plan and nothing
+			// else, so the screen cannot name a path of its own here any
+			// more than it can when the file goes to the корзина.
+			Erase: func(p *clean.Plan) (*clean.Journal, error) {
+				return clean.Erase(*p, clean.Options{Now: time.Now(), Version: version})
+			},
 			Restore: func(box string, dryRun bool) (*clean.Journal, error) {
 				j, err := clean.ReadJournal(box)
 				if err != nil {

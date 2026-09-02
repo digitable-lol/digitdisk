@@ -400,10 +400,13 @@ never means having it done.
 
 `--apply` is a `rename(2)` into a корзина inside the same tree, which is why it
 is instant and reversible — and why it **frees no space at all**: the bytes are
-still there under another name. Only `purge` frees space, it needs `--confirm N`
-with N the exact number of files in the корзина, and the failure message does
-not tell you N — you get it by running `purge` with no flag and reading the
-plan. A confirmation you can satisfy without looking confirms nothing.
+still there under another name. From the shell only `purge` frees space, it
+needs `--confirm N` with N the exact number of files in the корзина, and the
+failure message does not tell you N — you get it by running `purge` with no
+flag and reading the plan. A confirmation you can satisfy without looking
+confirms nothing. Past the корзина — at once and for good — erases only
+`Backspace` on the live screen, and by the same plan and the same verdict:
+[«Backspace: the same thing, but for good»](#backspace-erases-for-good).
 
 Every корзина carries a `journal.json`: what was moved, from where, how many
 bytes, when, and where it went. It is written *before* the first file moves, so
@@ -671,10 +674,14 @@ minutes. The numbers move from the first second, and `q` stops the walk.
 
 Cleaning from the screen goes **the same road** as `digitdisk clean`: the
 core's verdict, the plan with its breakdown by разряд and its trash, and the
-exact number of files typed out by hand. `purge` is started from no screen
-under any condition — it is the one irreversible step, and it is typed out in
-the shell in full; `restore` and `history` live in the ЖУРНАЛ section of the
-`analyze` screen, and the list says so on the line under it.
+exact number of files typed out by hand. `Backspace` goes the same road and by
+the same verdict, only with no корзина: it erases for good and asks the harder
+the more is going —
+[«Backspace: the same thing, but for good»](#backspace-erases-for-good).
+`purge` is started from no screen under any condition: it empties a whole
+корзина and the screen has none open; `restore` and `history` live in the
+ЖУРНАЛ section of the `analyze` screen, and the list says so on the line under
+it.
 
 A subcommand run from the screen prints as it always prints, and `Enter` brings
 the status screen back. The program does not restart in between: the terminal
@@ -728,9 +735,10 @@ classes, skipped, places, journal) and a keyboard:
 | `Tab`, `1`…`8` | sections |
 | `↑ ↓` `k j` | rows; `g` `G` to the top and the bottom |
 | `→` `Enter` | into a directory |
-| `←` `Backspace` | back out |
+| `←` | back out |
 | `Space` | tick a directory; `.` ticks the one you stand in |
 | `c` | the cleaning plan for what is ticked, and its confirmation |
+| `Backspace` | **erase for good** what is ticked, or the row under the cursor when nothing is |
 | `o` | walk another directory (`Tab` completes the path, `Ctrl-U` clears it) |
 | `Enter` in JOURNAL | put a корзина back where it came from |
 | `l` | the language of the screen — the key `status` gives it |
@@ -739,8 +747,9 @@ classes, skipped, places, journal) and a keyboard:
 
 The vim `h`/`l` pair is deliberately not here: `l` is the language, the same key
 on both screens, and one letter cannot mean two things. The vim movement keys
-`j k g G` stay; into and out of a directory is the arrows, `Enter` and
-Backspace. The whole screen speaks both languages — headings, numbers (`1,4 МиБ`
+`j k g G` stay; into and out of a directory is the arrows and `Enter`.
+Backspace no longer walks back out — it erases, and one key cannot mean two
+things. The whole screen speaks both languages — headings, numbers (`1,4 МиБ`
 against `1.4 MiB`), the cleaning plan and its confirmation.
 
 <a id="cleaning-from-the-screen"></a>
@@ -767,9 +776,56 @@ it**, and that is the whole point:
 - **Putting it back is here too**: the ЖУРНАЛ section, `Enter` on a корзина,
   the same confirmation by count.
 
-**There is no erasing from the screen.** `purge` is the one irreversible step
-and stays a separate command; the screen names it, together with the number it
-will demand.
+<a id="backspace-erases-for-good"></a>
+
+### Backspace: the same thing, but for good
+
+A корзина is not always what a person wants: it frees no space, and "clean"
+through it means "move". So the screen has a second key — **`Backspace`** — and
+it erases **for good**, with no корзина and no way back.
+
+Its road is **the same one**, all of it: the plan is built by the same
+`clean.Make`, the verdict comes from the same decision layer, a tick still only
+**narrows** the ground, the protect list still subtracts. There are exactly two
+differences.
+
+The first is **the words**. The question says "erase for good", "there will be
+no trash" and "so much will be freed" — not "move to the trash". A screen that
+uses one wording for two different fates lies once, and once is enough.
+
+The second is that **how hard it asks depends on how much is going**:
+
+- **up to seven files, all of them on the screen, and a volume below «Порог
+  крупного»** — one key, `y`. Seven is how many rows are left for the list in a
+  24×80 window — the number is measured by
+  `TestSevenIsWhatFitsInTheSmallestWindow`, not chosen; above it the list would
+  have to be cut, and a cut list is one the reader cannot check, because the
+  question does not scroll;
+- **otherwise** — the **exact number of files**, typed, the way
+  `purge --confirm N` asks for it.
+
+The screen does not invent the size threshold: it is `Порог крупного` from
+[`core/disk-inventory.flang`](core/disk-inventory.flang) — the size at which the
+decision layer stops calling a file ordinary — and it reaches the screen in the
+plan's `порог_крупного` field. The tool prints the number itself:
+
+```console
+$ digitdisk clean ~ --json | grep порог_крупного
+  "порог_крупного": 1073741824
+```
+
+A layer that states no such threshold leaves the screen with no right to call
+anything small, and then the number is typed every time.
+
+What was erased **goes into the same journal** the cleaning uses, and is
+distinguishable from it: the record carries `"способ": "стирание"`, the корзина
+beside the journal is empty, and `restore` and `purge` refuse such a journal out
+loud. There is nothing to put back — but what vanished is on record, and that is
+the only honest answer to "what did I lose".
+
+**`purge` is still started from no screen.** It empties a whole корзина, and the
+screen has no корзина open; the ЖУРНАЛ section names the command and the number
+it will demand.
 
 **Memory.** Walking the tree is possible because the tree of directories is
 held in memory: over `/srv` (5,446,842 entries, 574,005 directories) that is

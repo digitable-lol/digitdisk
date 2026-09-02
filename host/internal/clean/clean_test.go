@@ -447,3 +447,137 @@ func snapshot(t *testing.T, root string) string {
 	}
 	return b.String()
 }
+
+// --- стирание насовсем ------------------------------------------------------
+
+// Стирание берёт РОВНО план и ничего больше: помеченный файл исчезает,
+// непомеченный рядом — нет, и корзины после этого нет ни одной.
+func TestEraseTakesExactlyThePlanAndNothingElse(t *testing.T) {
+	root := tree(t)
+	p := plan(t, root, "old.bin") // older.bin и letter.txt НЕ помечены
+	j, err := Erase(p, Options{Now: time.Now(), Version: "испытание"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := j.Purged(); n != 1 {
+		t.Fatalf("стёрто %d, ожидался 1", n)
+	}
+	if _, err := os.Lstat(filepath.Join(root, "cache/old.bin")); !os.IsNotExist(err) {
+		t.Errorf("помеченный файл пережил стирание: %v", err)
+	}
+	for _, keep := range []string{"cache/deep/older.bin", "docs/letter.txt"} {
+		if _, err := os.Lstat(filepath.Join(root, keep)); err != nil {
+			t.Errorf("%s исчез, а его никто не помечал: %v", keep, err)
+		}
+	}
+	// Ничего не отложено «на потом»: в корзине лежит журнал и только он.
+	files, err := os.ReadDir(filepath.Join(j.Box))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || files[0].Name() != JournalName {
+		var names []string
+		for _, f := range files {
+			names = append(names, f.Name())
+		}
+		t.Errorf("рядом с журналом стирания лежит ещё что-то: %v", names)
+	}
+	if n, _ := j.Moved(); n != 0 {
+		t.Errorf("журнал стирания насчитал %d перенесённых", n)
+	}
+}
+
+// Журнал стирания отличим от журнала уборки — и отличим не по счётчикам, а по
+// собственному слову. Возврат и `purge` по нему отказывают вслух.
+func TestAnEraseJournalIsNeverMistakenForATrash(t *testing.T) {
+	root := tree(t)
+	p := plan(t, root, "old.bin", "older.bin")
+	j, err := Erase(p, Options{Now: time.Now(), Version: "испытание"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if j.Way != WayErase || !j.Erasure() {
+		t.Fatalf("журнал не назвал себя стиранием: способ %q", j.Way)
+	}
+
+	// Прочитанный с диска — тот же самый.
+	back, err := ReadJournal(j.Box)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !back.Erasure() {
+		t.Fatalf("с диска журнал прочитался как корзина: способ %q", back.Way)
+	}
+	if _, err := Restore(back, true, time.Now()); err == nil {
+		t.Error("возврат согласился работать по журналу стирания")
+	} else if !strings.Contains(err.Error(), "журнал стирания") {
+		t.Errorf("возврат отказал не по той причине: %v", err)
+	}
+	if _, err := Purge(back, 2, time.Now()); err == nil {
+		t.Error("purge согласился стирать по журналу стирания")
+	} else if !strings.Contains(err.Error(), "журнал стирания") {
+		t.Errorf("purge отказал не по той причине: %v", err)
+	}
+
+	// А история видит стирание как стирание и считает место освобождённым.
+	h, err := ReadHistory(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(h.Entries) != 1 {
+		t.Fatalf("корзин в истории %d", len(h.Entries))
+	}
+	e := h.Entries[0]
+	if e.Way != WayErase {
+		t.Errorf("история не назвала способ: %q", e.Way)
+	}
+	if e.Moved != 0 || e.Purged != 2 {
+		t.Errorf("история насчитала в корзине %d и стёртых %d", e.Moved, e.Purged)
+	}
+	if e.FreedBytes != e.PurgedBytes || e.FreedBytes == 0 {
+		t.Errorf("освобождено %d при стёртых %d байт", e.FreedBytes, e.PurgedBytes)
+	}
+	if e.Restorable() {
+		t.Error("история считает стёртое возвратимым")
+	}
+}
+
+// Файл, который изменился между обходом и стиранием, не стирается: отпечаток
+// сверяется так же, как перед переносом.
+func TestEraseRefusesAFileThatChangedSinceTheWalk(t *testing.T) {
+	root := tree(t)
+	p := plan(t, root, "old.bin", "older.bin")
+	changed := filepath.Join(root, "cache/old.bin")
+	if err := os.WriteFile(changed, []byte("совсем другое содержимое"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	j, err := Erase(p, Options{Now: time.Now(), Version: "испытание"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(changed); err != nil {
+		t.Errorf("изменившийся файл всё-таки стёрт: %v", err)
+	}
+	if n, _ := j.Purged(); n != 1 {
+		t.Errorf("стёрто %d, ожидался ровно один — второй изменился", n)
+	}
+	if len(j.Failed()) != 1 {
+		t.Fatalf("отказ не записан в журнал: %d", len(j.Failed()))
+	}
+	if got := j.Failed()[0].Failed.String(); !strings.Contains(got, "не стёрт") {
+		t.Errorf("отказ не сказал, что файл не стёрт: %q", got)
+	}
+}
+
+// Пустой план не стирает ничего и говорит это отказом, а не тишиной.
+func TestEraseRefusesAnEmptyPlan(t *testing.T) {
+	root := tree(t)
+	before := snapshot(t, root)
+	p := plan(t, root) // ничего не помечено
+	if _, err := Erase(p, Options{Now: time.Now()}); err == nil {
+		t.Fatal("пустой план принят к стиранию")
+	}
+	if after := snapshot(t, root); after != before {
+		t.Errorf("пустой план изменил дерево:\n%s\n---\n%s", before, after)
+	}
+}

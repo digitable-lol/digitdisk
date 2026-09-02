@@ -77,6 +77,16 @@ The first journal entry is in place and restoring by it works`,
 		"перенесён, но в корзине не находится: %v":                 "moved, but is not found in the trash: %v",
 		"в корзине оказался не тот файл (узел %d:%d вместо %d:%d)": "the trash holds the wrong file (node %d:%d instead of %d:%d)",
 
+		// ── стирание насовсем: тот же план, но без корзины ───────────
+		"стирать нечего: ядро не пометило «%s» ни одного файла под %s": "nothing to erase: the core marked «%s» on no file under %s",
+		`файлы стёрты, но журнал %s не переписан: %s.
+Первая запись журнала на месте, и она называет всё, что стиралось`: `the files were erased, but the journal %s was not rewritten: %s.
+The first journal entry is in place, and it names everything that was being erased`,
+		"исчез между обходом и стиранием": "vanished between the walk and the erasure",
+		"%s — не стёрт":                   "%s — not erased",
+		"%s — журнал стирания, а не корзины: файлы стёрты насовсем, возвращать нечего": "%s is the journal of an erasure, not of a trash: the files are gone for good, there is nothing to put back",
+		"%s — журнал стирания, а не корзины: эти файлы уже стёрты, стирать нечего":     "%s is the journal of an erasure, not of a trash: these files are already gone, there is nothing to erase",
+
 		// ── журнал корзины ───────────────────────────────────────────
 		"в %s нет %s — это не корзина digitdisk": "%s holds no %s — this is not a digitdisk trash",
 		"%s не читается как журнал: %s":          "%s does not read as a journal: %s",

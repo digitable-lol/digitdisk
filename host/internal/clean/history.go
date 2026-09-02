@@ -26,6 +26,7 @@ import (
 type Entry struct {
 	Box       string `json:"корзина"`
 	Root      string `json:"корень"`
+	Way       Way    `json:"способ,omitempty"`
 	Tool      string `json:"инструмент,omitempty"`
 	Decider   string `json:"решающий_слой,omitempty"`
 	StartedAt string `json:"начато,omitempty"`
@@ -137,6 +138,7 @@ func entryOf(box string) Entry {
 		return e
 	}
 	e.Root, e.Tool, e.Decider, e.StartedAt = j.Root, j.Tool, j.Decider, j.StartedAt
+	e.Way = j.Way
 	e.Planned = len(j.Items)
 	e.Moved, e.MovedBytes = j.Moved()
 	e.Restored, e.RestoredBytes = j.Restored()

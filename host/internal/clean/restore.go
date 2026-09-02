@@ -26,6 +26,13 @@ func Restore(j *Journal, dryRun bool, now time.Time) (*Journal, error) {
 	if now.IsZero() {
 		now = time.Now()
 	}
+	// A journal of a стирание names files that are gone.  Walking it entry by
+	// entry would end in the same place — every one refused — but it would
+	// end there through «в корзине его нет», which reads as damage.  Nothing
+	// is damaged: this корзина never held a file.
+	if j.Erasure() {
+		return nil, lang.Errorf("%s — журнал стирания, а не корзины: файлы стёрты насовсем, возвращать нечего", j.Box)
+	}
 	root, err := openRoot(j.Root)
 	if err != nil {
 		return nil, err

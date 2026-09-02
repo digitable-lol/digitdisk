@@ -14,6 +14,7 @@ import (
 	"digitdisk/internal/clean"
 	"digitdisk/internal/core"
 	"digitdisk/internal/lang"
+	"digitdisk/internal/protect"
 	"digitdisk/internal/scan"
 )
 
@@ -294,9 +295,23 @@ func TestBrowsingWalksIntoADirectoryAndBackOut(t *testing.T) {
 	if got := w.stack[len(w.stack)-1].name; got != "большой" {
 		t.Errorf("вошли в %q", got)
 	}
+	// Забой по дереву больше не ходит: он стирает насовсем, и «назад» его
+	// работой быть не может — одна клавиша не бывает двумя вещами. Наверх
+	// водит ←, и это проверяется ниже.
 	w.handle(key{kind: keyBack})
+	if len(w.stack) != deep+1 {
+		t.Error("забой всё ещё ходит по дереву — он стирает")
+	}
+	if w.ask == nil {
+		t.Fatal("забой ничего не спросил")
+	}
+	if got := plain(strings.Join(w.askLines(), "\n")); !strings.Contains(got, "СТЕРЕТЬ НАСОВСЕМ") {
+		t.Errorf("забой открыл не тот вопрос:\n%s", got)
+	}
+	w.ask = nil
+	w.handle(key{kind: keyLeft})
 	if len(w.stack) != deep {
-		t.Error("забой не вернул наверх")
+		t.Fatal("стрелка влево не вернула наверх")
 	}
 	w.handle(key{kind: keyEnter})
 	if len(w.stack) != deep+1 {
@@ -676,6 +691,19 @@ type cacheDecider struct{}
 
 func (cacheDecider) Name() string { return "проверочный слой" }
 func (cacheDecider) Ready() bool  { return true }
+
+// LargeBytes implements core.Sizer.  The number is this stand-in's own and is
+// deliberately small: the screen must ask harder above whatever the layer calls
+// large, and a test that had to make a gibibyte of files to see it happen would
+// be a test nobody runs.  See также deciderWithoutSize, which states none.
+func (cacheDecider) LargeBytes() (int64, bool) { return 100000, true }
+
+// deciderWithoutSize is cacheDecider with core.Sizer taken away: a layer that
+// names no «Порог крупного» at all.  The screen may then not call anything
+// small, and the one-key road has to be shut.
+type deciderWithoutSize struct{ cacheDecider }
+
+func (deciderWithoutSize) LargeBytes() (int64, bool) { return 0, false }
 func (cacheDecider) Decide(r core.Record) core.Decision {
 	if r.Kind == core.KindFile && r.AgeDays >= 7 && strings.Contains(r.Path, "/.cache/") {
 		return core.Decision{Class: core.ClassCache, Verdict: core.VerdictRemovable, Weight: 1}
@@ -686,6 +714,16 @@ func (cacheDecider) Decide(r core.Record) core.Decision {
 // workScreen is a browsing screen over a tree with something removable in it,
 // wired to the same calls the subcommands make.
 func workScreen(t *testing.T, cols int) (*walkScreen, string) {
+	t.Helper()
+	return workScreenWith(t, cols, cacheDecider{}, nil)
+}
+
+// workScreenWith is workScreen with the decision layer named, and with a
+// защитный список when the test needs one.  Both are handed in rather than
+// built here for the reason the screen itself is: what may be removed is the
+// layer's answer, and a test that wants to see a refusal must be able to change
+// the answer without touching a line of the screen.
+func workScreenWith(t *testing.T, cols int, decider core.Decider, guard *protect.List) (*walkScreen, string) {
 	t.Helper()
 	root := t.TempDir()
 	old := time.Now().Add(-400 * 24 * time.Hour)
@@ -712,7 +750,8 @@ func workScreen(t *testing.T, cols int) (*walkScreen, string) {
 		started: time.Now(), jobs: make(chan jobResult, 1)}
 	w.o.Root, w.walkRoot = root, root
 	w.o.Plan = func(r string, only []string) (*clean.Plan, error) {
-		p, err := clean.Make(clean.Options{Root: r, Decider: cacheDecider{}, Now: time.Now(), Only: only})
+		p, err := clean.Make(clean.Options{Root: r, Decider: decider, Now: time.Now(),
+			Only: only, Protect: guard})
 		if err != nil {
 			return nil, err
 		}
@@ -720,6 +759,9 @@ func workScreen(t *testing.T, cols int) (*walkScreen, string) {
 	}
 	w.o.Apply = func(p *clean.Plan) (*clean.Journal, error) {
 		return clean.Apply(*p, clean.Options{Now: time.Now()})
+	}
+	w.o.Erase = func(p *clean.Plan) (*clean.Journal, error) {
+		return clean.Erase(*p, clean.Options{Now: time.Now()})
 	}
 	w.o.History = func(r string) (*clean.History, error) { return clean.ReadHistory(r) }
 	w.o.Restore = func(box string, dry bool) (*clean.Journal, error) {
@@ -867,17 +909,21 @@ func TestRestoreFromTheScreenAsksTheSameWay(t *testing.T) {
 
 // The screen has no key that removes without a plan and a confirmation.  This
 // walks every key it answers and checks the disk is untouched.
+//
+// Забой стирает насовсем — и подчиняется тому же правилу: он строит план и
+// СПРАШИВАЕТ. Ключ, который стирал бы по нажатию, здесь не завёлся бы, и эта
+// проверка — то место, где это видно.
 func TestNoKeyRemovesByItself(t *testing.T) {
 	w, root := workScreen(t, 100)
 	before := treeList(t, root)
 	for _, k := range []key{
 		{kind: keyRune, r: 'd'}, {kind: keyRune, r: 'D'}, {kind: keyRune, r: 'x'},
 		{kind: keyRune, r: 'у'}, {kind: keyRune, r: ' '}, {kind: keyRune, r: '.'},
-		{kind: keyEnter}, {kind: keyBack}, {kind: keyDown}, {kind: keyUp},
+		{kind: keyEnter}, {kind: keyDown}, {kind: keyUp},
 		{kind: keyRight}, {kind: keyLeft}, {kind: keyTab}, {kind: keyShiftTab},
 	} {
 		w.handle(k)
-		if w.ask != nil && w.ask.kind == overlayPlan {
+		if w.ask != nil && (w.ask.kind == overlayPlan || w.ask.kind == overlayErase) {
 			t.Fatalf("клавиша %+v сразу дала подтверждаемый план", k)
 		}
 	}
@@ -893,6 +939,16 @@ func TestNoKeyRemovesByItself(t *testing.T) {
 	}
 	if got := treeList(t, root); got != before {
 		t.Errorf("построение плана изменило дерево:\n%s\n---\n%s", before, got)
+	}
+	// И забой — тоже: нажатие даёт вопрос, а не пустой каталог.
+	w.ask = nil
+	w.handle(key{kind: keyBack})
+	w.settleJob(t)
+	if w.ask == nil || w.ask.kind != overlayErase {
+		t.Fatalf("забой не остановился на вопросе: %+v", w.ask)
+	}
+	if got := treeList(t, root); got != before {
+		t.Errorf("забой изменил дерево ДО подтверждения:\n%s\n---\n%s", before, got)
 	}
 }
 
@@ -1101,5 +1157,372 @@ func TestEveryQuestionDrawsWithinTheTerminal(t *testing.T) {
 			}
 		}
 		w.ask = nil
+	}
+}
+
+// --- забой: стирание насовсем прямо с экрана --------------------------------
+
+// erasePlan presses забой and settles the plan it asks for, so a test reads the
+// question a reader would see a moment later.
+func (w *walkScreen) erasePlan(t *testing.T) {
+	t.Helper()
+	w.tab = 1 // ДЕРЕВО
+	w.handle(key{kind: keyBack})
+	w.settleJob(t)
+}
+
+// Отмеченное уходит с диска, и уходит НАСОВСЕМ: корзины нет, возвращать
+// нечего, и журнал об этом говорит своим словом.
+func TestBackspaceErasesWhatIsMarked(t *testing.T) {
+	w, root := workScreen(t, 100)
+	w.markHere() // корень целиком
+	w.erasePlan(t)
+	if w.ask == nil || w.ask.kind != overlayErase {
+		t.Fatalf("забой не спросил: %+v", w.ask)
+	}
+	body := plain(strings.Join(w.askLines(), "\n"))
+	for _, want := range []string{"СТЕРЕТЬ НАСОВСЕМ", "2 файлов", "корзины не будет", "исчезнет:"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("в вопросе нет %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "корзина:") {
+		t.Errorf("вопрос о стирании назвал корзину:\n%s", body)
+	}
+	// Два файла на 68 КиБ — меньше того, что слой зовёт крупным: одна «y».
+	if !w.ask.quick {
+		t.Fatalf("двух мелких файлов хватило на набор числа: %q", w.ask.hint)
+	}
+	w.askKey(key{kind: keyRune, r: 'y'})
+	w.settleJob(t)
+	for _, rel := range []string{".cache/app/один.bin", ".cache/app/два.bin"} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); !os.IsNotExist(err) {
+			t.Errorf("%s пережил стирание: %v", rel, err)
+		}
+	}
+	// Исходник рядом не тронут: ядро не давало на него «МожноУбрать».
+	if _, err := os.Stat(filepath.Join(root, "проекты", "исходник.go")); err != nil {
+		t.Errorf("стирание задело то, чего ядро не помечало: %v", err)
+	}
+	done := plain(strings.Join(w.askLines(), "\n"))
+	for _, want := range []string{"СТЁРТО НАСОВСЕМ", "стёрто", "возврата нет", "журнал:"} {
+		if !strings.Contains(done, want) {
+			t.Errorf("итог стирания не сказал %q:\n%s", want, done)
+		}
+	}
+	if len(w.marks) != 0 {
+		t.Error("отметки пережили стирание")
+	}
+
+	// ЖУРНАЛ показывает это как стирание, а не как корзину, и возврат по нему
+	// отказывает вслух.
+	w.tab = len(walkSections) - 1
+	journal := plain(strings.Join(w.journalSection(), "\n"))
+	if !strings.Contains(journal, "стёрто насовсем 2") {
+		t.Errorf("журнал не отличил стирание от уборки:\n%s", journal)
+	}
+	// Отказ называет путь корзины первым, и на сотне колонок хвост фразы
+	// обрезается по ширине — читаем на широком экране.
+	w.cols = 300
+	w.restoreSelected()
+	w.settleJob(t)
+	back := plain(strings.Join(w.askLines(), "\n"))
+	if !strings.Contains(back, "журнал стирания") {
+		t.Errorf("возврат по журналу стирания не отказал вслух:\n%s", back)
+	}
+}
+
+// Без отметок забой берёт РОВНО строку под курсором, и соседняя строка этого
+// не замечает.
+func TestBackspaceWithNothingMarkedTakesTheRowUnderTheCursor(t *testing.T) {
+	w, root := workScreen(t, 100)
+	// Внутрь .cache, где два подкаталога: один под курсором, второй рядом.
+	mk := func(rel string, n int) {
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, make([]byte, n), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		old := time.Now().Add(-400 * 24 * time.Hour)
+		if err := os.Chtimes(p, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk(".cache/сосед/тоже.bin", 20000)
+
+	// Дерево на экране собрано до появления соседа — обойдём заново, как это
+	// делает читатель клавишей «o».
+	res, f := walkWith(t, root)
+	w.finish(walkDone{res: res, tree: f.tree, snap: f.snapshot()})
+	w.tab = 1
+	// Встать на .cache, войти внутрь и выбрать «app/».
+	for i, r := range w.here() {
+		if strings.HasPrefix(r.name, ".cache") {
+			w.sel[0] = i
+		}
+	}
+	w.enter()
+	rows := w.here()
+	for i, r := range rows {
+		if strings.HasPrefix(r.name, "app") {
+			w.sel[len(w.sel)-1] = i
+		}
+	}
+	if len(w.marks) != 0 {
+		t.Fatalf("отметки взялись сами: %v", w.marks)
+	}
+	w.erasePlan(t)
+	if w.ask == nil || w.ask.kind != overlayErase {
+		t.Fatalf("забой без отметок не спросил: %+v", w.ask)
+	}
+	if got := plain(strings.Join(w.askLines(), "\n")); !strings.Contains(got, "под курсором") {
+		t.Errorf("вопрос не сказал, что земля — строка под курсором:\n%s", got)
+	}
+	if w.ask.want != 2 {
+		t.Fatalf("под курсором «app/» с двумя файлами, а к стиранию %d", w.ask.want)
+	}
+	w.askKey(key{kind: keyRune, r: 'y'})
+	w.settleJob(t)
+	if _, err := os.Stat(filepath.Join(root, ".cache", "app", "один.bin")); !os.IsNotExist(err) {
+		t.Errorf("строка под курсором не стёрлась: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".cache", "сосед", "тоже.bin")); err != nil {
+		t.Errorf("забой задел соседнюю строку: %v", err)
+	}
+}
+
+// ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ ПЕРВЫЙ. То, чего решающий слой не пометил, забой не
+// стирает — и говорит, чей это отказ.
+func TestBackspaceRefusesWhatTheCoreKeeps(t *testing.T) {
+	w, root := workScreen(t, 100)
+	before := treeList(t, root)
+	for i, r := range w.here() {
+		if strings.HasPrefix(r.name, "проекты") {
+			w.sel[0] = i
+		}
+	}
+	w.toggleMark()
+	w.erasePlan(t)
+	if w.ask == nil || w.ask.kind == overlayErase {
+		t.Fatalf("забой предложил стереть то, чего ядро не помечало: %+v", w.ask)
+	}
+	body := plain(strings.Join(w.askLines(), "\n"))
+	for _, want := range []string{"СТИРАТЬ НЕЧЕГО", "не пометил", "приговор выносит ядро"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("отказ не назвал причину %q:\n%s", want, body)
+		}
+	}
+	if got := treeList(t, root); got != before {
+		t.Errorf("отказ всё-таки тронул дерево:\n%s\n---\n%s", before, got)
+	}
+}
+
+// ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ ВТОРОЙ. Защитный список хозяина забой тоже не
+// перешагивает, и правило, которое остановило, называется по имени.
+func TestBackspaceRefusesWhatTheProtectListKeeps(t *testing.T) {
+	guard, err := protect.Load(protect.Options{Args: []string{"разряд:кэш"}, Home: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, root := workScreenWith(t, 100, cacheDecider{}, guard)
+	before := treeList(t, root)
+	w.markHere()
+	w.erasePlan(t)
+	if w.ask == nil || w.ask.kind == overlayErase {
+		t.Fatalf("забой перешагнул защитный список: %+v", w.ask)
+	}
+	body := plain(strings.Join(w.askLines(), "\n"))
+	for _, want := range []string{"СТИРАТЬ НЕЧЕГО", "защитный список оставил на месте 2"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("отказ не назвал причину %q:\n%s", want, body)
+		}
+	}
+	if !strings.Contains(body, "разряд кэш") {
+		t.Errorf("отказ не назвал правило, которое остановило:\n%s", body)
+	}
+	if got := treeList(t, root); got != before {
+		t.Errorf("отказ всё-таки тронул дерево:\n%s\n---\n%s", before, got)
+	}
+}
+
+// ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ ТРЕТИЙ. Отказ от подтверждения — это ноль тронутых
+// файлов, и Esc, и неверное число.
+func TestRefusingTheEraseConfirmationTouchesNothing(t *testing.T) {
+	w, root := workScreen(t, 100)
+	before := treeList(t, root)
+
+	w.markHere()
+	w.erasePlan(t)
+	if w.ask == nil || w.ask.kind != overlayErase {
+		t.Fatalf("забой не спросил: %+v", w.ask)
+	}
+	w.askKey(key{kind: keyEsc})
+	if w.ask != nil {
+		t.Errorf("Esc не закрыл вопрос: %+v", w.ask)
+	}
+	if got := treeList(t, root); got != before {
+		t.Errorf("Esc всё-таки стёр:\n%s\n---\n%s", before, got)
+	}
+
+	// И «Enter вместо y» — тоже отказ, а не согласие.
+	w.erasePlan(t)
+	w.askKey(key{kind: keyEnter})
+	if w.ask == nil || w.ask.kind != overlayErase {
+		t.Fatalf("Enter закрыл вопрос: %+v", w.ask)
+	}
+	if !strings.Contains(w.ask.err, "«y»") {
+		t.Errorf("Enter не сказал, чем подтверждают: %q", w.ask.err)
+	}
+	if got := treeList(t, root); got != before {
+		t.Errorf("Enter всё-таки стёр:\n%s\n---\n%s", before, got)
+	}
+}
+
+// Порог решает не экран. Сколько бы файлов ни было, вопрос спрашивает строже,
+// как только объём переваливает за то, что решающий слой зовёт крупным, — и
+// перестаёт предлагать одну клавишу вовсе, если слой такого порога не назвал.
+func TestHowHardItAsksComesFromTheDecisionLayer(t *testing.T) {
+	w, root := workScreen(t, 100)
+	w.markHere()
+	w.erasePlan(t)
+	if w.ask == nil || !w.ask.quick {
+		t.Fatalf("мелочь просит число: %+v", w.ask)
+	}
+	if !strings.Contains(w.ask.hint, "y") {
+		t.Errorf("подсказка не назвала клавишу подтверждения: %q", w.ask.hint)
+	}
+	w.askKey(key{kind: keyEsc})
+
+	// Тот же корень, но файл крупнее порога слоя (100000 Б у cacheDecider).
+	big := filepath.Join(root, ".cache", "app", "крупный.bin")
+	if err := os.WriteFile(big, make([]byte, 150000), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-400 * 24 * time.Hour)
+	if err := os.Chtimes(big, old, old); err != nil {
+		t.Fatal(err)
+	}
+	w.erasePlan(t)
+	if w.ask == nil || w.ask.kind != overlayErase {
+		t.Fatalf("забой не спросил: %+v", w.ask)
+	}
+	if w.ask.quick {
+		t.Errorf("объём выше порога слоя, а спрашивают одной клавишей: %+v", w.ask)
+	}
+	if !strings.Contains(w.ask.hint, "3") {
+		t.Errorf("подсказка не назвала число файлов: %q", w.ask.hint)
+	}
+	// И «y» здесь не работает, а учит.
+	w.askKey(key{kind: keyRune, r: 'y'})
+	if w.ask.kind != overlayErase || !strings.Contains(w.ask.err, "3") {
+		t.Errorf("«y» на большом стирании не отказала вслух: %+v", w.ask)
+	}
+	if _, err := os.Stat(big); err != nil {
+		t.Fatalf("«y» всё-таки стёрла: %v", err)
+	}
+
+	// Слой без «Порога крупного» не даёт экрану права звать что-либо мелким.
+	w2, _ := workScreenWith(t, 100, deciderWithoutSize{}, nil)
+	w2.markHere()
+	w2.erasePlan(t)
+	if w2.ask == nil || w2.ask.kind != overlayErase {
+		t.Fatalf("забой не спросил: %+v", w2.ask)
+	}
+	if w2.ask.quick {
+		t.Error("слой не назвал порога, а экран всё равно решил, что это мелочь")
+	}
+}
+
+// Вопрос не прокручивается: что не поместилось — того читатель не увидит.
+// Поэтому на низком окне одной клавишей не подтверждают даже мелочь.
+func TestAQuestionTallerThanTheWindowIsNotConfirmedByOneKey(t *testing.T) {
+	w, _ := workScreen(t, 100)
+	w.markHere()
+	w.erasePlan(t)
+	if w.ask == nil || !w.ask.quick {
+		t.Fatalf("на 30 строках мелочь просит число: %+v", w.ask)
+	}
+	tall := len(w.eraseLines(w.ask.plan, "")) + askChrome
+	if w.bodyHeight() < tall {
+		t.Fatalf("вопрос и так не помещался: %d строк в %d", tall, w.bodyHeight())
+	}
+	w.ask = nil
+	w.rows = tall + 5 - 1 // на одну строку ниже, чем нужно вопросу
+	w.erasePlan(t)
+	if w.ask == nil || w.ask.kind != overlayErase {
+		t.Fatalf("забой не спросил: %+v", w.ask)
+	}
+	if w.ask.quick {
+		t.Errorf("вопрос не влез в окно (%d строк тела), а подтверждается одной клавишей", w.bodyHeight())
+	}
+}
+
+// СТОРОЖ ПОДСКАЗКИ. Клавиша, которая стирает насовсем, обязана быть названа
+// там, где читатель её ищет, — и названа необратимой. Проверяется в обе
+// стороны сразу: подвал и раздел «?» называют забой на обоих языках, И этот же
+// забой в дереве действительно открывает вопрос о стирании. Разойтись эти две
+// половины не могут: уберут клавишу из обработчика — падает вторая, уберут из
+// подсказки — падает первая.
+func TestTheHintAndTheKeysNameTheEraseKey(t *testing.T) {
+	for _, l := range []lang.Lang{lang.RU, lang.EN} {
+		key, forGood := "забой", "насовсем"
+		if l == lang.EN {
+			key, forGood = "Backspace", "for good"
+		}
+		w, _ := workScreen(t, 200)
+		w.l = l
+		w.tab = 1
+
+		// Регистр не в счёт: раздел клавиш кричит «СТЕРЕТЬ НАСОВСЕМ»
+		// прописными, подвал говорит строчными, и обещание от этого не
+		// меняется.
+		foot := strings.ToLower(plain(w.footer("")))
+		if !strings.Contains(foot, strings.ToLower(key)) {
+			t.Errorf("%s: подвал не назвал клавишу стирания: %q", l, foot)
+		}
+		if !strings.Contains(foot, forGood) {
+			t.Errorf("%s: подвал назвал клавишу, но не сказал, что она необратима: %q", l, foot)
+		}
+		keys := strings.ToLower(plain(strings.Join(w.keysLines(), "\n")))
+		if !strings.Contains(keys, strings.ToLower(key)) {
+			t.Errorf("%s: раздел клавиш не назвал клавишу стирания:\n%s", l, keys)
+		}
+		if !strings.Contains(keys, forGood) {
+			t.Errorf("%s: раздел клавиш не сказал, что стирание необратимо:\n%s", l, keys)
+		}
+	}
+	// И вторая половина: названная клавиша делает названное.
+	w, _ := workScreen(t, 200)
+	w.markHere()
+	w.erasePlan(t)
+	if w.ask == nil || w.ask.kind != overlayErase {
+		t.Fatalf("подсказка обещает стирание, а забой его не открыл: %+v", w.ask)
+	}
+}
+
+// Семь — не выбранное число, а измеренное. Вопрос о стирании не
+// прокручивается, значит список обязан помещаться целиком; сколько строк на
+// него остаётся в самом узком окне, в котором экран вообще рисуется (24×80,
+// tools/sverka-ui.sh), — столько путей и печатается полностью. Изменится форма
+// вопроса или рамы — здесь и станет видно, что константа отстала.
+func TestSevenIsWhatFitsInTheSmallestWindow(t *testing.T) {
+	w := &walkScreen{t: Theme{P: Carbon, d: depthTrue}, l: lang.RU, rows: 24, cols: 80}
+	fits := func(n int) bool {
+		p := &clean.Plan{Bytes: 100, LargeBytes: 1 << 30}
+		for i := 0; i < n; i++ {
+			p.Items = append(p.Items, clean.Item{Path: "/x/файл.bin", Size: 10, Class: core.ClassCache})
+		}
+		lines := w.eraseLines(p, w.l.F("отмечено каталогов: %d", 1))
+		t.Logf("путей %d → строк вопроса %d + рама %d = %d, тело окна %d",
+			n, len(lines), askChrome, len(lines)+askChrome, w.bodyHeight())
+		return w.quickEnough(p, lines)
+	}
+	if !fits(eraseAtOnce) {
+		t.Errorf("в окне 24×80 не помещается даже %d путей — константа завышена", eraseAtOnce)
+	}
+	if fits(eraseAtOnce + 1) {
+		t.Errorf("в окне 24×80 помещается %d путей — константа занижена", eraseAtOnce+1)
 	}
 }
