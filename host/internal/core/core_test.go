@@ -24,8 +24,8 @@ func TestStubDecidesNothing(t *testing.T) {
 }
 
 func TestContractEnumsAreComplete(t *testing.T) {
-	if ContractVersion != 0 {
-		t.Errorf("ContractVersion = %d, want 0", ContractVersion)
+	if ContractVersion != 1 {
+		t.Errorf("ContractVersion = %d, want 1", ContractVersion)
 	}
 	if len(Classes) != 6 {
 		t.Errorf("разрядов %d, want 6", len(Classes))
@@ -44,5 +44,34 @@ func TestContractEnumsAreComplete(t *testing.T) {
 		if !seen[string(want)] {
 			t.Errorf("разряд %q missing from Classes", want)
 		}
+	}
+}
+
+// TestPlaceEnumsAreComplete pins the shape of the справочник side of the
+// contract.  A разряд the справочник must never assert is checked by name:
+// «Крупное» and «Неизвестное» are answers about size and about nothing having
+// matched, and a place claiming either would be a lie about where the разряд
+// came from.
+func TestPlaceEnumsAreComplete(t *testing.T) {
+	if AnchorRoot == AnchorAnywhere {
+		t.Fatal("два якоря обязаны различаться")
+	}
+	for _, a := range []Anchor{AnchorRoot, AnchorAnywhere} {
+		if a == "" {
+			t.Error("у якоря нет имени: имя — часть договора")
+		}
+	}
+	p := Place{Class: ClassCache, Anchor: AnchorRoot, Chain: "/home/u/.npm/_cacache/"}
+	if p.Chain[0] != '/' || p.Chain[len(p.Chain)-1] != '/' {
+		t.Error("цепь обязана быть ограничена косыми с обеих сторон")
+	}
+}
+
+// TestStubIgnoresPlaces states the promise made in the Placer comment: a
+// decision layer without the capability is a smaller answer, never a wrong
+// one.  The stub does not implement Placer, and that must stay detectable.
+func TestStubIgnoresPlaces(t *testing.T) {
+	if _, ok := any(Default()).(Placer); ok {
+		t.Error("заглушка объявила, что принимает справочник, — тогда она обязана его и применять")
 	}
 }

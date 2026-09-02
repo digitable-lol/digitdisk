@@ -1,5 +1,5 @@
 /*
- * Сгенерировано flang (бэкенд C, flang/self/emit-c.flang). Не редактировать руками.
+ * Сгенерировано flang (бэкенд C, flang/src/emit/c.mjs). Не редактировать руками.
  * Модуль flang: «Опись диска».
  * Файл: объявления: конструкторы значений и функции программы.
  * Правьте исходник на flang и печатайте заново: любая правка здесь потеряется.
@@ -28,6 +28,10 @@
 /* Запись FTS «Находка»: «путь», «размер», «возраст_дней», «вид», «доступен». */
 /* Запись flang тотальна: пропущенное поле — это «ничто», а не дырка. */
 fl_status opis_diska_sozdat_nahodka(fl_ctx *ctx, fl_value put, fl_value razmer, fl_value vozrast_dney, fl_value vid, fl_value dostupen, fl_value *out, fl_error *error);
+
+/* Запись FTS «Место»: «разряд», «якорь», «цепь». */
+/* Запись flang тотальна: пропущенное поле — это «ничто», а не дырка. */
+fl_status opis_diska_sozdat_mesto(fl_ctx *ctx, fl_value razryad, fl_value yakor, fl_value cep, fl_value *out, fl_error *error);
 
 /* Запись FTS «Решение»: «разряд», «приговор», «вес». */
 /* Запись flang тотальна: пропущенное поле — это «ничто», а не дырка. */
@@ -61,6 +65,11 @@ fl_status opis_diska_variant_neizvestnoe(fl_ctx *ctx, fl_value *out, fl_error *e
 fl_status opis_diska_variant_mozhnoubrat(fl_ctx *ctx, fl_value *out, fl_error *error);
 fl_status opis_diska_variant_sprosit(fl_ctx *ctx, fl_value *out, fl_error *error);
 fl_status opis_diska_variant_netrogat(fl_ctx *ctx, fl_value *out, fl_error *error);
+
+/* Сумма типов FTS «Якорь»: «ОтКорня» | «ГдеУгодно». */
+/* Дискриминант — имя варианта; проверяется через fl_variant_is(значение, "Имя"). */
+fl_status opis_diska_variant_otkornya(fl_ctx *ctx, fl_value *out, fl_error *error);
+fl_status opis_diska_variant_gdeugodno(fl_ctx *ctx, fl_value *out, fl_error *error);
 
 /*
  * Функция flang «Порог крупного».
@@ -131,6 +140,101 @@ fl_status opis_diska_est_sostavlyayuschaya(fl_ctx *ctx, fl_value put, fl_value i
  * @return значение
  */
 fl_status opis_diska_okanchivaetsya_na(fl_ctx *ctx, fl_value tekst, fl_value hvost, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «След пути».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @return значение: строка
+ */
+fl_status opis_diska_sled_puti(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Цепь ограничена».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param cep — «цепь»: строка
+ * @return значение
+ */
+fl_status opis_diska_cep_ogranichena(fl_ctx *ctx, fl_value cep, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Справочник ограничен».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param spravochnik — «справочник»: список: «Место»
+ * @return значение
+ */
+fl_status opis_diska_spravochnik_ogranichen(fl_ctx *ctx, fl_value spravochnik, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Разряд места допустим».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param razryad — «разряд»: «Разряд»
+ * @return значение
+ */
+fl_status opis_diska_razryad_mesta_dopustim(fl_ctx *ctx, fl_value razryad, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Место подходит».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param sled — «след»: строка
+ * @param mesto — «место»: «Место»
+ * @return значение
+ */
+fl_status opis_diska_mesto_podhodit(fl_ctx *ctx, fl_value sled, fl_value mesto, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Это неизвестное».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param razryad — «разряд»: «Разряд»
+ * @return значение
+ */
+fl_status opis_diska_eto_neizvestnoe(fl_ctx *ctx, fl_value razryad, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Номер разряда».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param razryad — «разряд»: «Разряд»
+ * @return значение: число
+ */
+fl_status opis_diska_nomer_razryada(fl_ctx *ctx, fl_value razryad, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Тот же разряд».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param pervyy — «первый»: «Разряд»
+ * @param vtoroy — «второй»: «Разряд»
+ * @return значение
+ */
+fl_status opis_diska_tot_zhe_razryad(fl_ctx *ctx, fl_value pervyy, fl_value vtoroy, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Место обосновано».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @param spravochnik — «справочник»: список: «Место»
+ * @param razryad — «разряд»: «Разряд»
+ * @return значение
+ */
+fl_status opis_diska_mesto_obosnovano(fl_ctx *ctx, fl_value put, fl_value spravochnik, fl_value razryad, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Разряд по справочнику».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @param spravochnik — «справочник»: список: «Место»
+ * @return значение: «Разряд»
+ */
+fl_status opis_diska_razryad_po_spravochniku(fl_ctx *ctx, fl_value put, fl_value spravochnik, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «Шестнадцатеричный знак».
@@ -209,9 +313,10 @@ fl_status opis_diska_primeta_zagruzki(fl_ctx *ctx, fl_value put, fl_value *resul
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
  * @param put — «путь»: строка
+ * @param mesto — «место»: «Разряд»
  * @return значение
  */
-fl_status opis_diska_est_primeta(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error);
+fl_status opis_diska_est_primeta(fl_ctx *ctx, fl_value put, fl_value mesto, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «Разряд решён размером».
@@ -227,9 +332,10 @@ fl_status opis_diska_razryad_reshyon_razmerom(fl_ctx *ctx, fl_value razryad, fl_
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
  * @param nahodka — «находка»: «Находка»
+ * @param mesto — «место»: «Разряд»
  * @return значение: «Разряд»
  */
-fl_status opis_diska_razryad_nahodki(fl_ctx *ctx, fl_value nahodka, fl_value *result, fl_error *error);
+fl_status opis_diska_razryad_nahodki(fl_ctx *ctx, fl_value nahodka, fl_value mesto, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «Крупное не мельче порога».
@@ -304,18 +410,20 @@ fl_status opis_diska_ves_v_granicah(fl_ctx *ctx, fl_value nahodka, fl_value ves,
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
  * @param nahodka — «находка»: «Находка»
+ * @param spravochnik — «справочник»: список: «Место»
  * @return значение: «Решение»
  */
-fl_status opis_diska_reshit_nahodku(fl_ctx *ctx, fl_value nahodka, fl_value *result, fl_error *error);
+fl_status opis_diska_reshit_nahodku(fl_ctx *ctx, fl_value nahodka, fl_value spravochnik, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «Решить всё».
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
  * @param zapisi — «записи»: список: «Находка»
+ * @param spravochnik — «справочник»: список: «Место»
  * @return значение: список: «Решение»
  */
-fl_status opis_diska_reshit_vsyo(fl_ctx *ctx, fl_value zapisi, fl_value *result, fl_error *error);
+fl_status opis_diska_reshit_vsyo(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «И1 держится».
@@ -358,37 +466,41 @@ fl_status opis_diska_pribavit_reshenie(fl_ctx *ctx, fl_value svod, fl_value resh
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
  * @param zapisi — «записи»: список: «Находка»
+ * @param spravochnik — «справочник»: список: «Место»
  * @return значение: «Свод»
  */
-fl_status opis_diska_svesti(fl_ctx *ctx, fl_value zapisi, fl_value *result, fl_error *error);
+fl_status opis_diska_svesti(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «Сумма размеров убираемых».
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
  * @param zapisi — «записи»: список: «Находка»
+ * @param spravochnik — «справочник»: список: «Место»
  * @return значение: число
  */
-fl_status opis_diska_summa_razmerov_ubiraemyh(fl_ctx *ctx, fl_value zapisi, fl_value *result, fl_error *error);
+fl_status opis_diska_summa_razmerov_ubiraemyh(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «И2 держится».
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
  * @param zapisi — «записи»: список: «Находка»
+ * @param spravochnik — «справочник»: список: «Место»
  * @param svod — «свод»: «Свод»
  * @return значение
  */
-fl_status opis_diska_i2_derzhitsya(fl_ctx *ctx, fl_value zapisi, fl_value svod, fl_value *result, fl_error *error);
+fl_status opis_diska_i2_derzhitsya(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, fl_value svod, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «Строку отчёта».
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
  * @param nahodka — «находка»: «Находка»
+ * @param spravochnik — «справочник»: список: «Место»
  * @return значение: «Строка отчёта»
  */
-fl_status opis_diska_stroku_otchyota(fl_ctx *ctx, fl_value nahodka, fl_value *result, fl_error *error);
+fl_status opis_diska_stroku_otchyota(fl_ctx *ctx, fl_value nahodka, fl_value spravochnik, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «Вставить по весу».
@@ -417,9 +529,10 @@ fl_status opis_diska_pripisat_stroku_otchyota(fl_ctx *ctx, fl_value pervaya, fl_
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
  * @param zapisi — «записи»: список: «Находка»
+ * @param spravochnik — «справочник»: список: «Место»
  * @return значение: список: «Строка отчёта»
  */
-fl_status opis_diska_otchyot(fl_ctx *ctx, fl_value zapisi, fl_value *result, fl_error *error);
+fl_status opis_diska_otchyot(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «Отчёт той же длины».
@@ -473,10 +586,21 @@ fl_status opis_diska_porog_razryada(fl_ctx *ctx, fl_value razryad, fl_value *res
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
  * @param nahodka — «находка»: «Находка»
+ * @param mesto — «место»: «Разряд»
  * @param razryad — «разряд»: «Разряд»
  * @return значение
  */
-fl_status opis_diska_razryad_obosnovan(fl_ctx *ctx, fl_value nahodka, fl_value razryad, fl_value *result, fl_error *error);
+fl_status opis_diska_razryad_obosnovan(fl_ctx *ctx, fl_value nahodka, fl_value mesto, fl_value razryad, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Разряд обоснован приметой».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param nahodka — «находка»: «Находка»
+ * @param razryad — «разряд»: «Разряд»
+ * @return значение
+ */
+fl_status opis_diska_razryad_obosnovan_primetoy(fl_ctx *ctx, fl_value nahodka, fl_value razryad, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «Приговор обоснован».

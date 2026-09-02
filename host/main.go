@@ -38,9 +38,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"digitdisk/internal/clean"
+	"digitdisk/internal/core"
+	"digitdisk/internal/places"
+	"digitdisk/internal/protect"
 	"digitdisk/internal/report"
 	"digitdisk/internal/scan"
 	"digitdisk/internal/sysinfo"
@@ -59,17 +63,32 @@ const usage = `digitdisk — снимок системы, разбор дере�
       В терминале — живой экран, который обновляется сам; в трубу, в файл и
       под --json — та же печать текстом, что и всегда.
 
-  digitdisk analyze <путь> [--json] [--top N] [--cross-device] [--max-depth N]
+  digitdisk analyze <путь> [--json] [--top N] [--places Ф] [--no-places] [--cross-device] [--max-depth N]
       Обход дерева через lstat: символические ссылки не раскрываются,
       границу файловой системы без --cross-device не пересекаем,
       недоступное считается и пропускается.
 
-  digitdisk clean <путь> [--json] [--apply] [--trash КАТ] [--cross-device] [--max-depth N]
+  digitdisk clean <путь> [--json] [--apply] [--top N] [--trash КАТ] [--places Ф]
+                         [--protect ЧТО] [--no-places] [--cross-device] [--max-depth N]
       Уборка. БЕЗ КЛЮЧА --apply НИЧЕГО НЕ ТРОГАЕТ: печатает план — какие файлы,
       сколько байт и по какому правилу ядра помечены «МожноУбрать». С --apply
       переносит их в корзину <корень>/.digitdisk-trash/<метка времени>/ и пишет
       журнал. Перенос — это rename(2): мгновенно, обратимо и НИЧЕГО НЕ
       ОСВОБОЖДАЕТ, файлы остаются на диске под другим именем.
+      Перечень режется ключом --top (по умолчанию 15, как у analyze; 0 — весь).
+      Счёт при этом полный: итог и разбивка по разрядам от --top не зависят, а
+      под --json список едет целиком — машине нужен весь список работ.
+
+  digitdisk places [--json] [--top N] [--places ФАЙЛ] [--no-measure]
+      Справочник известных мест: что digitdisk знает про конкретные кэши, и
+      сколько из этого есть на ЭТОЙ машине. Справочник — данные: правится без
+      пересборки, свой берётся из --places или ~/.config/digitdisk/places.conf.
+
+  digitdisk history <путь> [--json] [--top N]
+      Чем кончались прошлые уборки под этим корнем: когда, сколько файлов,
+      сколько байт лежит в корзинах, сколько возвращено и сколько стёрто, и
+      чем вернуть. Ничего не помнится между прогонами — всё читается из
+      журналов самих корзин, тех же, что слушаются restore и purge.
 
   digitdisk restore <корзина> [--json] [--dry-run]
       Возврат корзины на прежние места по её журналу. Ключа не требует: ключи
@@ -86,7 +105,12 @@ const usage = `digitdisk — снимок системы, разбор дере�
 Ключи:
   --json           машиночитаемый вывод
   --why            вместо снимка — что не измерено и почему (status)
-  --top N          сколько строк в списках (по умолчанию 10 / 15)
+  --top N          сколько строк в списках (по умолчанию 10 / 15); 0 — без предела
+  --places ФАЙЛ    свой справочник известных мест вместо встроенного
+  --no-places      судить одними приметами, без справочника
+  --no-measure     places: не считать размеры найденных мест, только назвать их
+  --protect ЧТО    не трогать: путь, или «разряд:кэш». Ключ можно повторять
+  --protect-file Ф защитный список файлом (по умолчанию ~/.config/digitdisk/protect.conf)
   --sample MS      окно замера загрузки ЦП, мс (status, по умолчанию 200)
   --cross-device   заходить на смонтированные другие файловые системы
   --max-depth N    предел глубины обхода (0 — без предела)
@@ -127,6 +151,10 @@ func main() {
 		err = cmdRestore(os.Args[2:])
 	case "purge":
 		err = cmdPurge(os.Args[2:])
+	case "places":
+		err = cmdPlaces(os.Args[2:])
+	case "history":
+		err = cmdHistory(os.Args[2:])
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		return
@@ -209,6 +237,8 @@ func cmdAnalyze(args []string) error {
 	top := fs.Int("top", 15, "сколько строк в списках")
 	cross := fs.Bool("cross-device", false, "заходить на другие файловые системы")
 	maxDepth := fs.Int("max-depth", 0, "предел глубины обхода, 0 — без предела")
+	placesFile := fs.String("places", "", "свой справочник известных мест")
+	noPlaces := fs.Bool("no-places", false, "судить одними приметами, без справочника")
 	rest, err := parseFlags(fs, args)
 	if err != nil {
 		return err
@@ -217,12 +247,17 @@ func cmdAnalyze(args []string) error {
 		return fmt.Errorf("нужен ровно один путь для обхода, получено %d", len(rest))
 	}
 
+	decider := chosenDecider()
+	if _, err := usePlaces(decider, places.Options{File: *placesFile, Off: *noPlaces}); err != nil {
+		return err
+	}
+
 	res, err := scan.Walk(scan.Options{
 		Root:        rest[0],
 		CrossDevice: *cross,
 		MaxDepth:    *maxDepth,
 		Top:         *top,
-		Decider:     chosenDecider(),
+		Decider:     decider,
 		Now:         time.Now(),
 	})
 	if err != nil {
@@ -243,9 +278,15 @@ func cmdClean(args []string) error {
 	fs := flag.NewFlagSet("clean", flag.ExitOnError)
 	asJSON := fs.Bool("json", false, "машиночитаемый вывод")
 	apply := fs.Bool("apply", false, "перенести в корзину, а не только показать план")
+	top := fs.Int("top", 15, "сколько строк в перечнях, 0 — без предела")
 	trash := fs.String("trash", "", "корзина (по умолчанию <корень>/"+clean.TrashName+"); обязана лежать внутри корня")
 	cross := fs.Bool("cross-device", false, "заходить на другие файловые системы")
 	maxDepth := fs.Int("max-depth", 0, "предел глубины обхода, 0 — без предела")
+	placesFile := fs.String("places", "", "свой справочник известных мест")
+	noPlaces := fs.Bool("no-places", false, "судить одними приметами, без справочника")
+	protectFile := fs.String("protect-file", "", "защитный список файлом")
+	var protectArgs stringList
+	fs.Var(&protectArgs, "protect", "не трогать: путь или «разряд:кэш»; можно повторять")
 	rest, err := parseFlags(fs, args)
 	if err != nil {
 		return err
@@ -254,14 +295,26 @@ func cmdClean(args []string) error {
 		return fmt.Errorf("нужен ровно один путь для уборки, получено %d", len(rest))
 	}
 
+	decider := chosenDecider()
+	dir, err := usePlaces(decider, places.Options{File: *placesFile, Off: *noPlaces})
+	if err != nil {
+		return err
+	}
+	guard, err := protect.Load(protect.Options{File: *protectFile, Args: protectArgs})
+	if err != nil {
+		return err
+	}
+
 	plan, err := clean.Make(clean.Options{
 		Root:        rest[0],
 		Trash:       *trash,
 		CrossDevice: *cross,
 		MaxDepth:    *maxDepth,
-		Decider:     chosenDecider(),
+		Decider:     decider,
 		Now:         time.Now(),
 		Version:     version,
+		Places:      dir,
+		Protect:     guard,
 	})
 	if err != nil {
 		return err
@@ -269,9 +322,12 @@ func cmdClean(args []string) error {
 
 	if !*apply {
 		if *asJSON {
+			// A machine gets the whole work list.  --top shortens what a
+			// person reads; shortening what a script parses would make
+			// `clean --json | jq` quietly wrong about the disk.
 			return writeJSON(plan)
 		}
-		report.CleanPlan(os.Stdout, plan)
+		report.CleanPlan(os.Stdout, plan, *top)
 		return nil
 	}
 
@@ -373,4 +429,110 @@ func writeJSON(v any) error {
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
 	return enc.Encode(v)
+}
+
+// stringList collects a flag that may be given more than once.
+type stringList []string
+
+func (s *stringList) String() string     { return strings.Join(*s, ", ") }
+func (s *stringList) Set(v string) error { *s = append(*s, v); return nil }
+
+// usePlaces loads the справочник and hands it to the decision layer.
+//
+// A layer that does not take one (the заглушка, or any future layer built
+// without the capability) is told so out loud rather than left to judge with a
+// справочник nobody applied: the plan would then be smaller than the file
+// promised, and nothing on the screen would say why.
+func usePlaces(d core.Decider, opt places.Options) (*places.Directory, error) {
+	dir, err := places.Load(opt)
+	if err != nil {
+		return nil, err
+	}
+	placer, ok := d.(core.Placer)
+	if !ok {
+		if len(dir.Entries) > 0 {
+			fmt.Fprintf(os.Stderr,
+				"digitdisk: решающий слой %q справочника не принимает — %d мест не применено\n",
+				d.Name(), len(dir.Entries))
+		}
+		return dir, nil
+	}
+	if err := placer.UsePlaces(dir.Places()); err != nil {
+		return nil, fmt.Errorf("справочник %s: %w", dir.Origin, err)
+	}
+	return dir, nil
+}
+
+// cmdPlaces prints the справочник and what of it exists here.  It reads and
+// nothing else — the same promise status and analyze make.
+func cmdPlaces(args []string) error {
+	fs := flag.NewFlagSet("places", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "машиночитаемый вывод")
+	top := fs.Int("top", 40, "сколько найденных мест печатать, 0 — без предела")
+	placesFile := fs.String("places", "", "свой справочник известных мест")
+	noMeasure := fs.Bool("no-measure", false, "не считать размеры, только назвать места")
+	rest, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(rest) > 0 {
+		return fmt.Errorf("подкоманда places не принимает путей (лишнее: %q)", rest[0])
+	}
+
+	dir, err := places.Load(places.Options{File: *placesFile})
+	if err != nil {
+		return err
+	}
+
+	measure := measureTree
+	if *noMeasure {
+		measure = nil
+	}
+	found := dir.Look(measure)
+
+	if *asJSON {
+		return writeJSON(struct {
+			Origin string         `json:"откуда"`
+			Count  int            `json:"мест"`
+			Found  []places.Found `json:"места"`
+		}{dir.Origin, len(dir.Entries), found})
+	}
+	report.Places(os.Stdout, dir, found, *top)
+	return nil
+}
+
+// measureTree sums a directory the way analyze does — apparent size, hard
+// links counted once — by asking the same walk, so the two commands can never
+// answer differently about the same place.
+func measureTree(root string) (int64, int, error) {
+	res, err := scan.Walk(scan.Options{Root: root, Top: 1, Now: time.Now()})
+	if err != nil {
+		return 0, 0, err
+	}
+	return res.TotalBytes, res.Files, nil
+}
+
+// cmdHistory prints what past уборки did under a root.  It reads journals and
+// writes nothing.
+func cmdHistory(args []string) error {
+	fs := flag.NewFlagSet("history", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "машиночитаемый вывод")
+	top := fs.Int("top", 20, "сколько корзин печатать, 0 — без предела")
+	rest, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(rest) != 1 {
+		return fmt.Errorf("нужен ровно один путь — корень уборки, хранилище корзин или одна корзина; получено %d", len(rest))
+	}
+
+	h, err := clean.ReadHistory(rest[0])
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return writeJSON(h)
+	}
+	report.History(os.Stdout, h, time.Now(), *top)
+	return nil
 }

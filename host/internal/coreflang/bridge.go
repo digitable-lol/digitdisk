@@ -24,6 +24,7 @@
 package coreflang
 
 import (
+	"fmt"
 	"sync"
 
 	"digitdisk/internal/core"
@@ -36,13 +37,59 @@ import (
 type Bridge struct {
 	ctx *rt.Ctx
 
+	// places is the справочник известных мест as flang values, built once
+	// and handed to every call.  Building it per record would rebuild a
+	// hundred records for every file on the disk.
+	places rt.Value
+
 	mu       sync.Mutex
 	failures int
 	firstErr error
 }
 
-// New returns a Bridge with the evaluation context the flang module asks for.
-func New() *Bridge { return &Bridge{ctx: flang.NewContext()} }
+// New returns a Bridge with the evaluation context the flang module asks for
+// and an empty справочник — until UsePlaces is called it judges by приметы
+// alone, which is exactly what contract version 0 did.
+func New() *Bridge {
+	return &Bridge{ctx: flang.NewContext(), places: rt.List(nil)}
+}
+
+// UsePlaces implements core.Placer.  The справочник is checked by the layer
+// itself before it is kept: «Справочник ограничен» asserts that every цепь is
+// bounded by slashes at both ends, which is the property that makes the
+// comparison a comparison of components.  A справочник that fails it is
+// refused whole — matching a chain without its slashes is the bug of
+// 1 September all over again, and half a справочник is not better than none.
+func (b *Bridge) UsePlaces(places []core.Place) error {
+	values := make([]rt.Value, 0, len(places))
+	for _, p := range places {
+		class, ok := classVariant(p.Class)
+		if !ok {
+			return fmt.Errorf("справочник: разряд %q решающему слою не известен", p.Class)
+		}
+		anchor := flang.VariantOtKornya()
+		switch p.Anchor {
+		case core.AnchorRoot:
+		case core.AnchorAnywhere:
+			anchor = flang.VariantGdeUgodno()
+		default:
+			return fmt.Errorf("справочник: якорь %q решающему слою не известен", p.Anchor)
+		}
+		values = append(values, flang.SozdatMesto(class, anchor, rt.Text(p.Chain)))
+	}
+	list := rt.List(values)
+
+	ok, err := flang.SpravochnikOgranichen(b.ctx, list)
+	if err != nil {
+		return fmt.Errorf("решающий слой не смог проверить справочник: %w", err)
+	}
+	if !ok.Flag {
+		return fmt.Errorf("решающий слой отверг справочник: у какого-то места цепь не ограничена косыми с обеих сторон, " +
+			"а без них сверка перестала бы быть сверкой по составляющим")
+	}
+	b.places = list
+	return nil
+}
 
 // Name implements core.Decider.
 func (b *Bridge) Name() string { return "flang «Опись диска» (core/out-go)" }
@@ -121,7 +168,7 @@ func (b *Bridge) Decide(r core.Record) core.Decision {
 		rt.Flag(r.Accessible),
 	)
 
-	answer, err := flang.ReshitNahodku(b.ctx, nahodka)
+	answer, err := flang.ReshitNahodku(b.ctx, nahodka, b.places)
 	if err != nil {
 		b.note(err)
 		return core.Decision{Class: core.ClassUnknown, Verdict: core.VerdictKeep}
