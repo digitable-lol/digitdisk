@@ -113,7 +113,7 @@ func (c Collector) Collect() Status {
 		st.Host.CPUModel = procfs.ParseCPUModel(text)
 	}
 	if st.Host.CPUModel == "" {
-		st.Missing[FactCPUModel] = lang.Say("в " + filepath.Join(c.Proc, "cpuinfo") + " нет строки с названием процессора")
+		st.Missing[FactCPUModel] = lang.Say("в %s нет строки с названием процессора", filepath.Join(c.Proc, "cpuinfo"))
 	}
 	environment(&st)
 

@@ -144,7 +144,7 @@ func (s *screen) overview() []string {
 	}
 
 	if len(st.GPUs) > 0 {
-		out = append(out, "", s.caption("ВИДЕОКАРТЫ"))
+		out = append(out, "", s.caption(s.l.T("ВИДЕОКАРТЫ")))
 		out = append(out, s.gpuGauges(3)...)
 	}
 

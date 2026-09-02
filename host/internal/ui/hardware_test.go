@@ -201,7 +201,7 @@ func gpuStatus() sysinfo.Status {
 func TestGPUPageShowsBothCardsAndWhereTheNumbersCameFrom(t *testing.T) {
 	body := plain(strings.Join(newTestScreen(gpuStatus(), true, 120).gpus(), "\n"))
 	for _, want := range []string{"NVIDIA RTX 6000 Ada Generation", "Matrox G200eW3",
-		"99.0%", "85.0 °C", "драйвер nvidia", "чужой программы nvidia-smi", "/sys/class/drm/card1/device"} {
+		"99,0%", "85,0 °C", "драйвер nvidia", "чужой программы nvidia-smi", "/sys/class/drm/card1/device"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("на странице видеокарт нет %q:\n%s", want, body)
 		}

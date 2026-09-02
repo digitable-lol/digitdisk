@@ -54,9 +54,9 @@ func init() {
 		"  --dry-run         restore: показать, что вернулось бы, и не возвращать":     "  --dry-run         restore: show what would come back, restore nothing",
 		"  --confirm N       purge: подтвердить стирание ровно N файлов":               "  --confirm N       purge: confirm erasing exactly N files",
 
-		"Живой экран: ← → разделы, 1…9 раздел сразу, ↑ ↓ PgUp/PgDn прокрутка,":        "Live screen: ← → sections, 1…9 a section at once, ↑ ↓ PgUp/PgDn scroll,",
-		"  p пауза, r замер, l язык, ? команды, q выход. Палитра: DIGITDISK_PALETTE=": "  p pause, r sample, l language, ? commands, q quit. Palette: DIGITDISK_PALETTE=",
-		"  carbon|paper|signal, NO_COLOR и TERM=dumb уважаются.":                      "  carbon|paper|signal; NO_COLOR and TERM=dumb are honoured.",
+		"Живой экран: ← → разделы (их десять), 1…9 раздел сразу, ↑ ↓ PgUp/PgDn прокрутка,": "Live screen: ← → the ten sections, 1…9 a section at once, ↑ ↓ PgUp/PgDn scroll,",
+		"  p пауза, r замер, l язык, ? команды, q выход. Палитра: DIGITDISK_PALETTE=":      "  p pause, r sample, l language, ? commands, q quit. Palette: DIGITDISK_PALETTE=",
+		"  carbon|paper|signal, NO_COLOR и TERM=dumb уважаются.":                           "  carbon|paper|signal; NO_COLOR and TERM=dumb are honoured.",
 
 		"Язык: спрашивается один раз и помнится в ~/.digitable/digitdisk/settings.conf;": "Language: asked once and kept in ~/.digitable/digitdisk/settings.conf;",
 		"  DIGITDISK_LANG=ru|en и --lang перекрывают его, --json не переводится.":        "  DIGITDISK_LANG=ru|en and --lang override it; --json is not translated.",

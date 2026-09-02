@@ -258,15 +258,17 @@ and stderr — because a question written to a terminal whose answer would come
 from a pipe hangs forever, and a tool that hangs in somebody's build is worse
 than a tool in the wrong language.
 
-**Writing in a home directory is an action, and it is announced.** The one
-thing digitdisk stores there is the language, and only after a person answered
-the question with their own hands; it then says what it wrote and where, in one
-line on stderr — «язык сохранён: ~/.digitable/digitdisk/settings.conf». If the
-directory cannot be written — a read-only mount, a directory owned by somebody
-else — the run goes on in the language that was chosen and says plainly that it
-was not saved: refusing to look at a disk because a preference could not be
-stored would be answering a small problem with a big one. `digitdisk --version`
-names the language of the run and which of the six lines above decided it.
+**Writing in a home directory is an action, and it is announced.** digitdisk
+stores two things there: the language — and only after a person answered the
+question with their own hands — and a mark that the move of the settings has
+already been mentioned, so that it is not mentioned at every run.  Either way
+it says what it wrote and where, in one line on stderr — «язык сохранён:
+~/.digitable/digitdisk/settings.conf».  If the directory cannot be written — a
+read-only mount, a directory owned by somebody else — the run goes on in the
+language that was chosen and says plainly that it was not saved: refusing to
+look at a disk because a preference could not be stored would be answering a
+small problem with a big one.  `digitdisk --version` names the language of the
+run and which of the six lines above decided it.
 
 Numbers and dates are written the way each language writes them: «12,3 ГиБ»
 against `12.3 GiB`, a non-breaking space against a comma between the thousands,
@@ -379,14 +381,19 @@ inside the binary as the default, and is replaced whole — by `--places` or by
 `~/.digitable/digitdisk/places.conf`. A row looks like this:
 
 ```
-разряд | якорь | система | путь | переменная | имя | источник
-кэш|дом|все|.npm//_cacache|npm_config_cache|npm: download cache|https://docs.npmjs.com/...
+разряд | якорь | система | путь | переменная | имя | источник | имя_en
+кэш|дом|все|.npm//_cacache|npm_config_cache|npm: кэш загрузок|https://docs.npmjs.com/...|npm: download cache
 ```
 
-The last field is mandatory, and not for decoration: **every row comes from the
-tool's own documentation**, and a place is listed only when that documentation
-calls it a cache, a log, or derived data the tool will rebuild by itself. The
-double slash splits the path into a base and a tail: the base is what the
+The SOURCE — the seventh field — is mandatory, and not for decoration: **every
+row comes from the tool's own documentation**, and a place is listed only when
+that documentation calls it a cache, a log, or derived data the tool will
+rebuild by itself.  The eighth field is the English name and is optional: a row
+without it is read exactly as before and shows its Russian name in either
+language.  All 102 rows of the built-in directory have one — `cd host && go
+test ./internal/places/` says how many.
+
+The double slash splits the path into a base and a tail: the base is what the
 environment variable relocates (`npm_config_cache`, `GOCACHE`, `CARGO_HOME`,
 `GRADLE_USER_HOME` and others), so a developer who moved a cache gets their real
 place instead of one that is no longer there.
@@ -581,9 +588,9 @@ In a terminal, `digitdisk` and `digitdisk status` open a live screen in the
 Digitable Focus palette: the sections of the printed report as pages that keep
 measuring themselves. `← →` and `Tab` move between them, `1`…`9` go straight to
 one, `↑ ↓` scroll a long one, `p` holds, `r` measures now, `l` switches the
-language, `?` lists the subcommands, `q` leaves. There are eleven sections; the
-digits reach the first nine, and the last two — ВИДЕОКАРТЫ and НЕ ПРОЧИТАНО —
-sit to the left of the first, one `←` away from ОБЗОР.
+language, `?` lists the subcommands, `q` leaves. There are ten sections; the
+digits reach the first nine, and the tenth — НЕ ПРОЧИТАНО — sits to the left of
+the first, one `←` away from ОБЗОР.
 
 
 `l` is the one key here that touches anything outside the screen: it turns the

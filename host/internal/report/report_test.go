@@ -381,9 +381,9 @@ func TestStatusPrintsCardsWithDashesAndTheirOrigin(t *testing.T) {
 		"процессор     Придуманный процессор 9000 × 4",
 		"по ядрам      мин 12,5% / медиана 55,8% / макс 99,0% (ядро 0); занято больше половины 1 из 3",
 		"NVIDIA RTX 6000 Ada Generation",
-		"99.0%",
-		"29.0 ГиБ из 48.0 ГиБ",
-		"85.0°C",
+		"99,0%",
+		"29,0 ГиБ из 48,0 ГиБ",
+		"85,0°C",
 		"числа от чужой программы nvidia-smi",
 		"числа из /sys/class/drm/card1/device",
 	} {

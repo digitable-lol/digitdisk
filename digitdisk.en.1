@@ -16,6 +16,7 @@
 .Op Fl -why
 .Op Fl -top Ar N
 .Op Fl -sample Ar MS
+.Op Fl -gpu-tool
 .Op Fl -live | Fl -plain
 .Op Fl -interval Ar MS
 .Nm digitdisk Cm analyze Ar path
@@ -250,6 +251,13 @@ instead of the snapshot — what was not measured and why.
 .It Fl -sample Ar MS
 .Cm status :
 the window over which CPU load is measured, milliseconds, 200 by default.
+.It Fl -gpu-tool
+.Cm status :
+allow an outside program to be run (
+.Xr nvidia-smi 1 ) for the video-card numbers the driver publishes in no file
+at all.
+By default digitdisk only reads files; under every card it says where its
+numbers came from.
 .It Fl -live
 .Cm status :
 the live screen.

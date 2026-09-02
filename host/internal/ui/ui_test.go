@@ -452,8 +452,8 @@ func TestSectionsAreTheSectionsOfThePrintedReport(t *testing.T) {
 	// ПРОЧИТАНО, which is named on the opening page and is one ← away from
 	// it.  A section list longer than this one would leave a reading behind
 	// a key nobody can guess.
-	if len(sections) > 11 {
-		t.Error("разделов больше одиннадцати — до последних клавишами 1…9 уже не добраться")
+	if len(sections) > 10 {
+		t.Error("разделов больше десяти — до последних клавишами 1…9 уже не добраться")
 	}
 	if sections[len(sections)-1].title(lang.RU) != "НЕ ПРОЧИТАНО" {
 		t.Error("без цифры остался не тот раздел: последним должен быть НЕ ПРОЧИТАНО")
