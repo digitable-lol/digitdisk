@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"digitdisk/internal/core"
+	"digitdisk/internal/gpuinfo"
 	"digitdisk/internal/procfs"
 	"digitdisk/internal/scan"
 	"digitdisk/internal/sysinfo"
@@ -204,5 +205,81 @@ func TestStatusSaysHowManyProcessesTheThreadCountCovers(t *testing.T) {
 	Status(&buf, st)
 	if out := buf.String(); !strings.Contains(out, "потоков 1240,") || strings.Contains(out, "замерено по") {
 		t.Errorf("a complete count needs no qualifier:\n%s", out)
+	}
+}
+
+// The printed report gained a section and two lines, and nothing else moved.
+// This test is the guard on that: the labels a script or a person has been
+// reading since the first release are still spelled the way they were.
+func TestOldLabelsOfTheStatusReportDidNotMove(t *testing.T) {
+	var buf bytes.Buffer
+	Status(&buf, sysinfo.Status{})
+	out := buf.String()
+	for _, want := range []string{
+		"СИСТЕМА", "  узел          ", "  дистрибутив   ", "  ядро          ", "  время работы  ",
+		"ЗАГРУЗКА", "  средняя       ", "  ядер          ", "  занято ЦП     ",
+		"ПАМЯТЬ", "ПРОЦЕССЫ", "ДИСКИ", "СЕТЬ", "ТЕМПЕРАТУРА",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("из отчёта пропало %q:\n%s", want, out)
+		}
+	}
+	// The new section is printed even when the machine has no card, the way
+	// ДИСКИ and СЕТЬ are: a section that disappears looks like a tool that
+	// did not look.
+	if !strings.Contains(out, "ВИДЕОКАРТЫ\n  —") {
+		t.Errorf("раздел видеокарт не напечатан прочерком:\n%s", out)
+	}
+	// And a machine nobody measured must not gain a per-core line.
+	if strings.Contains(out, "по ядрам") {
+		t.Errorf("строка по ядрам напечатана без замера:\n%s", out)
+	}
+}
+
+func TestStatusPrintsCardsWithDashesAndTheirOrigin(t *testing.T) {
+	busy, celsius := 99.0, 85.0
+	used, total := uint64(29)<<30, uint64(48)<<30
+	share := 12.5
+	st := sysinfo.Status{
+		Load: sysinfo.Load{
+			CPUCount: 4, BusyPercent: &share, SampleMillis: 200,
+			Cores: []sysinfo.Core{
+				{Index: 0, BusyPercent: &busy},
+				{Index: 1, BusyPercent: &share},
+				{Index: 2},
+			},
+		},
+		Host: sysinfo.Host{CPUModel: "Придуманный процессор 9000"},
+		GPUs: []gpuinfo.Card{
+			{Name: "NVIDIA RTX 6000 Ada Generation", Bus: "0000:02:00.0", Driver: "nvidia",
+				BusyPercent: &busy, Celsius: &celsius, MemoryUsedBytes: &used, MemoryTotalBytes: &total,
+				Source: "nvidia-smi", Outside: true},
+			{Name: "Matrox G200eW3", Bus: "0000:62:00.0", Driver: "mgag200",
+				Source: "/sys/class/drm/card1/device"},
+		},
+	}
+	var buf bytes.Buffer
+	Status(&buf, st)
+	out := buf.String()
+
+	for _, want := range []string{
+		"процессор     Придуманный процессор 9000 × 4",
+		"по ядрам      мин 12.5% / медиана 55.8% / макс 99.0% (ядро 0); занято больше половины 1 из 3",
+		"NVIDIA RTX 6000 Ada Generation",
+		"99.0%",
+		"29.0 ГиБ из 48.0 ГиБ",
+		"85.0°C",
+		"числа от чужой программы nvidia-smi",
+		"числа из /sys/class/drm/card1/device",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("в отчёте нет %q:\n%s", want, out)
+		}
+	}
+	// The silent card is four dashes, not four zeros.
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "Matrox") && (strings.Contains(line, "0.0%") || strings.Contains(line, "0 Б")) {
+			t.Errorf("немая карта напечатана нулями: %q", line)
+		}
 	}
 }

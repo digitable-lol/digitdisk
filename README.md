@@ -4,8 +4,9 @@
 
 digitdisk prints two readings of a machine — **where the disk space went**,
 directories by size and the largest files, and **how the machine is feeling
-right now**, CPU, memory, disk and network — and it can act on the first of
-them: `clean` removes files, in three steps, none of which is a surprise.
+right now**, the processor and each of its cores, memory, disk, network and
+video cards — and it can act on the first of them: `clean` removes files, in
+three steps, none of which is a surprise.
 
 `status` and `analyze` read and write nothing. `clean` shows a plan and needs
 `--apply` to move anything; what it moves goes to a корзина inside the tree you
@@ -128,6 +129,7 @@ has been confirmed on the machine itself:
 | command line (`KERN_PROCARGS2`) | our own arguments match `os.Args` word for word, which the runtime got by another road |
 | memory breakdown (`vm_statistics64`) | no page count exceeds the machine's pages; the read-ahead pages do not outnumber the free ones the kernel folds them into; and the disjoint buckets sum to `hw.memsize` within a third of a percent |
 | CPU busy share | it is a ratio of two differences, so it depends on no tick rate at all |
+| per-processor shares (`processor_cpu_load_info`) | the kernel says how many processors it wrote about, and that is the number `hw.logicalcpu` gives; their mean comes out as the machine-wide share, which is the sum of exactly those counters |
 | interface counters (`if_data64`) | the MTU matches what the standard library reports |
 
 If a check does not agree, the field stays empty rather than being printed on a
@@ -144,6 +146,7 @@ What macOS measures, and the call each number comes from:
 | uptime | `sysctl kern.boottime` (`struct timeval`) |
 | load average, cores | `sysctl vm.loadavg` (`struct loadavg`), `hw.logicalcpu` |
 | CPU busy share | `host_statistics(HOST_CPU_LOAD_INFO)` |
+| the share of each core | `host_processor_info(PROCESSOR_CPU_LOAD_INFO)` |
 | memory total, page size, swap | `sysctl hw.memsize`, `hw.pagesize`, `vm.swapusage` (`struct xsw_usage`) |
 | memory free, cache, available, used, wired, compressed | `host_statistics64(HOST_VM_INFO64)` (`struct vm_statistics64`) |
 | processes: the list, and how many | `sysctl kern.proc.all` (`struct kinfo_proc`) |
@@ -164,6 +167,10 @@ same kind:
   line of a process belonging to *another user* are refused to anybody but the
   administrator: the kernel checks the owner. Running under `sudo` fills those
   rows in; nothing else will.
+- **Not published by the system.** What a Mac knows about its video cards lives
+  in the IORegistry, and the documented way in is IOKit: Core Foundation
+  objects rather than numbers.  We do not read those without cgo and will not
+  guess, so the ВИДЕОКАРТЫ section is empty on a Mac.
 - **Not published by the system.** Die temperature comes from the SMC through
   IOKit, and Apple documents no interface to it — what circulates is a
   reverse-engineered structure. A number read that way would be a guess wearing
@@ -383,13 +390,76 @@ What there is instead: digitdisk's корзина is an ordinary directory. Whoe
 wants to hand it to the system Trash hands it over themselves, in one gesture,
 and knows they did.
 
+### Hardware: the mark of the system, the cores one by one, and the cards
+
+**СИСТЕМА — the mark, and what a machine is recognised by.** A drawing on the
+left, and on the right what a person wants to know about their own machine:
+node (`user@host`), distribution, the machine's model, kernel and word size,
+shell, desktop, terminal, uptime, the processor on one line, the memory on one
+line, the video cards on one line. The model is what the firmware calls the
+machine — `/sys/class/dmi/id/sys_vendor` and `product_name` on Linux,
+`hw.model` on macOS; the processor is the `model name` line of `/proc/cpuinfo`,
+or `machdep.cpu.brand_string` on macOS. The marks were drawn in this tree and
+nowhere else: somebody else's collection is somebody else's work under
+somebody else's licence. They are drawn in printable ASCII, so they hold
+together in a font without our glyphs and under `LANG=C`; none is wider than
+fourteen columns, so a wide terminal puts the mark beside the fields and a
+narrow one above them. A distribution nobody drew gets the general mark rather
+than an empty space, and a family counts as a family: Rocky, Alma and CentOS
+take the RHEL mark.
+
+**ЗАГРУЗКА — every core of it.** "Занято ЦП" is one number for the whole
+machine: on a machine with 256 cores it says "8%" both when the load is spread
+and when one core is on fire and the rest are asleep. So the cores are drawn
+underneath it, and the screen picks how: while the gauges fit the height, every
+core gets its own gauge in columns; when they stop fitting, a map where one
+cell is one core, plus the list of the busiest. On 256 cores the map is 4 rows
+of 64 cells at 80 columns, and at 200 columns all 256 gauges fit instead, in 26
+rows. The printed report gets one line of it: minimum, median, maximum, the
+number of the busiest core, and how many cores are busy more than half the
+time. The source is `/proc/stat` line by line on Linux and
+`host_processor_info(PROCESSOR_CPU_LOAD_INFO)` on macOS — and on both the list
+is published only if the mean of the cores comes out as the machine-wide share,
+which is the sum of those same counters.
+
+**ВИДЕОКАРТЫ — a section of its own, and there may be several cards.** Name,
+busy share, memory used out of total, temperature, power and clock, for each
+card. The cards come from files: `/sys/class/drm`, the display-class devices of
+the PCI bus (a card with no driver is still a card), and
+`/proc/driver/nvidia`. The name comes from the driver, and where the driver is
+silent, from the `pci.ids` database the distribution ships; nothing of it is
+copied into this tree. What is shown is what the driver published:
+
+| driver | what it gives in files |
+|---|---|
+| `amdgpu` | load, memory, temperature, clock, power |
+| `i915`, `xe` | temperature and power on the newer chips; no busy share |
+| `nvidia` | the name, the bus and the firmware versions — and not one counter |
+| `mgag200` and its kind | the name and nothing else |
+
+`--gpu-tool` allows asking `nvidia-smi` — **somebody else's program**, not a
+file. Without the key it is never run; with it, every card says underneath
+where its numbers came from: "числа из /sys/class/drm/card1/device" or "числа
+от чужой программы nvidia-smi". A row about a card the files never saw is
+thrown away: a program cannot add hardware to a machine. Power is read as the
+hwmon documentation defines it, in microwatts, and printed only if the result
+is at least half a watt: some drivers count in something else, and a number
+without a unit is not a number.
+
+**On macOS there are no video cards in the snapshot.** What a Mac knows about
+its graphics lives in the IORegistry, and the documented way in is IOKit —
+Core Foundation objects rather than numbers. We do not read those without cgo,
+and we will not guess. The reason is behind `--why`; the field is empty.
+
 ### The live screen
 
 In a terminal, `digitdisk` and `digitdisk status` open a live screen in the
 Digitable Focus palette: the sections of the printed report as pages that keep
 measuring themselves. `← →` and `Tab` move between them, `1`…`9` go straight to
 one, `↑ ↓` scroll a long one, `p` holds, `r` measures now, `?` lists the
-subcommands, `q` leaves.
+subcommands, `q` leaves. There are ten sections; the digits reach the first
+nine, and the tenth — НЕ ПРОЧИТАНО — sits to the left of the first, one `←`
+away from ОБЗОР.
 
 The `?` list only names the commands; it runs none of them. This screen is
 `status`, which reads and writes nothing, and `clean` moves files — a command
