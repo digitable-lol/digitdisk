@@ -381,9 +381,10 @@ func contractNames(t *testing.T) []string {
 	t.Helper()
 	var out []string
 	for _, file := range []string{
-		"internal/core/contract.go",   // разряд, приговор, вид, якорь
-		"internal/protect/protect.go", // вид правила защитного списка
-		"internal/sysinfo/sysinfo.go", // имена неизмеренного
+		"internal/core/contract.go",    // разряд, приговор, вид, якорь
+		"internal/protect/protect.go",  // вид правила защитного списка
+		"internal/sysinfo/sysinfo.go",  // имена неизмеренного
+		"internal/sysinfo/hardware.go", // имена неизмеренного про железо
 	} {
 		path := filepath.Join(hostDir, file)
 		fset := token.NewFileSet()

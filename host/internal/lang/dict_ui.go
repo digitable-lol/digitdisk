@@ -64,7 +64,6 @@ func init() {
 		"узел":         "host",
 		"дистрибутив":  "distro",
 		"ядро":         "kernel",
-		"сборка ядра":  "kernel build",
 		"время работы": "uptime",
 		"снимок взят":  "snapshot at",
 		"%s (с %s)":    "%s (since %s)",

@@ -63,7 +63,7 @@ func Places(w io.Writer, l lang.Lang, d *places.Directory, found []places.Found,
 			continue
 		}
 		pr(fmt.Sprintf("  %-9s %10s %8s  %-34s %s", l.Word(string(f.Class)), l.Bytes(f.Bytes),
-			l.Num(int64(f.Files)), cut(f.Name, 34), cut(f.Resolved, 60)))
+			l.Num(int64(f.Files)), cut(f.DisplayName(l), 34), cut(f.Resolved, 60)))
 		shown++
 	}
 	if shown == 0 {

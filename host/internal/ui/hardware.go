@@ -90,11 +90,11 @@ func (s *screen) systemFields() [][2]string {
 		kernel += " (" + h.Machine + ")"
 	}
 	if h.Bits > 0 {
-		kernel += fmt.Sprintf(", %d-разрядная", h.Bits)
+		kernel += s.l.F(", %d-разрядная", h.Bits)
 	}
 	uptime := text(h.UptimeHuman)
 	if h.UptimeSeconds > 0 && h.BootTime > 0 {
-		uptime += " (с " + time.Unix(h.BootTime, 0).Format("2006-01-02 15:04") + ")"
+		uptime = s.l.F("%s (с %s)", uptime, time.Unix(h.BootTime, 0).Format("2006-01-02 15:04"))
 	}
 	cpu := text(h.CPUModel)
 	if st.Load.CPUCount > 0 {
@@ -103,23 +103,23 @@ func (s *screen) systemFields() [][2]string {
 	memory := dash
 	if st.Memory.Total > 0 {
 		f := pctOf(st.Memory.Used, st.Memory.Total)
-		memory = fmt.Sprintf("%s из %s (%s)", s.l.UBytes(st.Memory.Used),
+		memory = s.l.F("%s из %s (%s)", s.l.UBytes(st.Memory.Used),
 			s.l.UBytes(st.Memory.Total), s.l.Pct((f)*100, 1))
 	}
 
 	return [][2]string{
-		{"узел", node},
-		{"дистрибутив", text(h.Distro)},
-		{"модель", text(h.Model)},
-		{"ядро", kernel},
-		{"оболочка", text(h.Shell)},
-		{"рабочий стол", text(h.Desktop)},
-		{"терминал", text(h.Terminal)},
-		{"время работы", uptime},
-		{"процессор", cpu},
-		{"память", memory},
-		{"видеокарты", text(cardNames(st.GPUs))},
-		{"снимок взят", text(st.TakenAt)},
+		{s.l.T("узел"), node},
+		{s.l.T("дистрибутив"), text(h.Distro)},
+		{s.l.T("модель"), text(h.Model)},
+		{s.l.T("ядро"), kernel},
+		{s.l.T("оболочка"), text(h.Shell)},
+		{s.l.T("рабочий стол"), text(h.Desktop)},
+		{s.l.T("терминал"), text(h.Terminal)},
+		{s.l.T("время работы"), uptime},
+		{s.l.T("процессор"), cpu},
+		{s.l.T("память"), memory},
+		{s.l.T("видеокарты"), text(cardNames(st.GPUs))},
+		{s.l.T("снимок взят"), s.takenAt()},
 	}
 }
 
@@ -155,29 +155,29 @@ func (s *screen) coresBlock() []string {
 	sum, ok := s.st.Cores()
 	if !ok {
 		out = append(out,
-			t.gaugeUnmeasured("по ядрам", 12, dash, s.barWidth()),
-			s.note("почему — digitdisk status --why"),
+			t.gaugeUnmeasured(s.l.T("по ядрам"), 12, dash, s.barWidth()),
+			s.note(s.l.T("почему — digitdisk status --why")),
 		)
 		return out
 	}
 
-	out = append(out, s.kv("по ядрам", fmt.Sprintf("замерено %d из %s  (окно %d мс)",
+	out = append(out, s.kv(s.l.T("по ядрам"), s.l.F("замерено %d из %s  (окно %d мс)",
 		sum.Measured, count(l.CPUCount), l.SampleMillis)))
-	out = append(out, s.kv("разброс", fmt.Sprintf("мин %.1f%% · медиана %.1f%% · макс %.1f%% (ядро %d)",
-		sum.Min, sum.Median, sum.Max, sum.Busiest)))
-	out = append(out, s.kv("под нагрузкой", fmt.Sprintf("%d ядер из %d заняты больше чем наполовину", sum.Loaded, sum.Total)))
+	out = append(out, s.kv(s.l.T("разброс"), s.l.F("мин %s · медиана %s · макс %s (ядро %d)",
+		s.l.Pct(sum.Min, 1), s.l.Pct(sum.Median, 1), s.l.Pct(sum.Max, 1), sum.Busiest)))
+	out = append(out, s.kv(s.l.T("под нагрузкой"), s.l.F("%d ядер из %d заняты больше чем наполовину", sum.Loaded, sum.Total)))
 	out = append(out, "")
 
 	if per, rows := s.barGrid(sum.Total); rows > 0 {
-		out = append(out, s.caption("ПО ЯДРАМ"))
+		out = append(out, s.caption(s.l.T("ПО ЯДРАМ")))
 		out = append(out, s.coreBars(per)...)
 		return out
 	}
 
-	out = append(out, s.caption("КАРТА ЯДЕР"))
+	out = append(out, s.caption(s.l.T("КАРТА ЯДЕР")))
 	out = append(out, s.coreMap()...)
 	out = append(out, "")
-	out = append(out, s.caption("САМЫЕ ЗАНЯТЫЕ"))
+	out = append(out, s.caption(s.l.T("САМЫЕ ЗАНЯТЫЕ")))
 	out = append(out, s.busiestCores(6)...)
 	return out
 }
@@ -227,7 +227,7 @@ func (s *screen) coreBars(perRow int) []string {
 		f := *c.BusyPercent / 100
 		r.plain(t.bar(f, bw))
 		r.w += bw
-		r.add(right(fmt.Sprintf("%.0f%%", *c.BusyPercent), 5)+" ", func(x string) string { return t.Fg(t.level(f), x) })
+		r.add(right(s.l.Pct(*c.BusyPercent, 0), 5)+" ", func(x string) string { return t.Fg(t.level(f), x) })
 	}
 	return append(out, r.String())
 }
@@ -260,7 +260,7 @@ func (s *screen) coreMap() []string {
 		r.w += len(shares)
 		out = append(out, r.String())
 	}
-	return append(out, s.note("ячейка — ядро: ▁ пусто, █ занято целиком"))
+	return append(out, s.note(s.l.T("ячейка — ядро: ▁ пусто, █ занято целиком")))
 }
 
 // mapWidth is how many cells a row of the map holds.  It is a multiple of
@@ -286,10 +286,10 @@ func (s *screen) busiestCores(n int) []string {
 	out := make([]string, 0, len(cores))
 	for _, c := range cores {
 		if c.BusyPercent == nil {
-			out = append(out, s.t.gaugeUnmeasured("ядро "+fmt.Sprint(c.Index), 12, dash, bw))
+			out = append(out, s.t.gaugeUnmeasured(s.l.F("ядро %d", c.Index), 12, dash, bw))
 			continue
 		}
-		out = append(out, s.t.gauge("ядро "+fmt.Sprint(c.Index), 12, *c.BusyPercent/100,
+		out = append(out, s.t.gauge(s.l.F("ядро %d", c.Index), 12, *c.BusyPercent/100,
 			s.l.Pct((*c.BusyPercent/100)*100, 1), bw))
 	}
 	return out
@@ -319,7 +319,7 @@ func (s *screen) gpus() []string {
 		return s.waiting()
 	}
 	if len(s.st.GPUs) == 0 {
-		return []string{"", s.note("— (видеокарт не нашлось)"), s.note("почему — digitdisk status --why")}
+		return []string{"", s.note(s.l.T("— (видеокарт не нашлось)")), s.note(s.l.T("почему — digitdisk status --why"))}
 	}
 	t := s.t
 	bw := s.barWidth()
@@ -331,27 +331,27 @@ func (s *screen) gpus() []string {
 		out = append(out, s.caption(fmt.Sprintf("%d · %s", i, c.Name)))
 		if c.BusyPercent != nil {
 			f := *c.BusyPercent / 100
-			out = append(out, t.gauge("занято", 12, f, s.l.Pct((f)*100, 1), bw))
+			out = append(out, t.gauge(s.l.T("занято"), 12, f, s.l.Pct((f)*100, 1), bw))
 		} else {
-			out = append(out, t.gaugeUnmeasured("занято", 12, dash, bw))
+			out = append(out, t.gaugeUnmeasured(s.l.T("занято"), 12, dash, bw))
 		}
 		switch {
 		case c.MemoryTotalBytes != nil && c.MemoryUsedBytes != nil:
 			f := pctOf(*c.MemoryUsedBytes, *c.MemoryTotalBytes)
-			out = append(out, t.gauge("память", 12, f, s.reading(
-				fmt.Sprintf("%s из %s  (%s)", s.l.UBytes(*c.MemoryUsedBytes),
+			out = append(out, t.gauge(s.l.T("память"), 12, f, s.reading(
+				s.l.F("%s из %s  (%s)", s.l.UBytes(*c.MemoryUsedBytes),
 					s.l.UBytes(*c.MemoryTotalBytes), s.l.Pct((f)*100, 1)), s.l.Pct((f)*100, 1)), bw))
 		case c.MemoryTotalBytes != nil:
-			out = append(out, t.gaugeUnmeasured("память", 12,
-				"всего "+s.l.UBytes(*c.MemoryTotalBytes)+", занято "+dash, bw))
+			out = append(out, t.gaugeUnmeasured(s.l.T("память"), 12,
+				s.l.F("всего %s, занято %s", s.l.UBytes(*c.MemoryTotalBytes), dash), bw))
 		default:
-			out = append(out, t.gaugeUnmeasured("память", 12, dash, bw))
+			out = append(out, t.gaugeUnmeasured(s.l.T("память"), 12, dash, bw))
 		}
-		out = append(out, s.kv("температура", cardTemp(c)))
-		if line := cardPower(c); line != "" {
-			out = append(out, s.kv("питание", line))
+		out = append(out, s.kv(s.l.T("температура"), s.cardTemp(c)))
+		if line := s.cardPower(c); line != "" {
+			out = append(out, s.kv(s.l.T("питание"), line))
 		}
-		out = append(out, s.note(cardOrigin(c)))
+		out = append(out, s.note(s.cardOrigin(c)))
 	}
 	return out
 }
@@ -360,20 +360,20 @@ func (s *screen) gpus() []string {
 // is heated to, and what it is drawing while it does it.  Either can be
 // missing on its own, so they are two lines and not one sentence with a hole
 // in the middle.
-func cardTemp(c gpuinfo.Card) string {
+func (s *screen) cardTemp(c gpuinfo.Card) string {
 	if c.Celsius == nil {
 		return dash
 	}
-	return fmt.Sprintf("%.1f °C", *c.Celsius)
+	return s.l.Dec(*c.Celsius, 1) + " °C"
 }
 
-func cardPower(c gpuinfo.Card) string {
+func (s *screen) cardPower(c gpuinfo.Card) string {
 	var parts []string
 	if c.Watts != nil {
-		parts = append(parts, fmt.Sprintf("%.1f Вт", *c.Watts))
+		parts = append(parts, s.l.F("%s Вт", s.l.Dec(*c.Watts, 1)))
 	}
 	if c.MHz != nil {
-		parts = append(parts, fmt.Sprintf("%.0f МГц", *c.MHz))
+		parts = append(parts, s.l.F("%s МГц", s.l.Dec(*c.MHz, 0)))
 	}
 	return strings.Join(parts, "  ·  ")
 }
@@ -382,18 +382,18 @@ func cardPower(c gpuinfo.Card) string {
 // explanation of anything missing — those live behind `--why` — it is the
 // provenance of what is shown, and a number that came out of somebody else's
 // program says so on the line under itself.
-func cardOrigin(c gpuinfo.Card) string {
+func (s *screen) cardOrigin(c gpuinfo.Card) string {
 	parts := []string{}
 	if c.Bus != "" {
-		parts = append(parts, "шина "+c.Bus)
+		parts = append(parts, s.l.F("шина %s", c.Bus))
 	}
 	if c.Driver != "" {
-		parts = append(parts, "драйвер "+c.Driver)
+		parts = append(parts, s.l.F("драйвер %s", c.Driver))
 	}
 	if c.Outside {
-		parts = append(parts, "числа от чужой программы "+c.Source)
+		parts = append(parts, s.l.F("числа от чужой программы %s", c.Source))
 	} else if c.Source != "" {
-		parts = append(parts, "числа из "+c.Source)
+		parts = append(parts, s.l.F("числа из %s", c.Source))
 	}
 	return strings.Join(parts, "  ·  ")
 }
@@ -406,17 +406,17 @@ func (s *screen) gpuGauges(limit int) []string {
 	var out []string
 	for i, c := range s.st.GPUs {
 		if i >= limit {
-			out = append(out, s.note(fmt.Sprintf("…и ещё %d — раздел ВИДЕОКАРТЫ", len(s.st.GPUs)-i)))
+			out = append(out, s.note(s.l.F("…и ещё %d — раздел ВИДЕОКАРТЫ", len(s.st.GPUs)-i)))
 			break
 		}
 		name := fit(c.Name, 20)
 		reading := []string{}
 		if c.MemoryTotalBytes != nil && c.MemoryUsedBytes != nil {
-			reading = append(reading, fmt.Sprintf("%s из %s", s.l.UBytes(*c.MemoryUsedBytes),
+			reading = append(reading, s.l.F("%s из %s", s.l.UBytes(*c.MemoryUsedBytes),
 				s.l.UBytes(*c.MemoryTotalBytes)))
 		}
 		if c.Celsius != nil {
-			reading = append(reading, fmt.Sprintf("%.0f °C", *c.Celsius))
+			reading = append(reading, s.l.Dec(*c.Celsius, 0)+" °C")
 		}
 		if c.BusyPercent == nil {
 			out = append(out, t.gaugeUnmeasured(name, 20, strings.Join(append([]string{dash}, reading...), "  ·  "), bw))
@@ -434,7 +434,7 @@ func (s *screen) gpuGauges(limit int) []string {
 func (s *screen) coreComb(nameWidth int) string {
 	t := s.t
 	var r row
-	r.add("  "+fit("по ядрам", nameWidth)+" ", func(x string) string { return t.Fg(t.P.Subtle, x) })
+	r.add("  "+fit(s.l.T("по ядрам"), nameWidth)+" ", func(x string) string { return t.Fg(t.P.Subtle, x) })
 	w := s.barWidth()
 	shares := make([]float64, 0, len(s.st.Load.Cores))
 	for _, c := range s.st.Load.Cores {
@@ -450,7 +450,7 @@ func (s *screen) coreComb(nameWidth int) string {
 	r.plain(t.spark(squeeze(shares, w), w))
 	r.w += w
 	if len(shares) > w {
-		r.add(fmt.Sprintf("  по %d ядер в ячейке", (len(shares)+w-1)/w),
+		r.add(s.l.F("  по %d ядер в ячейке", (len(shares)+w-1)/w),
 			func(x string) string { return t.Fg(t.P.Subtle, x) })
 	}
 	return r.String()
