@@ -4,7 +4,6 @@
 package ui
 
 import (
-	"fmt"
 	"os"
 	"strings"
 )
@@ -212,48 +211,11 @@ func (t Theme) Chip(s slot, text string) string {
 func (t Theme) seq(s slot, background bool) string {
 	switch t.d {
 	case depthTrue:
-		lead := 38
-		if background {
-			lead = 48
-		}
-		return fmt.Sprintf("\x1b[%d;2;%d;%d;%dm", lead, s.c.R, s.c.G, s.c.B)
+		return seqTrue(background, s.c)
 	case depth256:
-		lead := 38
-		if background {
-			lead = 48
-		}
-		return fmt.Sprintf("\x1b[%d;5;%dm", lead, cube256(s.c))
+		return seq256(background, s.c)
 	case depth16:
-		n := s.ansi
-		if background {
-			n += 10 // 30..37 -> 40..47, 90..97 -> 100..107
-		}
-		return fmt.Sprintf("\x1b[%dm", n)
+		return seq16(background, s.ansi)
 	}
 	return ""
-}
-
-// cube256 places an RGB colour in the xterm-256 palette: the 6×6×6 cube, or
-// the grey ramp when the three channels sit close together.
-func cube256(c RGB) int {
-	r, g, b := int(c.R), int(c.G), int(c.B)
-	if abs(r-g) < 12 && abs(g-b) < 12 && abs(r-b) < 12 {
-		grey := (r + g + b) / 3
-		switch {
-		case grey < 8:
-			return 16
-		case grey > 248:
-			return 231
-		}
-		return 232 + (grey-8)*23/240
-	}
-	q := func(v int) int { return (v*5 + 127) / 255 }
-	return 16 + 36*q(r) + 6*q(g) + q(b)
-}
-
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
 }

@@ -30,7 +30,13 @@ jobs:
     name: Linux — сборка без cgo, тесты, кросс-сборка под macOS
     runs-on: ubuntu-latest
     steps:
+      # submodules: раскладка экрана подключена подмодулем ui-flang/flang-tui.
+      # Напечатанный Go лежит в дереве и без подмодуля, поэтому СБОРКА без него
+      # прошла бы; а вот `make -C ui-flang` — нет, и молчаливо зелёный прогон
+      # без исходника раскладки хуже красного.
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -53,6 +59,13 @@ jobs:
       - name: Ядро на flang — проверка, примеры и сверка двух печатей
         run: make -C core
 
+      - name: Раскладка экрана на flang — проверка, печать и сверка печати с деревом
+        # `сверка` перепечатывает во временный каталог и сравнивает с тем, что
+        # лежит в дереве: так ловится правка руками внутри ui-flang/out-go.
+        run: |
+          make -C ui-flang проверка
+          make -C ui-flang сверка
+
       - name: Проверки хозяина
         # `-count=1` не украшение. Сверка ключей и подкоманд читает
         # ../digitdisk.1 и ../digitdisk.en.1 — файлы вне модуля, которых кэш
@@ -61,12 +74,21 @@ jobs:
         # молча. Тем же прогоном проверяется полнота перевода: строка без пары
         # на втором языке роняет `go test ./internal/lang/`.
         run: |
-          test -z "$(gofmt -l host core/out-go)" || { gofmt -l host core/out-go; exit 1; }
+          test -z "$(gofmt -l host core/out-go ui-flang/out-go)" || { gofmt -l host core/out-go ui-flang/out-go; exit 1; }
           cd host
           go vet ./...
           go vet -tags flangcore ./...
+          go vet -tags flangcore,flangui ./...
           go test -count=1 ./...
           go test -count=1 -tags flangcore ./...
+          go test -count=1 -tags flangcore,flangui ./...
+
+      - name: Две раскладки печатают один и тот же экран
+        # Раскладка экрана есть в двух реализациях — рукописный Go и печатанный
+        # flang, — а одна сборка держит только одну. Сравнить их можно лишь
+        # двумя прогонами одного дерева, и это делает скрипт: снимки кадров на
+        # ширинах 40/80/120/200, вывод в трубу, --json и живой экран в pty.
+        run: tools/sverka-ui.sh
 
       - name: Маковский хозяин собирается отсюда
         # Ради этой строки маковская половина и написана без cgo: обе цели

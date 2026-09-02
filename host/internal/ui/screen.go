@@ -262,13 +262,7 @@ func (s *screen) accept(sm sample) {
 	s.memHist = push(s.memHist, mem)
 }
 
-func push(h []float64, v float64) []float64 {
-	h = append(h, v)
-	if len(h) > histLen {
-		h = h[len(h)-histLen:]
-	}
-	return h
-}
+func push(h []float64, v float64) []float64 { return pushSample(h, v, histLen) }
 
 // handle answers one key.  It reports whether the screen should close.
 func (s *screen) handle(k key, snaps chan sample) bool {
@@ -303,8 +297,8 @@ func (s *screen) handle(k key, snaps chan sample) bool {
 			}
 		}
 		if k.r >= '1' && k.r <= '9' {
-			if n := int(k.r - '1'); n < len(sections) {
-				s.tab, s.scroll, s.menu = n, 0, false
+			if n := int(k.r - '0'); n <= len(sections) {
+				s.tab, s.scroll, s.menu = pickTab(s.tab, n, len(sections)), 0, false
 			}
 		}
 	case keyEsc:
@@ -318,10 +312,10 @@ func (s *screen) handle(k key, snaps chan sample) bool {
 	case keyCtrlC:
 		return true
 	case keyRight, keyTab:
-		s.tab = (s.tab + 1) % len(sections)
+		s.tab = nextTab(s.tab, len(sections))
 		s.scroll, s.menu = 0, false
 	case keyLeft, keyShiftTab:
-		s.tab = (s.tab + len(sections) - 1) % len(sections)
+		s.tab = prevTab(s.tab, len(sections))
 		s.scroll, s.menu = 0, false
 	case keyDown:
 		s.scroll++
@@ -340,13 +334,7 @@ func (s *screen) handle(k key, snaps chan sample) bool {
 
 // bodyHeight is how many lines the section itself gets: the screen less the
 // two-line head, the rule and the footer.
-func (s *screen) bodyHeight() int {
-	h := s.rows - 5
-	if h < 1 {
-		h = 1
-	}
-	return h
-}
+func (s *screen) bodyHeight() int { return bodyHeightOf(s.rows, 5) }
 
 func (s *screen) draw() {
 	var b strings.Builder
@@ -383,20 +371,15 @@ func (s *screen) frame() []string {
 		body = s.commandsPage()
 	}
 	h := s.bodyHeight()
-	if s.scroll > len(body)-1 {
-		s.scroll = len(body) - 1
-	}
-	if s.scroll < 0 {
-		s.scroll = 0
-	}
+	s.scroll = clampScroll(body, s.scroll)
+	// shown считает СКОЛЬКО строк раздела видно — это число уезжает в
+	// подпись «строки N–M из K». Сами строки укладывает layoutSection: она
+	// добирает хвост пустыми, чтобы черта и подвал не уехали вверх.
 	shown := body[s.scroll:]
 	if len(shown) > h {
 		shown = shown[:h]
 	}
-	out = append(out, shown...)
-	for i := len(shown); i < h; i++ {
-		out = append(out, "")
-	}
+	out = append(out, layoutSection(body, h, s.scroll)...)
 
 	more := ""
 	if len(body) > h {
