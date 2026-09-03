@@ -489,9 +489,9 @@ func fallbackName(c Card) string {
 	}
 }
 
-// knownVendors names the four vendors whose cards this tool is likely to meet,
-// for the machine that ships no pci.ids at all.  It is a courtesy, not a
-// database: anything else falls through to its number.
+// knownVendors names the vendors whose cards this tool is likely to meet, for
+// the machine that ships no pci.ids at all.  It is a courtesy, not a database:
+// anything else falls through to its number.
 var knownVendors = map[string]string{
 	"10de": "NVIDIA",
 	"1002": "AMD",
@@ -501,7 +501,14 @@ var knownVendors = map[string]string{
 	"1a03": "ASPEED",
 	"15ad": "VMware",
 	"1af4": "Red Hat",
+	"106b": "Apple",
 }
+
+// VendorName is that same courtesy for a collector that has no pci.ids to read
+// at all.  macOS ships no such file, and the reader there (internal/iokit) asks
+// here rather than keeping a second table: two tables of the same four numbers
+// disagree the first time one of them is edited.
+func VendorName(id string) string { return knownVendors[id] }
 
 // read returns the whole of a small pseudo-file, or "".
 func read(path string) string {

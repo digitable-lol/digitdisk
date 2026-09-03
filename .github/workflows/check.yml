@@ -132,6 +132,17 @@ jobs:
           cd host
           go test -count=1 -v -run 'Дверь|Типы|MatchingServices' ./internal/iokit/
 
+          # А теперь то же самое через собранного хозяина: раздел ВИДЕОКАРТЫ
+          # на маке был пуст, и пуст он или нет — видно только по снимку.
+          # Проверка по --json, потому что JSON не переводится.
+          go build -o "$RUNNER_TEMP/digitdisk-iokit" .
+          "$RUNNER_TEMP/digitdisk-iokit" status --sample 1 --json > "$RUNNER_TEMP/iokit.json"
+          jq '.gpus' "$RUNNER_TEMP/iokit.json"
+          n=$(jq '.gpus | length' "$RUNNER_TEMP/iokit.json")
+          echo "карт в снимке: $n"
+          [ "$n" -ge 1 ] || { echo "Раздел ВИДЕОКАРТЫ по-прежнему пуст." >&2; exit 1; }
+          "$RUNNER_TEMP/digitdisk-iokit" status --sample 1 --why | grep -i -A2 'видеокарт' || true
+
       - name: Тесты, включая те, которым нужен мак
         # Здесь исполняются host/internal/sysinfo/sysinfo_darwin_test.go: они
         # сверяют раскладку каждой структуры с тем, что процесс знает о себе.

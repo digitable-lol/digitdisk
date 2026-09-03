@@ -4,10 +4,11 @@
 //go:build darwin
 
 // The macOS half of the collector.  Everything here asks the kernel — through
-// sysctl(3), getfsstat(2), the routing socket, and the libSystem functions
-// wrapped in internal/libsystem.  The decoding of what comes back lives in
-// internal/darwinsys and is built and tested everywhere, including on machines
-// that are not Macs.
+// sysctl(3), getfsstat(2), the routing socket, the libSystem functions wrapped
+// in internal/libsystem, and the IOKit and CoreFoundation ones wrapped in
+// internal/iokit.  The decoding of what comes back lives in internal/darwinsys
+// and internal/iokit, and both are built and tested everywhere, including on
+// machines that are not Macs.
 //
 // WHERE EVERY FACT COMES FROM.  The interfaces are the documented ones, and
 // nothing below is read out of another project's source:
@@ -29,6 +30,9 @@
 //	диски                   getfsstat(2) (struct statfs)
 //	интерфейсы, адреса      net.Interfaces (стандартная библиотека)
 //	счётчики интерфейсов    sysctl NET_RT_IFLIST2 (struct if_msghdr2/if_data64)
+//	видеокарты              IOServiceGetMatchingServices по классам
+//	                        IOAccelerator и IOPCIDevice, затем
+//	                        IORegistryEntryCreateCFProperties
 //
 // WHAT IS STILL NOT MEASURED, AND WHY.  Two kinds, and they are not the same
 // kind:
@@ -57,6 +61,8 @@ import (
 	"time"
 
 	"digitdisk/internal/darwinsys"
+	"digitdisk/internal/gpuinfo"
+	"digitdisk/internal/iokit"
 	"digitdisk/internal/lang"
 	"digitdisk/internal/libsystem"
 	"digitdisk/internal/procfs"
@@ -146,14 +152,28 @@ func (c Collector) Collect() Status {
 	st.Sensors = nil
 	st.Missing[FactSensors] = lang.Say("macOS не публикует показания датчиков, а угадывать их формат нельзя")
 
-	// The video cards are the same case as the sensors, and for the same
-	// reason.  What a Mac knows about its graphics lives in the IORegistry,
-	// and the documented way in is IOKit — a library of Core Foundation
-	// objects, not of numbers, and one that cannot be called the way the
-	// five functions in internal/libsystem are.  Every number a card here
-	// could show would be a guess about somebody's reverse engineering, so
-	// there are none.
-	st.Missing[FactGPUs] = lang.Say("macOS публикует сведения о видеокартах только через IOKit, объектами Core Foundation; без cgo мы их не читаем, а угадывать не станем")
+	// The video cards are NOT the same case as the sensors, and the
+	// difference was measured rather than assumed.  What a Mac knows about
+	// its graphics lives in the IORegistry, and IOKit answers with Core
+	// Foundation objects rather than with numbers — but that turned out to
+	// be a difficulty of decoding, not a wall: the frameworks are called
+	// the same way internal/libsystem calls libSystem, without cgo, and
+	// internal/iokit does it.  See TestДверьОткрывается there, which
+	// refuses the answer unless what the registry says about the model of
+	// this machine matches what sysctl says.
+	//
+	// What comes back is a name, a driver and, on a card that sits on PCI,
+	// the bus address and the identifiers.  What does NOT come back is
+	// counters: the registry publishes neither the busy share nor the
+	// memory in use, and a card that shares the machine's memory publishes
+	// no memory of its own either.  Those are said as absences and not
+	// filled in from anywhere.
+	st.GPUs = iokit.Cards()
+	if len(st.GPUs) == 0 {
+		st.Missing[FactGPUs] = lang.Say("в реестре устройств нет ни одной записи о видеокарте")
+	} else if !anyGPUNumbers(st.GPUs) {
+		st.Missing[FactGPUNumbers] = lang.Say("реестр устройств macOS называет видеокарту и её драйвер, но счётчиков загрузки и памяти в нём нет")
+	}
 
 	if len(st.Missing) == 0 {
 		st.Missing = nil
@@ -809,4 +829,16 @@ func charString(c []int8) string {
 		b = append(b, byte(ch))
 	}
 	return string(b)
+}
+
+// anyGPUNumbers answers whether any card came back with a number beside its
+// name.  It is asked before the absence is declared, so that a Mac which one
+// day does publish a counter stops being told it has none.
+func anyGPUNumbers(cards []gpuinfo.Card) bool {
+	for _, c := range cards {
+		if c.MemoryTotalBytes != nil || c.MemoryUsedBytes != nil || c.BusyPercent != nil {
+			return true
+		}
+	}
+	return false
 }

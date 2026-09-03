@@ -83,10 +83,11 @@ func init() {
 		"в %s нет строки с названием процессора":                                                              "%s has no line naming the processor",
 
 		// То же на macOS.
-		"macOS публикует сведения о видеокартах только через IOKit, объектами Core Foundation; без cgo мы их не читаем, а угадывать не станем": "macOS publishes what it knows about video cards through IOKit alone, as Core Foundation objects; without cgo we do not read them, and we will not guess",
-		"узел machdep.cpu.brand_string ничего не ответил — процессор себя не назвал":                                                           "the machdep.cpu.brand_string node answered nothing — the processor did not name itself",
-		"ядро не дало счётчики по каждому процессору отдельно":                                                                                 "the kernel gave no counters for each processor separately",
-		"процессоров в ответе ядра не столько, сколько машина насчитала у себя, — по ядрам не публикуем":                                       "the kernel answered about a different number of processors than the machine counts for itself — per-core figures are not published",
+		"в реестре устройств нет ни одной записи о видеокарте":                                              "the device registry holds no entry for a video card",
+		"реестр устройств macOS называет видеокарту и её драйвер, но счётчиков загрузки и памяти в нём нет": "the macOS device registry names the card and its driver, but holds no counters of load or memory",
+		"узел machdep.cpu.brand_string ничего не ответил — процессор себя не назвал":                        "the machdep.cpu.brand_string node answered nothing — the processor did not name itself",
+		"ядро не дало счётчики по каждому процессору отдельно":                                              "the kernel gave no counters for each processor separately",
+		"процессоров в ответе ядра не столько, сколько машина насчитала у себя, — по ядрам не публикуем":    "the kernel answered about a different number of processors than the machine counts for itself — per-core figures are not published",
 
 		// Почему у найденных карт нет чисел.
 		"в %s и на шине PCI видеокарт не нашлось":                                                "no video cards were found in %s or on the PCI bus",

@@ -190,10 +190,12 @@ same kind:
   line of a process belonging to *another user* are refused to anybody but the
   administrator: the kernel checks the owner. Running under `sudo` fills those
   rows in; nothing else will.
-- **Not published by the system.** What a Mac knows about its video cards lives
-  in the IORegistry, and the documented way in is IOKit: Core Foundation
-  objects rather than numbers.  We do not read those without cgo and will not
-  guess, so the ВИДЕОКАРТЫ section is empty on a Mac.
+- **The system publishes no counters.** The cards themselves are read on a Mac
+  — out of the IORegistry, through IOKit, without cgo (see below) — but the
+  registry names only the card, its driver and, for a card on the PCI bus, its
+  address and identifiers. Neither the busy share nor the memory in use is
+  there, and a card that shares the machine's memory has no memory of its own
+  to report.
 - **Not published by the system.** Die temperature comes from the SMC through
   IOKit, and Apple documents no interface to it — what circulates is a
   reverse-engineered structure. A number read that way would be a guess wearing
@@ -645,10 +647,31 @@ hwmon documentation defines it, in microwatts, and printed only if the result
 is at least half a watt: some drivers count in something else, and a number
 without a unit is not a number.
 
-**On macOS there are no video cards in the snapshot.** What a Mac knows about
-its graphics lives in the IORegistry, and the documented way in is IOKit —
-Core Foundation objects rather than numbers. We do not read those without cgo,
-and we will not guess. The reason is behind `--why`; the field is empty.
+**On macOS the cards come out of the IORegistry, and without cgo too.** What a
+Mac knows about its graphics lives in the device registry, and the documented
+way in is IOKit: Core Foundation objects rather than numbers. The door is the
+one the Mach functions are taken through — `//go:cgo_import_dynamic`, an
+assembly stub and `syscall.syscall6` (`host/internal/iokit`, twenty-three
+symbols out of IOKit, CoreFoundation and libSystem); cgo stays off and the
+release still cross-compiles from Linux. The registry is asked by the classes
+`IOAccelerator` and `IOPCIDevice`, and devices that are not of the display
+class are dropped by their PCI class code.
+
+What a Mac gives and what it does not:
+
+| field | from | empty when |
+|---|---|---|
+| name | `model` of the PCI node, else the driver's name | on Apple Silicon there is no model in the registry — the driver's name is printed |
+| driver | `IOClass` of the entry, else its class | never |
+| bus, vendor, identifiers | `pcidebug`, `vendor-id`, `device-id` | for a card that is not on the PCI bus (Apple Silicon) |
+| total memory | `VRAM,totalsize` or `VRAM,totalMB` | for a card that shares the machine's memory |
+| load, memory in use, temperature, power | — | always: the registry publishes no such counters |
+
+The check does not take its own word for it: `go test ./host/internal/iokit`
+compares the machine's `model` from the registry against `hw.model` from
+`sysctl` and refuses to call the answer read if the two disagree. The decoding
+of entries is checked separately and on any machine, against what was captured
+from both macOS runners.
 
 ### The live screen
 
