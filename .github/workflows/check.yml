@@ -123,6 +123,15 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           check-latest: false
 
+      - name: IOKit без cgo — что реестр отдаёт про видеокарты
+        # Замер, а не обещание: тест сверяет model из IORegistry с hw.model из
+        # sysctl (расходятся — значит дверь открылась не туда), а потом целиком
+        # печатает, что этот мак публикует про свои видеокарты. Вывод шага и
+        # есть ответ задачи 4544.
+        run: |
+          cd host
+          go test -count=1 -v -run 'Дверь|Типы|MatchingServices' ./internal/iokit/
+
       - name: Тесты, включая те, которым нужен мак
         # Здесь исполняются host/internal/sysinfo/sysinfo_darwin_test.go: они
         # сверяют раскладку каждой структуры с тем, что процесс знает о себе.
