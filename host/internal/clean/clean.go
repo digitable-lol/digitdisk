@@ -116,6 +116,11 @@ type Options struct {
 	// and not in the rules.
 	Protect *protect.List
 
+	// Stop is what the твёрдые запреты need to know about this machine —
+	// the home directory and where digitdisk itself lives.  Its zero value
+	// asks the system, which is right everywhere but a test.
+	Stop StopOptions
+
 	// Places names the справочник the decision layer was given, so the plan
 	// can say which place claimed an item.  It decides nothing: the разряд
 	// on every item came from the layer.
@@ -124,13 +129,46 @@ type Options struct {
 	// Only, when set, narrows the plan to these subtrees of the корень: a
 	// path outside all of them is not walked, not judged and not planned.
 	//
-	// It can only SUBTRACT, like the защитный список and for the same
-	// reason.  The verdict on everything that remains is still the layer's,
-	// with the same thresholds — narrowing the ground never widens what may
-	// be removed on it.  It exists so the живой экран can act on the
-	// directories a person marked instead of on the whole tree, without
-	// growing a second road to removal beside this one.
+	// For the уборка road it can only SUBTRACT, like the защитный список
+	// and for the same reason.  The verdict on everything that remains is
+	// still the layer's, with the same thresholds — narrowing the ground
+	// never widens what may be removed on it.  It exists so the живой экран
+	// can act on the directories a person marked instead of on the whole
+	// tree, without growing a second road to removal beside this one.
+	//
+	// For the забой road (ByHand) it is not a narrowing but THE WHOLE
+	// GROUND, and it is required: забой has nothing to erase until a person
+	// has pointed at something.
 	Only []string
+
+	// ByHand builds the plan ПО ВОЛЕ ЧЕЛОВЕКА instead of по приговору ядра,
+	// and it is the whole difference between `clean` and забой.
+	//
+	// WHAT IT CHANGES, IN ONE SENTENCE: what goes into the plan is every
+	// ordinary file under Only, not only the files the layer marked
+	// «МожноУбрать».
+	//
+	// WHY THAT IS NOT A HOLE.  `clean` asks the layer "what should I go and
+	// find" — there the verdict must decide, or the tool would be carrying
+	// off whatever it fancied.  Забой asks nothing of the sort: a person
+	// has already pointed at a directory and pressed an irreversible key.
+	// «НеТрогать» there was never a ban, it was «сам не возьму» — and read
+	// as a ban it produced the one answer a tool must never give: «стирать
+	// нечего» about a directory the person is looking at.
+	//
+	// WHAT STILL HOLDS, ALL OF IT:
+	//
+	//   - the защитный список still subtracts, and still says so;
+	//   - guardByHand still refuses what cannot be erased safely — a
+	//     ссылка, a недоступное, anything outside the корень, anything
+	//     inside a корзина;
+	//   - HardStop still refuses the ground itself when it is the root, a
+	//     системный каталог, the whole home, digitdisk's own place or a
+	//     корзина — with a reason and a way around, never silently;
+	//   - the layer is still asked about every file, but for a WORD:
+	//     core.Naturer says what the file is and how hard the erasure of it
+	//     must be confirmed.  It never keeps a path out of the plan.
+	ByHand bool
 }
 
 // wanted reports whether a path is inside one of the subtrees named by Only,
@@ -142,6 +180,23 @@ func wanted(only []string, p string) bool {
 	for _, o := range only {
 		if p == o || strings.HasPrefix(p, o+string(filepath.Separator)) ||
 			strings.HasPrefix(o, p+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
+// inside reports whether a path is one of the subtrees named by Only or lies
+// under one.  It is the STRICTER half of wanted: wanted also says yes on the
+// way DOWN to a marked directory, because the walk has to pass through the
+// parents to reach it, and a parent passed through is not a parent pointed at.
+//
+// Забой asks this one.  Without it, marking `~/проект/сборка` would put
+// `~/проект` itself on the list of directories to remove — the walk observed
+// it on the way past.
+func inside(only []string, p string) bool {
+	for _, o := range only {
+		if p == o || strings.HasPrefix(p, o+string(filepath.Separator)) {
 			return true
 		}
 	}
@@ -225,6 +280,13 @@ type Item struct {
 	Hardlinked bool     `json:"жёсткая_ссылка"`
 	Before     Identity `json:"отпечаток"`
 
+	// Nature is the layer's answer to the SECOND question — what is this
+	// and what do you risk — and it is filled in only on the забой road.
+	// On the уборка road every item is «Мусор» by construction (that road
+	// takes nothing else), so writing it there would add a field to
+	// `clean --json` that says the same word on every line.
+	Nature core.Nature `json:"природа,omitempty"`
+
 	// Filled in by Apply.
 	TrashRel string    `json:"в_корзине,omitempty"`
 	MovedAt  string    `json:"перенесено,omitempty"`
@@ -255,6 +317,39 @@ func (i Item) Why(l lang.Lang) string {
 // the разряд came from the general приметы instead.  Two different sentences,
 // and a person deciding whether to trust a line wants to know which one it is.
 func (i Item) Where() string { return i.Place }
+
+// DirItem is one directory забой proposes to remove after its files have gone.
+//
+// It exists because «удалить папку» means the papka too.  Erasing every file
+// under a directory and leaving the empty shells behind answers the letter of
+// the request and not one word of its meaning — the person marked a directory
+// and it is still there afterwards.
+//
+// The removal is os.Root.Remove, the call that takes an EMPTY directory and
+// refuses a full one.  The recursive remove this tree forbids by name is not
+// used, and is not wanted here either: it is the call that turns one mistake
+// into a lost directory.  A directory that still holds something — a file the
+// erasure refused, a ссылка nobody may touch, anything at all — therefore
+// stays, and says why.  That is the property that makes this safe: the
+// directory can only go once everything inside it has already gone through
+// the checks one by one.
+type DirItem struct {
+	Path string `json:"путь"`
+	Rel  string `json:"путь_от_корня"`
+
+	// Filled in by Erase.
+	RemovedAt string `json:"стёрто,omitempty"`
+	// Failed is why this directory is still there.
+	Failed lang.Phrase `json:"не_сделано,omitzero"`
+}
+
+// NatureSum is the plan broken down by природа: the words the decision layer
+// used for what is about to go, with a count for each.
+type NatureSum struct {
+	Nature core.Nature `json:"природа"`
+	Count  int         `json:"путей"`
+	Bytes  int64       `json:"байт"`
+}
 
 // Refusal is a path the decision layer marked «МожноУбрать» that the host will
 // not touch, and the check that stopped it.  A refusal is never a silent skip:
@@ -303,6 +398,29 @@ type Plan struct {
 	// files inside them: a pruned directory is never opened, so nobody here
 	// knows how much was in it.
 	PrunedTrash int `json:"своих_корзин_пропущено"`
+
+	// ByHand says this plan was built по воле человека — every ordinary
+	// file under the ground, not only what the layer marked «МожноУбрать».
+	// It is written into the журнал so that a record of an erasure says
+	// which of the two questions built it.
+	ByHand bool `json:"по_воле_человека,omitempty"`
+
+	// Dirs are the directories that go once their files have gone, deepest
+	// first.  Only a ByHand plan has any: `clean` moves files into a
+	// корзина and the directory they came from is not part of that.
+	Dirs []DirItem `json:"каталоги,omitempty"`
+
+	// ByNature is the plan in the layer's own words, in order of rising
+	// risk.  It is what the question shows a person BEFORE anything goes:
+	// «ты стираешь не мусор, а исходники» is a sentence built from here.
+	ByNature []NatureSum `json:"по_природе,omitempty"`
+
+	// Strictness is how hard this plan must be confirmed, and it is the
+	// HIGHEST strictness the layer named over the paths in it: one path of
+	// the strictest kind sets the price for the whole question.  1 — one
+	// key, 2 — the exact count of paths, 3 — the count and a word.  A layer
+	// that cannot say leaves this at core.Strictest.
+	Strictness int `json:"строгость,omitempty"`
 
 	// LargeBytes is «Порог крупного» as the decision layer states it, or 0
 	// when this layer has no such threshold to state.  It decides nothing
@@ -386,6 +504,26 @@ func Make(opt Options) (Plan, error) {
 		return Plan{}, lang.Errorf("ни один из отмеченных путей не лежит внутри %s", rootAbs)
 	}
 
+	p.ByHand = opt.ByHand
+	naturer, _ := opt.Decider.(core.Naturer)
+	if opt.ByHand {
+		if len(only) == 0 {
+			return Plan{}, lang.Errorf("забой стирает то, на что указали, а указано ничего: отметьте каталог Пробелом или встаньте на строку")
+		}
+		// The твёрдые запреты are asked about the ground and asked FIRST:
+		// before the walk, because refusing after a minute of reading the
+		// disk is a refusal nobody связывает with the key they pressed.
+		for _, o := range only {
+			if stop := HardStop(o, opt.Stop); !stop.Empty() {
+				return Plan{}, stop.Err()
+			}
+			if rule, ok := opt.Protect.Covers(o, core.ClassUnknown); ok {
+				return Plan{}, ProtectStop(o, rule).Err()
+			}
+		}
+		p.Dirs = []DirItem{}
+	}
+
 	res, err := scan.Walk(scan.Options{
 		Root:        rootAbs,
 		CrossDevice: opt.CrossDevice,
@@ -401,6 +539,10 @@ func Make(opt Options) (Plan, error) {
 			return !wanted(only, path)
 		},
 		Observe: func(e scan.Entry, info fs.FileInfo) {
+			if opt.ByHand {
+				observeByHand(&p, rootAbs, only, opt, naturer, e, info)
+				return
+			}
 			if e.Verdict != core.VerdictRemovable {
 				return
 			}
@@ -471,6 +613,9 @@ func Make(opt Options) (Plan, error) {
 			p.ByClass = append(p.ByClass, sum)
 		}
 	}
+	if p.ByHand {
+		summariseByHand(&p, naturer)
+	}
 	sort.Slice(p.Refused, func(i, j int) bool { return p.Refused[i].Path < p.Refused[j].Path })
 	sort.Slice(p.Protected, func(i, j int) bool {
 		if p.Protected[i].Size != p.Protected[j].Size {
@@ -482,6 +627,183 @@ func Make(opt Options) (Plan, error) {
 		p.ProtectedBytes += pr.Size
 	}
 	return p, nil
+}
+
+// observeByHand is what the забой road does with one entry of the walk.  It is
+// the whole of "по воле человека": the приговор is not consulted about whether
+// the path belongs in the plan, and everything else that stood before is still
+// standing.
+//
+// Order of the checks is the order of the reasons.  The ground first (a path
+// the walk merely passed through on the way down is not a path anybody pointed
+// at), then the operator's own veto, then what cannot be erased safely, and
+// only then the layer — for a word.
+func observeByHand(p *Plan, rootAbs string, only []string, opt Options, naturer core.Naturer, e scan.Entry, info fs.FileInfo) {
+	if e.Path == rootAbs {
+		return // корень обхода — на нём открыт os.Root, и он сам не стирается
+	}
+	if !inside(only, e.Path) {
+		return
+	}
+	if rule, ok := opt.Protect.Covers(e.Path, e.Class); ok {
+		p.Protected = append(p.Protected, Protected{
+			Path: e.Path, Class: e.Class, Size: e.Size, Rule: rule,
+		})
+		return
+	}
+	if e.Kind == core.KindDir {
+		rel, reason := guardDir(rootAbs, e)
+		if !reason.Empty() {
+			p.Refused = append(p.Refused, Refusal{
+				Path: e.Path, Class: e.Class, Verdict: e.Verdict, Reason: reason,
+			})
+			return
+		}
+		p.Dirs = append(p.Dirs, DirItem{Path: e.Path, Rel: rel})
+		return
+	}
+	rel, reason := guardByHand(rootAbs, e, info)
+	if !reason.Empty() {
+		p.Refused = append(p.Refused, Refusal{
+			Path: e.Path, Class: e.Class, Verdict: e.Verdict, Reason: reason,
+		})
+		return
+	}
+	id := identityOf(info)
+	it := Item{
+		Path: e.Path, Rel: rel, Size: e.Size, AgeDays: e.AgeDays,
+		Class: e.Class, Verdict: e.Verdict, Weight: e.Weight,
+		Hardlinked: id.Nlink > 1, Before: id,
+		Nature: natureOf(naturer, e),
+	}
+	if opt.Places != nil {
+		if place, ok := opt.Places.Match(e.Path); ok {
+			it.Place = place.Name
+		}
+	}
+	p.Items = append(p.Items, it)
+}
+
+// natureOf asks the layer the second question about one entry, handing it the
+// answer the layer already gave to the first.  A layer that does not answer
+// leaves the природа empty, and an empty природа is read as "не сказано" —
+// which summariseByHand turns into the strictest question there is.
+func natureOf(naturer core.Naturer, e scan.Entry) core.Nature {
+	if naturer == nil {
+		return ""
+	}
+	return naturer.Nature(
+		core.Record{Path: e.Path, Size: e.Size, AgeDays: e.AgeDays, Kind: e.Kind, Accessible: true},
+		core.Decision{Class: e.Class, Verdict: e.Verdict, Weight: e.Weight},
+	)
+}
+
+// summariseByHand puts the plan in the layer's own words and works out how hard
+// it has to be confirmed.
+//
+// THE HIGHEST STRICTNESS WINS, over every path in the plan.  One объект git
+// among four hundred caches makes the whole question the hard one, because the
+// question is answered once and takes them all: an average would let the four
+// hundred pay for the one.
+func summariseByHand(p *Plan, naturer core.Naturer) {
+	sort.Slice(p.Dirs, func(i, j int) bool {
+		// Deepest first: a directory can only go once its children have.
+		di, dj := strings.Count(p.Dirs[i].Rel, "/"), strings.Count(p.Dirs[j].Rel, "/")
+		if di != dj {
+			return di > dj
+		}
+		return p.Dirs[i].Rel > p.Dirs[j].Rel
+	})
+
+	// The words, and the strictness, are about the FILES.  A directory is a
+	// container: what is lost when it goes is what was in it, and that has
+	// already been said file by file.  Asking the layer what a directory is
+	// would answer «Личное» for every one of them — a каталог is never
+	// «МожноУбрать» (правило П3) — and one such answer on every plan would
+	// shut the one-key road for good, including for a plan of nothing but
+	// old caches.  The number of directories stands on the first line of
+	// the question either way.
+	byNature := map[core.Nature]NatureSum{}
+	for _, it := range p.Items {
+		sum := byNature[it.Nature]
+		sum.Nature, sum.Count, sum.Bytes = it.Nature, sum.Count+1, sum.Bytes+it.Size
+		byNature[it.Nature] = sum
+	}
+
+	p.Strictness = 1
+	if naturer == nil && len(byNature) > 0 {
+		// Nobody said what any of this is.  "Не знаю" is the strongest
+		// reason to ask hardest, never a reason to ask less.
+		p.Strictness = core.Strictest
+	}
+	p.ByNature = []NatureSum{}
+	for _, n := range core.Natures {
+		sum, ok := byNature[n]
+		if !ok {
+			continue
+		}
+		p.ByNature = append(p.ByNature, sum)
+		if step := naturer.Strictness(n); step > p.Strictness {
+			p.Strictness = step
+		}
+	}
+	if sum, ok := byNature[""]; ok {
+		// A path the layer would not name at all.
+		p.ByNature = append(p.ByNature, sum)
+		p.Strictness = core.Strictest
+	}
+}
+
+// Paths is how many things this plan makes disappear — files and directories
+// together.  It is the number a person types back, and it is printed on its own
+// line above the list, so that confirming costs no arithmetic.
+func (p Plan) Paths() int { return len(p.Items) + len(p.Dirs) }
+
+// guardDir is the host's veto over one directory on the забой road.  A
+// directory is never erased with its contents here — it is removed after them,
+// by the call that refuses a non-empty directory — so the only questions are
+// whether it is inside the корень and whether it is ours.
+func guardDir(rootAbs string, e scan.Entry) (rel string, reason lang.Phrase) {
+	rel, err := relUnder(rootAbs, e.Path)
+	if err != nil {
+		return "", lang.Say("путь вне указанного корня")
+	}
+	for _, part := range strings.Split(rel, "/") {
+		if part == TrashName {
+			return "", lang.Say("путь внутри корзины digitdisk — своё же убирает `purge`, не `clean`")
+		}
+	}
+	return rel, lang.Phrase{}
+}
+
+// guardByHand is the host's veto over one FILE on the забой road.  It is
+// guard() with exactly one check taken out — the приговор — and every other
+// check left in place, because every other check is about whether the file CAN
+// be erased safely and not about whether it deserves to be.
+func guardByHand(rootAbs string, e scan.Entry, info fs.FileInfo) (rel string, reason lang.Phrase) {
+	if info == nil {
+		return "", lang.Say("файл не удалось прочитать при обходе — недоступное не трогаем")
+	}
+	switch e.Kind {
+	case core.KindLink:
+		return "", lang.Say("это символическая ссылка: она указывает в другое место, и снос ссылки не то же самое, что снос того, на что она указывает")
+	case core.KindFile:
+	default:
+		return "", lang.Say("это %s, а не обычный файл", e.Kind)
+	}
+	if !info.Mode().IsRegular() {
+		return "", lang.Say("не обычный файл (%v)", info.Mode())
+	}
+	rel, err := relUnder(rootAbs, e.Path)
+	if err != nil {
+		return "", lang.Say("путь вне указанного корня")
+	}
+	for _, part := range strings.Split(rel, "/") {
+		if part == TrashName {
+			return "", lang.Say("путь внутри корзины digitdisk — своё же убирает `purge`, не `clean`")
+		}
+	}
+	return rel, lang.Phrase{}
 }
 
 // guard is the host's own veto over the decision layer.  It returns the path

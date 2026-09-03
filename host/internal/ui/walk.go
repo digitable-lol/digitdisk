@@ -96,11 +96,38 @@ type WalkOptions struct {
 	History func(root string) (*clean.History, error)
 	Places  func() (origin string, found []PlaceRow, err error)
 
-	// Erase takes the SAME plan Apply takes and removes what it lists for
-	// good, without a корзина.  It is a second verb on one plan, not a
-	// second plan: the screen has no way to hand it a path clean.Make did
-	// not put there, which is the property that keeps забой inside the
-	// decision layer's answer instead of beside it.
+	// HardStop is asked about the GROUND забой is pointed at, before the
+	// walk, and a non-nil answer stops it right there.  It is handed in
+	// rather than built here for the reason everything else on this screen
+	// is: the rule lives in internal/clean, next to the code that removes
+	// files, and the screen only draws its answer.
+	//
+	// Asked BEFORE the walk because a refusal that arrives after a minute
+	// of reading the disk is a refusal nobody connects with the key they
+	// pressed.  clean.Make asks the same questions again on its own, so the
+	// rule holds for a caller that is not this screen; a nil one here costs
+	// only the timing, never the ban.
+	HardStop func(ground string) *clean.Stop
+
+	// PlanByHand is the plan забой acts on, and it is a different plan from
+	// the one «c» acts on — that is the whole of the fix of 3 September.
+	//
+	// Plan asks the decision layer WHAT SHOULD I GO AND FIND; the answer is
+	// the приговор, and for уборка it must be, or the tool would carry off
+	// whatever it fancied.  PlanByHand asks nothing of the sort: a person
+	// pointed at a directory, and what goes is what is in it.  The layer is
+	// still asked about every path — for a WORD (core.Naturer: исходники,
+	// хранилище, кэш) that the question shows BEFORE anything goes, and for
+	// how hard to ask.  It never keeps a path out.
+	//
+	// A nil one is a screen where забой says so and erases nothing.
+	PlanByHand func(root string, only []string) (*clean.Plan, error)
+
+	// Erase takes a plan — either of the two — and removes what it lists for
+	// good, without a корзина.  It is a second verb on a plan, not a second
+	// road to removal: the screen has no way to hand it a path clean.Make
+	// did not put there, and that property is what keeps забой inside a plan
+	// that was shown to a person instead of beside it.
 	Erase func(p *clean.Plan) (*clean.Journal, error)
 }
 

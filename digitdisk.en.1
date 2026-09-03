@@ -129,8 +129,9 @@ Past the trash erases the
 .Ic Backspace
 key of the live
 .Cm analyze
-screen \(em by the same plan and the same verdict of the decision layer, but
-with no way back.
+screen \(em and it erases what the person pointed at, not what the decision
+layer called rubbish: there the layer is asked WHAT THIS IS and what you risk,
+not whether it may go.
 .Pp
 The language is asked once.
 On the first run at a terminal
@@ -442,20 +443,75 @@ typed out by hand.
 .Pp
 In the
 .Sy ДЕРЕВО
-section the same road and the same verdict carry the
+section the
 .Ic Backspace
-key, only with no trash: it erases FOR GOOD what was ticked with
-.Ic Space ,
-or the directory under the cursor when nothing was.
-The same plan is shown first, and the confirmation is the harder the more is
-going: up to seven files, all of them visible on the screen, and a volume below
-the decision layer's
+key asks the decision layer a DIFFERENT question: not
+.Dq may this be removed
+but
+.Dq what is this and what do you risk .
+It erases FOR GOOD everything lying under what was ticked with
+.Ic Space
+\(em or under the directory the cursor stands on when nothing was \(em and the
+emptied directories too, whether the layer calls it rubbish or not.
+The cleaning rule is untouched:
+.Cm clean
+and the
+.Ic c
+key take exactly what they took.
+.Pp
+The layer answers with a WORD:
+.Dq Мусор ,
+.Dq Свежее ,
+.Dq Исходники ,
+.Dq Личное ,
+.Dq Хранилище ,
+.Dq ПодПрисмотром .
+The word and the warning
+.Pq for instance Dq THIS IS NOT RUBBISH: source
+stand in the question BEFORE anything goes.
+That is a warning, not a refusal.
+.Pp
+The hard bans are one short list: the root of the filesystem; a whole system
+directory \(em
+.Pa /usr ,
+.Pa /etc ,
+.Pa /var
+and the rest by name; the whole home directory; the directory
+.Nm
+itself and its settings live in; a
+.Pa .digitdisk-trash
+trash.
+A place is banned itself and from above; what lies inside it is not banned.
+Every refusal names both the reason and the way past it.
+The protect list
+.Pq Fl -protect and protect.conf
+holds separately from the bans.
+.Pp
+The confirmation is proportional to the danger, and the scale is stated by the
+decision layer
+.Pq the Dq Строгость function , not by the screen:
+up to seven paths, all visible on the screen, below
 .Dq Порог крупного
-\(em one key,
+and every one of them called
+.Dq Мусор
+by the layer \(em one key,
 .Ic y ;
-otherwise the exact number of files, the way
+a
+.Dq Свежее ,
+.Dq Исходники
+or
+.Dq Личное
+among them, or a cut list, or a volume above the threshold \(em the exact
+number of paths, the way
 .Cm purge Fl -confirm
-asks for it.
+asks for it; a
+.Dq Хранилище
+or
+.Dq ПодПрисмотром
+among them \(em the number of paths AND the word
+.Dq ERASE .
+The strictness is taken from the worst path in the plan; a layer that answers no
+second question at all buys the strictest step.
 What was erased goes into the same journal with
 .Dq способ
 set to

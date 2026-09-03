@@ -226,3 +226,89 @@ func (b *Bridge) note(err error) {
 		b.firstErr = err
 	}
 }
+
+// natureVariant maps природа onto the sum type of the flang module.
+func natureVariant(n core.Nature) (rt.Value, bool) {
+	switch n {
+	case core.NatureTrash:
+		return flang.VariantMusor(), true
+	case core.NatureFresh:
+		return flang.VariantSvezhee(), true
+	case core.NatureSource:
+		return flang.VariantIshodniki(), true
+	case core.NaturePersonal:
+		return flang.VariantLichnoe(), true
+	case core.NatureStore:
+		return flang.VariantHranilische(), true
+	case core.NatureVCS:
+		return flang.VariantPodPrismotrom(), true
+	}
+	return rt.Nothing(), false
+}
+
+// verdictVariant maps приговор onto the sum type of the flang module.
+func verdictVariant(v core.Verdict) rt.Value {
+	switch v {
+	case core.VerdictRemovable:
+		return flang.VariantMozhnoUbrat()
+	case core.VerdictAsk:
+		return flang.VariantSprosit()
+	default:
+		return flang.VariantNeTrogat()
+	}
+}
+
+// Nature implements core.Naturer by asking «Природа находки» — the second
+// question, the one забой asks.  The разряд and the приговор handed in are the
+// layer's own answers from the walk, which is why they are passed rather than
+// computed again: «Природа находки» takes them for the same reason «Приговор
+// находки» takes the разряд.
+//
+// A refusal answers «ПодПрисмотром» — the strictest природа this layer has.
+// Nature is what decides how hard the question is asked, and a layer that
+// could not answer must not thereby make the question easier.
+func (b *Bridge) Nature(r core.Record, d core.Decision) core.Nature {
+	class, ok := classVariant(d.Class)
+	if !ok {
+		return core.NatureVCS
+	}
+	nahodka := flang.SozdatNahodka(
+		rt.Text(r.Path),
+		rt.Number(float64(r.Size)),
+		rt.Number(r.AgeDays),
+		kindVariant(r.Kind),
+		rt.Flag(r.Accessible),
+	)
+	answer, err := flang.PrirodaNahodki(b.ctx, nahodka, class, verdictVariant(d.Verdict))
+	if err != nil {
+		b.note(err)
+		return core.NatureVCS
+	}
+	for _, n := range core.Natures {
+		if rt.VariantIs(answer, string(n)) {
+			return n
+		}
+	}
+	return core.NatureVCS
+}
+
+// Strictness implements core.Naturer by asking «Строгость» — the same function
+// the rule Ш1–Ш3 is written as.  The host keeps no copy of the scale: change
+// the numbers in core/disk-inventory.flang and every question the screen asks
+// changes with them.
+func (b *Bridge) Strictness(n core.Nature) int {
+	variant, ok := natureVariant(n)
+	if !ok {
+		return core.Strictest
+	}
+	v, err := flang.Strogost(b.ctx, variant)
+	if err != nil {
+		b.note(err)
+		return core.Strictest
+	}
+	step := int(v.Num)
+	if step < 1 || step > core.Strictest {
+		return core.Strictest
+	}
+	return step
+}

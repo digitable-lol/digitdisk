@@ -460,7 +460,40 @@ func analyze(args []string, after ui.After) (printed bool, err error) {
 			Apply: func(p *clean.Plan) (*clean.Journal, error) {
 				return clean.Apply(*p, clean.Options{Now: time.Now(), Version: version})
 			},
-			// The same plan, the other verb: what забой does after the
+			// The ground забой was pointed at, judged before the walk:
+			// the твёрдые запреты and the защитный список, in that
+			// order.  clean.Make asks both again — this is only so
+			// that the refusal comes back in one keypress instead of
+			// after a walk, and so that the screen can lay its three
+			// parts out instead of printing one long line.
+			HardStop: func(ground string) *clean.Stop {
+				if s := clean.HardStop(ground, clean.StopOptions{}); !s.Empty() {
+					return &s
+				}
+				if rule, ok := guard.Covers(ground, core.ClassUnknown); ok {
+					s := clean.ProtectStop(ground, rule)
+					return &s
+				}
+				return nil
+			},
+			// The OTHER question, and the only place it is asked from.
+			// Same корень, same справочник, same защитный список, same
+			// решающий слой — and ByHand, which is what makes the plan
+			// «стереть вот это» instead of «найди мусор сам».  No
+			// подкоманда builds one: забой is the whole of it, and a
+			// person is looking at the screen when it happens.
+			PlanByHand: func(root string, only []string) (*clean.Plan, error) {
+				p, err := clean.Make(clean.Options{
+					Root: root, CrossDevice: *cross, MaxDepth: *maxDepth,
+					Decider: decider, Now: time.Now(), Version: version,
+					Places: dir, Protect: guard, Only: only, ByHand: true,
+				})
+				if err != nil {
+					return nil, err
+				}
+				return &p, nil
+			},
+			// One verb over either plan: what забой does after the
 			// question is confirmed.  It is handed the plan and nothing
 			// else, so the screen cannot name a path of its own here any
 			// more than it can when the file goes to the корзина.

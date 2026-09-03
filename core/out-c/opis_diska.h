@@ -71,6 +71,15 @@ fl_status opis_diska_variant_netrogat(fl_ctx *ctx, fl_value *out, fl_error *erro
 fl_status opis_diska_variant_otkornya(fl_ctx *ctx, fl_value *out, fl_error *error);
 fl_status opis_diska_variant_gdeugodno(fl_ctx *ctx, fl_value *out, fl_error *error);
 
+/* Сумма типов FTS «Природа»: «Мусор» | «Свежее» | «Исходники» | «Личное» | «Хранилище» | «ПодПрисмотром». */
+/* Дискриминант — имя варианта; проверяется через fl_variant_is(значение, "Имя"). */
+fl_status opis_diska_variant_musor(fl_ctx *ctx, fl_value *out, fl_error *error);
+fl_status opis_diska_variant_svezhee(fl_ctx *ctx, fl_value *out, fl_error *error);
+fl_status opis_diska_variant_ishodniki(fl_ctx *ctx, fl_value *out, fl_error *error);
+fl_status opis_diska_variant_lichnoe(fl_ctx *ctx, fl_value *out, fl_error *error);
+fl_status opis_diska_variant_hranilische(fl_ctx *ctx, fl_value *out, fl_error *error);
+fl_status opis_diska_variant_podprismotrom(fl_ctx *ctx, fl_value *out, fl_error *error);
+
 /*
  * Функция flang «Порог крупного».
  *
@@ -424,6 +433,83 @@ fl_status opis_diska_reshit_nahodku(fl_ctx *ctx, fl_value nahodka, fl_value spra
  * @return значение: список: «Решение»
  */
 fl_status opis_diska_reshit_vsyo(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Расширения исходников».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @return значение: список: строка
+ */
+fl_status opis_diska_rasshireniya_ishodnikov(fl_ctx *ctx, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Примета исходника».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @return значение
+ */
+fl_status opis_diska_primeta_ishodnika(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Под присмотром системы версий».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @return значение
+ */
+fl_status opis_diska_pod_prismotrom_sistemy_versiy(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Мусорный разряд».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param razryad — «разряд»: «Разряд»
+ * @return значение
+ */
+fl_status opis_diska_musornyy_razryad(fl_ctx *ctx, fl_value razryad, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Природа находки».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param nahodka — «находка»: «Находка»
+ * @param razryad — «разряд»: «Разряд»
+ * @param prigovor — «приговор»: «Приговор»
+ * @return значение: «Природа»
+ */
+fl_status opis_diska_priroda_nahodki(fl_ctx *ctx, fl_value nahodka, fl_value razryad, fl_value prigovor, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Природа обоснована».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param nahodka — «находка»: «Находка»
+ * @param razryad — «разряд»: «Разряд»
+ * @param prigovor — «приговор»: «Приговор»
+ * @param priroda — «природа»: «Природа»
+ * @return значение
+ */
+fl_status opis_diska_priroda_obosnovana(fl_ctx *ctx, fl_value nahodka, fl_value razryad, fl_value prigovor, fl_value priroda, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Природа по находке».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param nahodka — «находка»: «Находка»
+ * @param spravochnik — «справочник»: список: «Место»
+ * @return значение: «Природа»
+ */
+fl_status opis_diska_priroda_po_nahodke(fl_ctx *ctx, fl_value nahodka, fl_value spravochnik, fl_value *result, fl_error *error);
+
+/*
+ * Функция flang «Строгость».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param priroda — «природа»: «Природа»
+ * @return значение: число
+ */
+fl_status opis_diska_strogost(fl_ctx *ctx, fl_value priroda, fl_value *result, fl_error *error);
 
 /*
  * Функция flang «И1 держится».

@@ -407,8 +407,9 @@ needs `--confirm N` with N the exact number of files in the корзина, and 
 failure message does not tell you N — you get it by running `purge` with no
 flag and reading the plan. A confirmation you can satisfy without looking
 confirms nothing. Past the корзина — at once and for good — erases only
-`Backspace` on the live screen, and by the same plan and the same verdict:
-[«Backspace: the same thing, but for good»](#backspace-erases-for-good).
+`Backspace` on the live screen, and it erases what you pointed at rather than
+what the core called rubbish:
+[«Backspace: not "find the rubbish yourself", but "erase THIS"»](#backspace-erases-for-good).
 
 Every корзина carries a `journal.json`: what was moved, from where, how many
 bytes, when, and where it went. It is written *before* the first file moves, so
@@ -697,10 +698,12 @@ minutes. The numbers move from the first second, and `q` stops the walk.
 
 Cleaning from the screen goes **the same road** as `digitdisk clean`: the
 core's verdict, the plan with its breakdown by разряд and its trash, and the
-exact number of files typed out by hand. `Backspace` goes the same road and by
-the same verdict, only with no корзина: it erases for good and asks the harder
-the more is going —
-[«Backspace: the same thing, but for good»](#backspace-erases-for-good).
+exact number of files typed out by hand. `Backspace` asks the core a
+**different question** — not "may this be removed" but "what is this and what do
+you risk": it erases for good everything you pointed at, shows the core's word
+for it (`Исходники`, `Кэш`, `Хранилище`) and its warning before anything goes,
+and asks the harder the more dangerous what is going is —
+[«Backspace: not "find the rubbish yourself", but "erase THIS"»](#backspace-erases-for-good).
 `purge` is started from no screen under any condition: it empties a whole
 корзина and the screen has none open; `restore` and `history` live in the
 ЖУРНАЛ section of the `analyze` screen, and the list says so on the line under
@@ -761,7 +764,7 @@ classes, skipped, places, journal) and a keyboard:
 | `←` | back out |
 | `Space` | tick a directory; `.` ticks the one you stand in |
 | `c` | the cleaning plan for what is ticked, and its confirmation |
-| `Backspace` | **erase for good** what is ticked, or the row under the cursor when nothing is |
+| `Backspace` | **erase for good** what is ticked, or the row under the cursor when nothing is; it erases what you pointed at, rubbish or not — the core warns, it does not forbid |
 | `o` | walk another directory (`Tab` completes the path, `Ctrl-U` clears it) |
 | `Enter` in JOURNAL | put a корзина back where it came from |
 | `l` | the language of the screen — the key `status` gives it |
@@ -801,44 +804,99 @@ it**, and that is the whole point:
 
 <a id="backspace-erases-for-good"></a>
 
-### Backspace: the same thing, but for good
+### Backspace: not "find the rubbish yourself", but "erase THIS"
 
 A корзина is not always what a person wants: it frees no space, and "clean"
 through it means "move". So the screen has a second key — **`Backspace`** — and
 it erases **for good**, with no корзина and no way back.
 
-Its road is **the same one**, all of it: the plan is built by the same
-`clean.Make`, the verdict comes from the same decision layer, a tick still only
-**narrows** the ground, the protect list still subtracts. There are exactly two
-differences.
+**Two verbs, two questions, and they must not be confused.** Until 3 September
+2026 Backspace built its plan out of the same приговор `clean` uses, and to a
+marked directory of a person's own source code it answered "СТИРАТЬ НЕЧЕГО: the
+decision layer marked nothing of what you ticked". That was wrong, and wrong in
+the most expensive place: «НеТрогать» is the core saying *I will not take this
+on my own*, and never *a person may not*.
 
-The first is **the words**. The question says "erase for good", "there will be
-no trash" and "so much will be freed" — not "move to the trash". A screen that
-uses one wording for two different fates lies once, and once is enough.
+| | what the core is asked | who decides |
+|---|---|---|
+| `c` — clean | "may this be removed" — the приговор | **the core**: it goes looking for rubbish itself |
+| `Backspace` | "what is this and what do you risk" — the природа | **the person**: they have already pointed |
 
-The second is that **how hard it asks depends on how much is going**:
+Backspace erases **everything under what is ticked** — the directories too —
+whether the core calls it rubbish or not. The cleaning rule is untouched to the
+letter: `c` and `digitdisk clean` take exactly what they took.
 
-- **up to seven files, all of them on the screen, and a volume below «Порог
-  крупного»** — one key, `y`. Seven is how many rows are left for the list in a
-  24×80 window — the number is measured by
-  `TestSevenIsWhatFitsInTheSmallestWindow`, not chosen; above it the list would
-  have to be cut, and a cut list is one the reader cannot check, because the
-  question does not scroll;
-- **otherwise** — the **exact number of files**, typed, the way
-  `purge --confirm N` asks for it.
+**The core is still asked — for a WORD, not for leave.** About every path it
+answers with a природа: `Мусор`, `Свежее`, `Исходники`, `Личное`, `Хранилище`,
+`ПодПрисмотром`. The word stands in the question **before** anything goes, and
+the warning stands beside it:
 
-The screen does not invent the size threshold: it is `Порог крупного` from
-[`core/disk-inventory.flang`](core/disk-inventory.flang) — the size at which the
-decision layer stops calling a file ordinary — and it reaches the screen in the
-plan's `порог_крупного` field. The tool prints the number itself:
+```
+  ERASE FOR GOOD
+
+  vanishing for good  4 paths: 3 files, 1 directories, 71 B
+  71 B will be freed — really freed, this time; there will be no trash and no way back.
+  the core calls this: Source 3
+  THIS IS NOT RUBBISH: source — written by hand, and nobody will write it again.
+```
+
+That is a **warning, not a refusal**: type the count and the directory goes.
+
+**The hard bans are only where the machine or the tool itself breaks.** The list
+is short, and this is all of it:
+
+| where nothing is erased from | why | what to do if you are right after all |
+|---|---|---|
+| the root `/` | the whole machine lies under it | name a directory, not the root |
+| a whole system directory — `/usr`, `/etc`, `/var`, `/bin`, `/sbin`, `/lib*`, `/boot`, `/dev`, `/proc`, `/sys`, `/run`, `/opt`, `/srv`, `/mnt`, `/media`, `/home`, `/root`, `/System`, `/Library`, `/Applications`, `/private`, `/Users`, `/Volumes` | a package manager puts its contents there, and the machine will not boot once it is gone | remove the package with whatever installed it, or point **inside** — what is banned is the whole directory, not what lies in it |
+| the **whole** home directory | it is everything you have on this machine | point at a directory inside the home; Backspace takes it with everything in it |
+| digitdisk's own directory and `~/.digitable/digitdisk/` | a tool that takes itself out halfway has nothing left to finish its journal with | remove the tool the way you installed it; edit the settings in an editor |
+| a `.digitdisk-trash` корзина | it holds the journal of what went into it | `digitdisk purge <trash> --confirm N` |
+
+A banned place is banned **itself and from above**: pointing at its parent is not
+a way round. Every refusal names both the reason and the way past it — a refusal
+without "what to do" sends a person looking for a road around the tool, which is
+`rm -rf` typed blind. Separately from the bans, the **protect list** holds here
+too: `--protect` and `protect.conf` still subtract, and the rule that stopped
+something is named.
+
+**The confirmation is proportional to the danger, not to the volume alone.**
+There are three steps, and the scale is stated by the decision layer (the
+«Строгость» function), not by the screen:
+
+| step | when | how it is confirmed | why that much |
+|---|---|---|---|
+| 1 | everything in the plan is `Мусор` to the core, the list is visible whole (up to seven paths), the volume is below «Порог крупного» | one key, `y` | the loss is recoverable: caches and build products the machine makes again. Asking hard here trains people to answer without looking |
+| 2 | the plan holds `Свежее`, `Исходники` or `Личное`; or the list is cut; or the volume is above the threshold | the exact **number of paths** | exactly what is in the list goes. The number cannot be typed without looking at it, and that is enough |
+| 3 | the plan holds `Хранилище` or `ПодПрисмотром` | the **number of paths, then the word `ERASE`** | what goes is not a file but the integrity of a store that thinks itself whole, and the trouble surfaces at the next build, when nothing connects it to this keypress any more. The number proves the list was read, the word proves the warning was |
+
+The strictness is taken from the **worst** path in the plan: one git object among
+four hundred caches sets the price for the whole question, because the question
+is asked once and takes them all. A layer that answers no second question at all
+(a build without `flangcore`) buys step three: "I do not know what this is" is
+the strongest reason to ask harder, never a reason to ask less.
+
+Seven is measured, not chosen: that is how many rows are left for the list in a
+24×80 window (`TestOneKeyListIsWhatFitsInTheSmallestWindow`). Above it the list
+would have to be cut, and a cut list is one the reader cannot check, because the
+question does not scroll. The size threshold is not the screen's either — it is
+`Порог крупного` from [`core/disk-inventory.flang`](core/disk-inventory.flang),
+carried in the plan's `порог_крупного` field:
 
 ```console
 $ digitdisk clean ~ --json | grep порог_крупного
   "порог_крупного": 1073741824
 ```
 
-A layer that states no such threshold leaves the screen with no right to call
-anything small, and then the number is typed every time.
+**The directories go too.** "Delete the folder" means the folder: after the files
+Backspace removes the emptied directories, deepest first, with the call that
+**refuses a non-empty one**. A directory that still holds something — a refused
+file, a symlink — stays where it is and says why. There is no recursive remove
+anywhere in this tree.
+
+What Backspace does **not** take: symbolic links (removing a link is not
+removing what it points at), the unreadable, the root of the walk, and anything
+inside digitdisk's own корзина.
 
 What was erased **goes into the same journal** the cleaning uses, and is
 distinguishable from it: the record carries `"способ": "стирание"`, the корзина

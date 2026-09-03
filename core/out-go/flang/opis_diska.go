@@ -211,6 +211,60 @@ func VariantGdeUgodno() rt.Value {
 	return rt.Variant("ГдеУгодно", nil)
 }
 
+// VariantMusor — вариант «Мусор» суммы типов «Природа».
+//
+// Дискриминант — имя варианта; проверяется через rt.VariantIs(значение, «Имя»).
+// Приставка Variant в имени — это роль: функция flang с тем же именем даёт
+// идентификатор без приставки, и одно объявление не спорит с другим.
+func VariantMusor() rt.Value {
+	return rt.Variant("Мусор", nil)
+}
+
+// VariantSvezhee — вариант «Свежее» суммы типов «Природа».
+//
+// Дискриминант — имя варианта; проверяется через rt.VariantIs(значение, «Имя»).
+// Приставка Variant в имени — это роль: функция flang с тем же именем даёт
+// идентификатор без приставки, и одно объявление не спорит с другим.
+func VariantSvezhee() rt.Value {
+	return rt.Variant("Свежее", nil)
+}
+
+// VariantIshodniki — вариант «Исходники» суммы типов «Природа».
+//
+// Дискриминант — имя варианта; проверяется через rt.VariantIs(значение, «Имя»).
+// Приставка Variant в имени — это роль: функция flang с тем же именем даёт
+// идентификатор без приставки, и одно объявление не спорит с другим.
+func VariantIshodniki() rt.Value {
+	return rt.Variant("Исходники", nil)
+}
+
+// VariantLichnoe — вариант «Личное» суммы типов «Природа».
+//
+// Дискриминант — имя варианта; проверяется через rt.VariantIs(значение, «Имя»).
+// Приставка Variant в имени — это роль: функция flang с тем же именем даёт
+// идентификатор без приставки, и одно объявление не спорит с другим.
+func VariantLichnoe() rt.Value {
+	return rt.Variant("Личное", nil)
+}
+
+// VariantHranilische — вариант «Хранилище» суммы типов «Природа».
+//
+// Дискриминант — имя варианта; проверяется через rt.VariantIs(значение, «Имя»).
+// Приставка Variant в имени — это роль: функция flang с тем же именем даёт
+// идентификатор без приставки, и одно объявление не спорит с другим.
+func VariantHranilische() rt.Value {
+	return rt.Variant("Хранилище", nil)
+}
+
+// VariantPodPrismotrom — вариант «ПодПрисмотром» суммы типов «Природа».
+//
+// Дискриминант — имя варианта; проверяется через rt.VariantIs(значение, «Имя»).
+// Приставка Variant в имени — это роль: функция flang с тем же именем даёт
+// идентификатор без приставки, и одно объявление не спорит с другим.
+func VariantPodPrismotrom() rt.Value {
+	return rt.Variant("ПодПрисмотром", nil)
+}
+
 // PorogKrupnogo — функция flang «Порог крупного».
 //
 // Тотальная: завершение доказано анализом завершаемости (totality.mjs).
@@ -1891,6 +1945,446 @@ func ReshitVsyo(ctx *rt.Ctx, zapisi rt.Value, spravochnik rt.Value) (rt.Value, e
 	return t439, nil
 }
 
+// RasshireniyaIshodnikov — функция flang «Расширения исходников».
+//
+// Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+//
+// Результат — значение: список: строка.
+func RasshireniyaIshodnikov(ctx *rt.Ctx) (rt.Value, error) {
+	t444 := make([]rt.Value, 30)
+	t444[0] = rt.Text(".go")
+	t444[1] = rt.Text(".c")
+	t444[2] = rt.Text(".h")
+	t444[3] = rt.Text(".cc")
+	t444[4] = rt.Text(".cpp")
+	t444[5] = rt.Text(".hpp")
+	t444[6] = rt.Text(".rs")
+	t444[7] = rt.Text(".py")
+	t444[8] = rt.Text(".js")
+	t444[9] = rt.Text(".ts")
+	t444[10] = rt.Text(".java")
+	t444[11] = rt.Text(".kt")
+	t444[12] = rt.Text(".rb")
+	t444[13] = rt.Text(".php")
+	t444[14] = rt.Text(".cs")
+	t444[15] = rt.Text(".swift")
+	t444[16] = rt.Text(".ex")
+	t444[17] = rt.Text(".exs")
+	t444[18] = rt.Text(".erl")
+	t444[19] = rt.Text(".lua")
+	t444[20] = rt.Text(".pl")
+	t444[21] = rt.Text(".sh")
+	t444[22] = rt.Text(".sql")
+	t444[23] = rt.Text(".flang")
+	t444[24] = rt.Text(".md")
+	t444[25] = rt.Text(".txt")
+	t444[26] = rt.Text(".rst")
+	t444[27] = rt.Text(".tex")
+	t444[28] = rt.Text(".html")
+	t444[29] = rt.Text(".css")
+	return rt.List(t444), nil
+}
+
+// PrimetaIshodnika — функция flang «Примета исходника».
+//
+// Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+//
+// Параметр put — «путь»: строка.
+// Результат — значение.
+func PrimetaIshodnika(ctx *rt.Ctx, put rt.Value) (rt.Value, error) {
+	t445, e446 := ImyaVPuti(ctx, put)
+	if e446 != nil {
+		return rt.Value{}, e446
+	}
+	// пусть «имя»
+	imya := t445
+	t447, e448 := RasshireniyaIshodnikov(ctx)
+	if e448 != nil {
+		return rt.Value{}, e448
+	}
+	t449, e450 := rt.RequireList(ctx, t447, "отфильтровать")
+	if e450 != nil {
+		return rt.Value{}, e450
+	}
+	t451 := make([]rt.Value, 0, len(t449))
+	for t452 := range t449 {
+		// «хвост»
+		hvost := t449[t452]
+		t453, e454 := OkanchivaetsyaNa(ctx, imya, hvost)
+		if e454 != nil {
+			return rt.Value{}, e454
+		}
+		t455, e456 := rt.Keep(ctx, t453)
+		if e456 != nil {
+			return rt.Value{}, e456
+		}
+		if t455 {
+			t451 = append(t451, hvost)
+		}
+	}
+	// «длина»
+	t457, e458 := rt.BLength(ctx, rt.List(t451))
+	if e458 != nil {
+		return rt.Value{}, e458
+	}
+	t459, e460 := rt.Gt(ctx, t457, rt.Number(0.0))
+	if e460 != nil {
+		return rt.Value{}, e460
+	}
+	return t459, nil
+}
+
+// PodPrismotromSistemyVersiy — функция flang «Под присмотром системы версий».
+//
+// Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+//
+// Параметр put — «путь»: строка.
+// Результат — значение.
+func PodPrismotromSistemyVersiy(ctx *rt.Ctx, put rt.Value) (rt.Value, error) {
+	t461, e462 := EstSostavlyayuschaya(ctx, put, rt.Text(".git"))
+	if e462 != nil {
+		return rt.Value{}, e462
+	}
+	t463, e464 := rt.Cond(ctx, t461)
+	if e464 != nil {
+		return rt.Value{}, e464
+	}
+	var t465 rt.Value
+	if t463 {
+		t465 = rt.Flag(true)
+	} else {
+		t466, e467 := EstSostavlyayuschaya(ctx, put, rt.Text(".hg"))
+		if e467 != nil {
+			return rt.Value{}, e467
+		}
+		t465 = t466
+	}
+	t468, e469 := rt.Cond(ctx, t465)
+	if e469 != nil {
+		return rt.Value{}, e469
+	}
+	if t468 {
+		return rt.Flag(true), nil
+	} else {
+		return EstSostavlyayuschaya(ctx, put, rt.Text(".svn"))
+	}
+}
+
+// MusornyyRazryad — функция flang «Мусорный разряд».
+//
+// Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+//
+// Параметр razryad — «разряд»: «Разряд».
+// Результат — значение.
+func MusornyyRazryad(ctx *rt.Ctx, razryad rt.Value) (rt.Value, error) {
+	if rt.VariantIs(razryad, "Кэш") {
+		return rt.Flag(true), nil
+	} else if rt.VariantIs(razryad, "Журнал") {
+		return rt.Flag(true), nil
+	} else if rt.VariantIs(razryad, "Сборка") {
+		return rt.Flag(true), nil
+	} else if rt.VariantIs(razryad, "Загрузка") {
+		return rt.Flag(false), nil
+	} else if rt.VariantIs(razryad, "Крупное") {
+		return rt.Flag(false), nil
+	} else if rt.VariantIs(razryad, "Неизвестное") {
+		return rt.Flag(false), nil
+	} else {
+		return rt.Value{}, rt.MatchFail(ctx, razryad)
+	}
+}
+
+// PrirodaNahodki — функция flang «Природа находки».
+//
+// Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+//
+// Параметр nahodka — «находка»: «Находка».
+// Параметр razryad — «разряд»: «Разряд».
+// Параметр prigovor — «приговор»: «Приговор».
+// Результат — значение: «Природа».
+func PrirodaNahodki(ctx *rt.Ctx, nahodka rt.Value, razryad rt.Value, prigovor rt.Value) (rt.Value, error) {
+	t470, e471 := rt.FieldGet(ctx, nahodka, "путь")
+	if e471 != nil {
+		return rt.Value{}, e471
+	}
+	t472, e473 := PodPrismotromSistemyVersiy(ctx, t470)
+	if e473 != nil {
+		return rt.Value{}, e473
+	}
+	t474, e475 := rt.Cond(ctx, t472)
+	if e475 != nil {
+		return rt.Value{}, e475
+	}
+	var t476 rt.Value
+	if t474 {
+		t476 = rt.Variant("ПодПрисмотром", nil)
+	} else {
+		t477, e478 := rt.FieldGet(ctx, nahodka, "путь")
+		if e478 != nil {
+			return rt.Value{}, e478
+		}
+		t479, e480 := AdresuetsyaSoderzhimym(ctx, t477)
+		if e480 != nil {
+			return rt.Value{}, e480
+		}
+		t481, e482 := rt.Cond(ctx, t479)
+		if e482 != nil {
+			return rt.Value{}, e482
+		}
+		var t483 rt.Value
+		if t481 {
+			t483 = rt.Variant("Хранилище", nil)
+		} else {
+			t484, e485 := EtoMozhnoUbrat(ctx, prigovor)
+			if e485 != nil {
+				return rt.Value{}, e485
+			}
+			t486, e487 := rt.Cond(ctx, t484)
+			if e487 != nil {
+				return rt.Value{}, e487
+			}
+			var t488 rt.Value
+			if t486 {
+				t488 = rt.Variant("Мусор", nil)
+			} else {
+				t489, e490 := rt.FieldGet(ctx, nahodka, "путь")
+				if e490 != nil {
+					return rt.Value{}, e490
+				}
+				t491, e492 := PrimetaIshodnika(ctx, t489)
+				if e492 != nil {
+					return rt.Value{}, e492
+				}
+				t493, e494 := rt.Cond(ctx, t491)
+				if e494 != nil {
+					return rt.Value{}, e494
+				}
+				var t495 rt.Value
+				if t493 {
+					t495 = rt.Variant("Исходники", nil)
+				} else {
+					t496, e497 := MusornyyRazryad(ctx, razryad)
+					if e497 != nil {
+						return rt.Value{}, e497
+					}
+					t498, e499 := rt.Cond(ctx, t496)
+					if e499 != nil {
+						return rt.Value{}, e499
+					}
+					var t500 rt.Value
+					if t498 {
+						t500 = rt.Variant("Свежее", nil)
+					} else {
+						t500 = rt.Variant("Личное", nil)
+					}
+					t495 = t500
+				}
+				t488 = t495
+			}
+			t483 = t488
+		}
+		t476 = t483
+	}
+	t501 := t476
+	t502, e503 := PrirodaObosnovana(ctx, nahodka, razryad, prigovor, t501)
+	if e503 != nil {
+		return rt.Value{}, e503
+	}
+	// постусловие «Природа обоснована»
+	t504, e505 := rt.Post(ctx, t502, "Природа обоснована", "Природа находки")
+	if e505 != nil {
+		return rt.Value{}, e505
+	}
+	if !t504 {
+		return rt.Value{}, rt.Fail("FLANG_PROPERTY", "%s", "нарушено свойство «Природа обоснована» функции «Природа находки»")
+	}
+	return t501, nil
+}
+
+// PrirodaObosnovana — функция flang «Природа обоснована».
+//
+// Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+//
+// Параметр nahodka — «находка»: «Находка».
+// Параметр razryad — «разряд»: «Разряд».
+// Параметр prigovor — «приговор»: «Приговор».
+// Параметр priroda — «природа»: «Природа».
+// Результат — значение.
+func PrirodaObosnovana(ctx *rt.Ctx, nahodka rt.Value, razryad rt.Value, prigovor rt.Value, priroda rt.Value) (rt.Value, error) {
+	if rt.VariantIs(priroda, "Мусор") {
+		return EtoMozhnoUbrat(ctx, prigovor)
+	} else if rt.VariantIs(priroda, "ПодПрисмотром") {
+		t506, e507 := rt.FieldGet(ctx, nahodka, "путь")
+		if e507 != nil {
+			return rt.Value{}, e507
+		}
+		return PodPrismotromSistemyVersiy(ctx, t506)
+	} else if rt.VariantIs(priroda, "Хранилище") {
+		t508, e509 := rt.FieldGet(ctx, nahodka, "путь")
+		if e509 != nil {
+			return rt.Value{}, e509
+		}
+		t510, e511 := AdresuetsyaSoderzhimym(ctx, t508)
+		if e511 != nil {
+			return rt.Value{}, e511
+		}
+		t512, e513 := rt.Cond(ctx, t510)
+		if e513 != nil {
+			return rt.Value{}, e513
+		}
+		if t512 {
+			t514, e515 := rt.FieldGet(ctx, nahodka, "путь")
+			if e515 != nil {
+				return rt.Value{}, e515
+			}
+			t516, e517 := PodPrismotromSistemyVersiy(ctx, t514)
+			if e517 != nil {
+				return rt.Value{}, e517
+			}
+			t518, e519 := rt.Cond(ctx, t516)
+			if e519 != nil {
+				return rt.Value{}, e519
+			}
+			if t518 {
+				return rt.Flag(false), nil
+			} else {
+				return rt.Flag(true), nil
+			}
+		} else {
+			return rt.Flag(false), nil
+		}
+	} else if rt.VariantIs(priroda, "Исходники") {
+		t520, e521 := rt.FieldGet(ctx, nahodka, "путь")
+		if e521 != nil {
+			return rt.Value{}, e521
+		}
+		t522, e523 := PrimetaIshodnika(ctx, t520)
+		if e523 != nil {
+			return rt.Value{}, e523
+		}
+		t524, e525 := rt.Cond(ctx, t522)
+		if e525 != nil {
+			return rt.Value{}, e525
+		}
+		if t524 {
+			t526, e527 := EtoMozhnoUbrat(ctx, prigovor)
+			if e527 != nil {
+				return rt.Value{}, e527
+			}
+			t528, e529 := rt.Cond(ctx, t526)
+			if e529 != nil {
+				return rt.Value{}, e529
+			}
+			if t528 {
+				return rt.Flag(false), nil
+			} else {
+				return rt.Flag(true), nil
+			}
+		} else {
+			return rt.Flag(false), nil
+		}
+	} else if rt.VariantIs(priroda, "Свежее") {
+		t530, e531 := MusornyyRazryad(ctx, razryad)
+		if e531 != nil {
+			return rt.Value{}, e531
+		}
+		t532, e533 := rt.Cond(ctx, t530)
+		if e533 != nil {
+			return rt.Value{}, e533
+		}
+		if t532 {
+			t534, e535 := EtoMozhnoUbrat(ctx, prigovor)
+			if e535 != nil {
+				return rt.Value{}, e535
+			}
+			t536, e537 := rt.Cond(ctx, t534)
+			if e537 != nil {
+				return rt.Value{}, e537
+			}
+			if t536 {
+				return rt.Flag(false), nil
+			} else {
+				return rt.Flag(true), nil
+			}
+		} else {
+			return rt.Flag(false), nil
+		}
+	} else if rt.VariantIs(priroda, "Личное") {
+		t538, e539 := EtoMozhnoUbrat(ctx, prigovor)
+		if e539 != nil {
+			return rt.Value{}, e539
+		}
+		t540, e541 := rt.Cond(ctx, t538)
+		if e541 != nil {
+			return rt.Value{}, e541
+		}
+		if t540 {
+			return rt.Flag(false), nil
+		} else {
+			return rt.Flag(true), nil
+		}
+	} else {
+		return rt.Value{}, rt.MatchFail(ctx, priroda)
+	}
+}
+
+// PrirodaPoNahodke — функция flang «Природа по находке».
+//
+// Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+//
+// Параметр nahodka — «находка»: «Находка».
+// Параметр spravochnik — «справочник»: список: «Место».
+// Результат — значение: «Природа».
+func PrirodaPoNahodke(ctx *rt.Ctx, nahodka rt.Value, spravochnik rt.Value) (rt.Value, error) {
+	t542, e543 := rt.FieldGet(ctx, nahodka, "путь")
+	if e543 != nil {
+		return rt.Value{}, e543
+	}
+	t544, e545 := RazryadPoSpravochniku(ctx, t542, spravochnik)
+	if e545 != nil {
+		return rt.Value{}, e545
+	}
+	// пусть «место»
+	mesto := t544
+	t546, e547 := RazryadNahodki(ctx, nahodka, mesto)
+	if e547 != nil {
+		return rt.Value{}, e547
+	}
+	// пусть «разряд»
+	razryad := t546
+	t548, e549 := PrigovorNahodki(ctx, nahodka, razryad)
+	if e549 != nil {
+		return rt.Value{}, e549
+	}
+	// пусть «приговор»
+	prigovor := t548
+	return PrirodaNahodki(ctx, nahodka, razryad, prigovor)
+}
+
+// Strogost — функция flang «Строгость».
+//
+// Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+//
+// Параметр priroda — «природа»: «Природа».
+// Результат — значение: число.
+func Strogost(ctx *rt.Ctx, priroda rt.Value) (rt.Value, error) {
+	if rt.VariantIs(priroda, "Мусор") {
+		return rt.Number(1.0), nil
+	} else if rt.VariantIs(priroda, "Свежее") {
+		return rt.Number(2.0), nil
+	} else if rt.VariantIs(priroda, "Личное") {
+		return rt.Number(2.0), nil
+	} else if rt.VariantIs(priroda, "Исходники") {
+		return rt.Number(2.0), nil
+	} else if rt.VariantIs(priroda, "Хранилище") {
+		return rt.Number(3.0), nil
+	} else if rt.VariantIs(priroda, "ПодПрисмотром") {
+		return rt.Number(3.0), nil
+	} else {
+		return rt.Value{}, rt.MatchFail(ctx, priroda)
+	}
+}
+
 // I1Derzhitsya — функция flang «И1 держится».
 //
 // Тотальная: завершение доказано анализом завершаемости (totality.mjs).
@@ -1898,36 +2392,36 @@ func ReshitVsyo(ctx *rt.Ctx, zapisi rt.Value, spravochnik rt.Value) (rt.Value, e
 // Параметр reshenie — «решение»: «Решение».
 // Результат — значение.
 func I1Derzhitsya(ctx *rt.Ctx, reshenie rt.Value) (rt.Value, error) {
-	t444, e445 := rt.FieldGet(ctx, reshenie, "приговор")
-	if e445 != nil {
-		return rt.Value{}, e445
+	t550, e551 := rt.FieldGet(ctx, reshenie, "приговор")
+	if e551 != nil {
+		return rt.Value{}, e551
 	}
-	if rt.VariantIs(t444, "МожноУбрать") {
-		t446, e447 := rt.FieldGet(ctx, reshenie, "разряд")
-		if e447 != nil {
-			return rt.Value{}, e447
+	if rt.VariantIs(t550, "МожноУбрать") {
+		t552, e553 := rt.FieldGet(ctx, reshenie, "разряд")
+		if e553 != nil {
+			return rt.Value{}, e553
 		}
-		if rt.VariantIs(t446, "Кэш") {
+		if rt.VariantIs(t552, "Кэш") {
 			return rt.Flag(true), nil
-		} else if rt.VariantIs(t446, "Журнал") {
+		} else if rt.VariantIs(t552, "Журнал") {
 			return rt.Flag(true), nil
-		} else if rt.VariantIs(t446, "Сборка") {
+		} else if rt.VariantIs(t552, "Сборка") {
 			return rt.Flag(true), nil
-		} else if rt.VariantIs(t446, "Загрузка") {
+		} else if rt.VariantIs(t552, "Загрузка") {
 			return rt.Flag(false), nil
-		} else if rt.VariantIs(t446, "Крупное") {
+		} else if rt.VariantIs(t552, "Крупное") {
 			return rt.Flag(false), nil
-		} else if rt.VariantIs(t446, "Неизвестное") {
+		} else if rt.VariantIs(t552, "Неизвестное") {
 			return rt.Flag(false), nil
 		} else {
-			return rt.Value{}, rt.MatchFail(ctx, t446)
+			return rt.Value{}, rt.MatchFail(ctx, t552)
 		}
-	} else if rt.VariantIs(t444, "Спросить") {
+	} else if rt.VariantIs(t550, "Спросить") {
 		return rt.Flag(true), nil
-	} else if rt.VariantIs(t444, "НеТрогать") {
+	} else if rt.VariantIs(t550, "НеТрогать") {
 		return rt.Flag(true), nil
 	} else {
-		return rt.Value{}, rt.MatchFail(ctx, t444)
+		return rt.Value{}, rt.MatchFail(ctx, t550)
 	}
 }
 
@@ -1938,30 +2432,30 @@ func I1Derzhitsya(ctx *rt.Ctx, reshenie rt.Value) (rt.Value, error) {
 // Параметр resheniya — «решения»: список: «Решение».
 // Результат — значение.
 func I1DerzhitsyaVsyudu(ctx *rt.Ctx, resheniya rt.Value) (rt.Value, error) {
-	t448, e449 := rt.RequireList(ctx, resheniya, "свёртка")
-	if e449 != nil {
-		return rt.Value{}, e449
+	t554, e555 := rt.RequireList(ctx, resheniya, "свёртка")
+	if e555 != nil {
+		return rt.Value{}, e555
 	}
 	// «акк»
 	akk := rt.Flag(true)
-	for t450 := range t448 {
+	for t556 := range t554 {
 		// «решение»
-		reshenie := t448[t450]
-		t451, e452 := rt.Cond(ctx, akk)
-		if e452 != nil {
-			return rt.Value{}, e452
+		reshenie := t554[t556]
+		t557, e558 := rt.Cond(ctx, akk)
+		if e558 != nil {
+			return rt.Value{}, e558
 		}
-		var t453 rt.Value
-		if t451 {
-			t454, e455 := I1Derzhitsya(ctx, reshenie)
-			if e455 != nil {
-				return rt.Value{}, e455
+		var t559 rt.Value
+		if t557 {
+			t560, e561 := I1Derzhitsya(ctx, reshenie)
+			if e561 != nil {
+				return rt.Value{}, e561
 			}
-			t453 = t454
+			t559 = t560
 		} else {
-			t453 = rt.Flag(false)
+			t559 = rt.Flag(false)
 		}
-		akk = t453
+		akk = t559
 	}
 	return akk, nil
 }
@@ -1972,15 +2466,15 @@ func I1DerzhitsyaVsyudu(ctx *rt.Ctx, resheniya rt.Value) (rt.Value, error) {
 //
 // Результат — значение: «Свод».
 func PustoySvod(ctx *rt.Ctx) (rt.Value, error) {
-	t456 := make([]rt.Field, 7)
-	t456[0] = rt.Field{Name: "кэш", Value: rt.Number(0.0)}
-	t456[1] = rt.Field{Name: "журнал", Value: rt.Number(0.0)}
-	t456[2] = rt.Field{Name: "сборка", Value: rt.Number(0.0)}
-	t456[3] = rt.Field{Name: "загрузка", Value: rt.Number(0.0)}
-	t456[4] = rt.Field{Name: "крупное", Value: rt.Number(0.0)}
-	t456[5] = rt.Field{Name: "неизвестное", Value: rt.Number(0.0)}
-	t456[6] = rt.Field{Name: "освободить", Value: rt.Number(0.0)}
-	return rt.Record(t456), nil
+	t562 := make([]rt.Field, 7)
+	t562[0] = rt.Field{Name: "кэш", Value: rt.Number(0.0)}
+	t562[1] = rt.Field{Name: "журнал", Value: rt.Number(0.0)}
+	t562[2] = rt.Field{Name: "сборка", Value: rt.Number(0.0)}
+	t562[3] = rt.Field{Name: "загрузка", Value: rt.Number(0.0)}
+	t562[4] = rt.Field{Name: "крупное", Value: rt.Number(0.0)}
+	t562[5] = rt.Field{Name: "неизвестное", Value: rt.Number(0.0)}
+	t562[6] = rt.Field{Name: "освободить", Value: rt.Number(0.0)}
+	return rt.Record(t562), nil
 }
 
 // PribavitReshenie — функция flang «Прибавить решение».
@@ -1991,332 +2485,332 @@ func PustoySvod(ctx *rt.Ctx) (rt.Value, error) {
 // Параметр reshenie — «решение»: «Решение».
 // Результат — значение: «Свод».
 func PribavitReshenie(ctx *rt.Ctx, svod rt.Value, reshenie rt.Value) (rt.Value, error) {
-	var t457 rt.Value
-	t458, e459 := rt.FieldGet(ctx, reshenie, "приговор")
-	if e459 != nil {
-		return rt.Value{}, e459
+	var t563 rt.Value
+	t564, e565 := rt.FieldGet(ctx, reshenie, "приговор")
+	if e565 != nil {
+		return rt.Value{}, e565
 	}
-	if rt.VariantIs(t458, "МожноУбрать") {
-		t460, e461 := rt.FieldGet(ctx, reshenie, "вес")
-		if e461 != nil {
-			return rt.Value{}, e461
-		}
-		t457 = t460
-	} else if rt.VariantIs(t458, "Спросить") {
-		t457 = rt.Number(0.0)
-	} else if rt.VariantIs(t458, "НеТрогать") {
-		t457 = rt.Number(0.0)
-	} else {
-		return rt.Value{}, rt.MatchFail(ctx, t458)
-	}
-	// пусть «убрать»
-	ubrat := t457
-	t462, e463 := rt.FieldGet(ctx, reshenie, "разряд")
-	if e463 != nil {
-		return rt.Value{}, e463
-	}
-	if rt.VariantIs(t462, "Кэш") {
-		t464, e465 := rt.FieldGet(ctx, svod, "кэш")
-		if e465 != nil {
-			return rt.Value{}, e465
-		}
-		t466, e467 := rt.FieldGet(ctx, reshenie, "вес")
-		if e467 != nil {
-			return rt.Value{}, e467
-		}
-		t468, e469 := rt.Add(ctx, t464, t466)
-		if e469 != nil {
-			return rt.Value{}, e469
-		}
-		t470, e471 := rt.FieldGet(ctx, svod, "журнал")
-		if e471 != nil {
-			return rt.Value{}, e471
-		}
-		t472, e473 := rt.FieldGet(ctx, svod, "сборка")
-		if e473 != nil {
-			return rt.Value{}, e473
-		}
-		t474, e475 := rt.FieldGet(ctx, svod, "загрузка")
-		if e475 != nil {
-			return rt.Value{}, e475
-		}
-		t476, e477 := rt.FieldGet(ctx, svod, "крупное")
-		if e477 != nil {
-			return rt.Value{}, e477
-		}
-		t478, e479 := rt.FieldGet(ctx, svod, "неизвестное")
-		if e479 != nil {
-			return rt.Value{}, e479
-		}
-		t480, e481 := rt.FieldGet(ctx, svod, "освободить")
-		if e481 != nil {
-			return rt.Value{}, e481
-		}
-		t482, e483 := rt.Add(ctx, t480, ubrat)
-		if e483 != nil {
-			return rt.Value{}, e483
-		}
-		t484 := make([]rt.Field, 7)
-		t484[0] = rt.Field{Name: "кэш", Value: t468}
-		t484[1] = rt.Field{Name: "журнал", Value: t470}
-		t484[2] = rt.Field{Name: "сборка", Value: t472}
-		t484[3] = rt.Field{Name: "загрузка", Value: t474}
-		t484[4] = rt.Field{Name: "крупное", Value: t476}
-		t484[5] = rt.Field{Name: "неизвестное", Value: t478}
-		t484[6] = rt.Field{Name: "освободить", Value: t482}
-		return rt.Record(t484), nil
-	} else if rt.VariantIs(t462, "Журнал") {
-		t485, e486 := rt.FieldGet(ctx, svod, "кэш")
-		if e486 != nil {
-			return rt.Value{}, e486
-		}
-		t487, e488 := rt.FieldGet(ctx, svod, "журнал")
-		if e488 != nil {
-			return rt.Value{}, e488
-		}
-		t489, e490 := rt.FieldGet(ctx, reshenie, "вес")
-		if e490 != nil {
-			return rt.Value{}, e490
-		}
-		t491, e492 := rt.Add(ctx, t487, t489)
-		if e492 != nil {
-			return rt.Value{}, e492
-		}
-		t493, e494 := rt.FieldGet(ctx, svod, "сборка")
-		if e494 != nil {
-			return rt.Value{}, e494
-		}
-		t495, e496 := rt.FieldGet(ctx, svod, "загрузка")
-		if e496 != nil {
-			return rt.Value{}, e496
-		}
-		t497, e498 := rt.FieldGet(ctx, svod, "крупное")
-		if e498 != nil {
-			return rt.Value{}, e498
-		}
-		t499, e500 := rt.FieldGet(ctx, svod, "неизвестное")
-		if e500 != nil {
-			return rt.Value{}, e500
-		}
-		t501, e502 := rt.FieldGet(ctx, svod, "освободить")
-		if e502 != nil {
-			return rt.Value{}, e502
-		}
-		t503, e504 := rt.Add(ctx, t501, ubrat)
-		if e504 != nil {
-			return rt.Value{}, e504
-		}
-		t505 := make([]rt.Field, 7)
-		t505[0] = rt.Field{Name: "кэш", Value: t485}
-		t505[1] = rt.Field{Name: "журнал", Value: t491}
-		t505[2] = rt.Field{Name: "сборка", Value: t493}
-		t505[3] = rt.Field{Name: "загрузка", Value: t495}
-		t505[4] = rt.Field{Name: "крупное", Value: t497}
-		t505[5] = rt.Field{Name: "неизвестное", Value: t499}
-		t505[6] = rt.Field{Name: "освободить", Value: t503}
-		return rt.Record(t505), nil
-	} else if rt.VariantIs(t462, "Сборка") {
-		t506, e507 := rt.FieldGet(ctx, svod, "кэш")
-		if e507 != nil {
-			return rt.Value{}, e507
-		}
-		t508, e509 := rt.FieldGet(ctx, svod, "журнал")
-		if e509 != nil {
-			return rt.Value{}, e509
-		}
-		t510, e511 := rt.FieldGet(ctx, svod, "сборка")
-		if e511 != nil {
-			return rt.Value{}, e511
-		}
-		t512, e513 := rt.FieldGet(ctx, reshenie, "вес")
-		if e513 != nil {
-			return rt.Value{}, e513
-		}
-		t514, e515 := rt.Add(ctx, t510, t512)
-		if e515 != nil {
-			return rt.Value{}, e515
-		}
-		t516, e517 := rt.FieldGet(ctx, svod, "загрузка")
-		if e517 != nil {
-			return rt.Value{}, e517
-		}
-		t518, e519 := rt.FieldGet(ctx, svod, "крупное")
-		if e519 != nil {
-			return rt.Value{}, e519
-		}
-		t520, e521 := rt.FieldGet(ctx, svod, "неизвестное")
-		if e521 != nil {
-			return rt.Value{}, e521
-		}
-		t522, e523 := rt.FieldGet(ctx, svod, "освободить")
-		if e523 != nil {
-			return rt.Value{}, e523
-		}
-		t524, e525 := rt.Add(ctx, t522, ubrat)
-		if e525 != nil {
-			return rt.Value{}, e525
-		}
-		t526 := make([]rt.Field, 7)
-		t526[0] = rt.Field{Name: "кэш", Value: t506}
-		t526[1] = rt.Field{Name: "журнал", Value: t508}
-		t526[2] = rt.Field{Name: "сборка", Value: t514}
-		t526[3] = rt.Field{Name: "загрузка", Value: t516}
-		t526[4] = rt.Field{Name: "крупное", Value: t518}
-		t526[5] = rt.Field{Name: "неизвестное", Value: t520}
-		t526[6] = rt.Field{Name: "освободить", Value: t524}
-		return rt.Record(t526), nil
-	} else if rt.VariantIs(t462, "Загрузка") {
-		t527, e528 := rt.FieldGet(ctx, svod, "кэш")
-		if e528 != nil {
-			return rt.Value{}, e528
-		}
-		t529, e530 := rt.FieldGet(ctx, svod, "журнал")
-		if e530 != nil {
-			return rt.Value{}, e530
-		}
-		t531, e532 := rt.FieldGet(ctx, svod, "сборка")
-		if e532 != nil {
-			return rt.Value{}, e532
-		}
-		t533, e534 := rt.FieldGet(ctx, svod, "загрузка")
-		if e534 != nil {
-			return rt.Value{}, e534
-		}
-		t535, e536 := rt.FieldGet(ctx, reshenie, "вес")
-		if e536 != nil {
-			return rt.Value{}, e536
-		}
-		t537, e538 := rt.Add(ctx, t533, t535)
-		if e538 != nil {
-			return rt.Value{}, e538
-		}
-		t539, e540 := rt.FieldGet(ctx, svod, "крупное")
-		if e540 != nil {
-			return rt.Value{}, e540
-		}
-		t541, e542 := rt.FieldGet(ctx, svod, "неизвестное")
-		if e542 != nil {
-			return rt.Value{}, e542
-		}
-		t543, e544 := rt.FieldGet(ctx, svod, "освободить")
-		if e544 != nil {
-			return rt.Value{}, e544
-		}
-		t545, e546 := rt.Add(ctx, t543, ubrat)
-		if e546 != nil {
-			return rt.Value{}, e546
-		}
-		t547 := make([]rt.Field, 7)
-		t547[0] = rt.Field{Name: "кэш", Value: t527}
-		t547[1] = rt.Field{Name: "журнал", Value: t529}
-		t547[2] = rt.Field{Name: "сборка", Value: t531}
-		t547[3] = rt.Field{Name: "загрузка", Value: t537}
-		t547[4] = rt.Field{Name: "крупное", Value: t539}
-		t547[5] = rt.Field{Name: "неизвестное", Value: t541}
-		t547[6] = rt.Field{Name: "освободить", Value: t545}
-		return rt.Record(t547), nil
-	} else if rt.VariantIs(t462, "Крупное") {
-		t548, e549 := rt.FieldGet(ctx, svod, "кэш")
-		if e549 != nil {
-			return rt.Value{}, e549
-		}
-		t550, e551 := rt.FieldGet(ctx, svod, "журнал")
-		if e551 != nil {
-			return rt.Value{}, e551
-		}
-		t552, e553 := rt.FieldGet(ctx, svod, "сборка")
-		if e553 != nil {
-			return rt.Value{}, e553
-		}
-		t554, e555 := rt.FieldGet(ctx, svod, "загрузка")
-		if e555 != nil {
-			return rt.Value{}, e555
-		}
-		t556, e557 := rt.FieldGet(ctx, svod, "крупное")
-		if e557 != nil {
-			return rt.Value{}, e557
-		}
-		t558, e559 := rt.FieldGet(ctx, reshenie, "вес")
-		if e559 != nil {
-			return rt.Value{}, e559
-		}
-		t560, e561 := rt.Add(ctx, t556, t558)
-		if e561 != nil {
-			return rt.Value{}, e561
-		}
-		t562, e563 := rt.FieldGet(ctx, svod, "неизвестное")
-		if e563 != nil {
-			return rt.Value{}, e563
-		}
-		t564, e565 := rt.FieldGet(ctx, svod, "освободить")
-		if e565 != nil {
-			return rt.Value{}, e565
-		}
-		t566, e567 := rt.Add(ctx, t564, ubrat)
+	if rt.VariantIs(t564, "МожноУбрать") {
+		t566, e567 := rt.FieldGet(ctx, reshenie, "вес")
 		if e567 != nil {
 			return rt.Value{}, e567
 		}
-		t568 := make([]rt.Field, 7)
-		t568[0] = rt.Field{Name: "кэш", Value: t548}
-		t568[1] = rt.Field{Name: "журнал", Value: t550}
-		t568[2] = rt.Field{Name: "сборка", Value: t552}
-		t568[3] = rt.Field{Name: "загрузка", Value: t554}
-		t568[4] = rt.Field{Name: "крупное", Value: t560}
-		t568[5] = rt.Field{Name: "неизвестное", Value: t562}
-		t568[6] = rt.Field{Name: "освободить", Value: t566}
-		return rt.Record(t568), nil
-	} else if rt.VariantIs(t462, "Неизвестное") {
-		t569, e570 := rt.FieldGet(ctx, svod, "кэш")
-		if e570 != nil {
-			return rt.Value{}, e570
-		}
-		t571, e572 := rt.FieldGet(ctx, svod, "журнал")
-		if e572 != nil {
-			return rt.Value{}, e572
-		}
-		t573, e574 := rt.FieldGet(ctx, svod, "сборка")
-		if e574 != nil {
-			return rt.Value{}, e574
-		}
-		t575, e576 := rt.FieldGet(ctx, svod, "загрузка")
-		if e576 != nil {
-			return rt.Value{}, e576
-		}
-		t577, e578 := rt.FieldGet(ctx, svod, "крупное")
-		if e578 != nil {
-			return rt.Value{}, e578
-		}
-		t579, e580 := rt.FieldGet(ctx, svod, "неизвестное")
-		if e580 != nil {
-			return rt.Value{}, e580
-		}
-		t581, e582 := rt.FieldGet(ctx, reshenie, "вес")
-		if e582 != nil {
-			return rt.Value{}, e582
-		}
-		t583, e584 := rt.Add(ctx, t579, t581)
-		if e584 != nil {
-			return rt.Value{}, e584
-		}
-		t585, e586 := rt.FieldGet(ctx, svod, "освободить")
-		if e586 != nil {
-			return rt.Value{}, e586
-		}
-		t587, e588 := rt.Add(ctx, t585, ubrat)
-		if e588 != nil {
-			return rt.Value{}, e588
-		}
-		t589 := make([]rt.Field, 7)
-		t589[0] = rt.Field{Name: "кэш", Value: t569}
-		t589[1] = rt.Field{Name: "журнал", Value: t571}
-		t589[2] = rt.Field{Name: "сборка", Value: t573}
-		t589[3] = rt.Field{Name: "загрузка", Value: t575}
-		t589[4] = rt.Field{Name: "крупное", Value: t577}
-		t589[5] = rt.Field{Name: "неизвестное", Value: t583}
-		t589[6] = rt.Field{Name: "освободить", Value: t587}
-		return rt.Record(t589), nil
+		t563 = t566
+	} else if rt.VariantIs(t564, "Спросить") {
+		t563 = rt.Number(0.0)
+	} else if rt.VariantIs(t564, "НеТрогать") {
+		t563 = rt.Number(0.0)
 	} else {
-		return rt.Value{}, rt.MatchFail(ctx, t462)
+		return rt.Value{}, rt.MatchFail(ctx, t564)
+	}
+	// пусть «убрать»
+	ubrat := t563
+	t568, e569 := rt.FieldGet(ctx, reshenie, "разряд")
+	if e569 != nil {
+		return rt.Value{}, e569
+	}
+	if rt.VariantIs(t568, "Кэш") {
+		t570, e571 := rt.FieldGet(ctx, svod, "кэш")
+		if e571 != nil {
+			return rt.Value{}, e571
+		}
+		t572, e573 := rt.FieldGet(ctx, reshenie, "вес")
+		if e573 != nil {
+			return rt.Value{}, e573
+		}
+		t574, e575 := rt.Add(ctx, t570, t572)
+		if e575 != nil {
+			return rt.Value{}, e575
+		}
+		t576, e577 := rt.FieldGet(ctx, svod, "журнал")
+		if e577 != nil {
+			return rt.Value{}, e577
+		}
+		t578, e579 := rt.FieldGet(ctx, svod, "сборка")
+		if e579 != nil {
+			return rt.Value{}, e579
+		}
+		t580, e581 := rt.FieldGet(ctx, svod, "загрузка")
+		if e581 != nil {
+			return rt.Value{}, e581
+		}
+		t582, e583 := rt.FieldGet(ctx, svod, "крупное")
+		if e583 != nil {
+			return rt.Value{}, e583
+		}
+		t584, e585 := rt.FieldGet(ctx, svod, "неизвестное")
+		if e585 != nil {
+			return rt.Value{}, e585
+		}
+		t586, e587 := rt.FieldGet(ctx, svod, "освободить")
+		if e587 != nil {
+			return rt.Value{}, e587
+		}
+		t588, e589 := rt.Add(ctx, t586, ubrat)
+		if e589 != nil {
+			return rt.Value{}, e589
+		}
+		t590 := make([]rt.Field, 7)
+		t590[0] = rt.Field{Name: "кэш", Value: t574}
+		t590[1] = rt.Field{Name: "журнал", Value: t576}
+		t590[2] = rt.Field{Name: "сборка", Value: t578}
+		t590[3] = rt.Field{Name: "загрузка", Value: t580}
+		t590[4] = rt.Field{Name: "крупное", Value: t582}
+		t590[5] = rt.Field{Name: "неизвестное", Value: t584}
+		t590[6] = rt.Field{Name: "освободить", Value: t588}
+		return rt.Record(t590), nil
+	} else if rt.VariantIs(t568, "Журнал") {
+		t591, e592 := rt.FieldGet(ctx, svod, "кэш")
+		if e592 != nil {
+			return rt.Value{}, e592
+		}
+		t593, e594 := rt.FieldGet(ctx, svod, "журнал")
+		if e594 != nil {
+			return rt.Value{}, e594
+		}
+		t595, e596 := rt.FieldGet(ctx, reshenie, "вес")
+		if e596 != nil {
+			return rt.Value{}, e596
+		}
+		t597, e598 := rt.Add(ctx, t593, t595)
+		if e598 != nil {
+			return rt.Value{}, e598
+		}
+		t599, e600 := rt.FieldGet(ctx, svod, "сборка")
+		if e600 != nil {
+			return rt.Value{}, e600
+		}
+		t601, e602 := rt.FieldGet(ctx, svod, "загрузка")
+		if e602 != nil {
+			return rt.Value{}, e602
+		}
+		t603, e604 := rt.FieldGet(ctx, svod, "крупное")
+		if e604 != nil {
+			return rt.Value{}, e604
+		}
+		t605, e606 := rt.FieldGet(ctx, svod, "неизвестное")
+		if e606 != nil {
+			return rt.Value{}, e606
+		}
+		t607, e608 := rt.FieldGet(ctx, svod, "освободить")
+		if e608 != nil {
+			return rt.Value{}, e608
+		}
+		t609, e610 := rt.Add(ctx, t607, ubrat)
+		if e610 != nil {
+			return rt.Value{}, e610
+		}
+		t611 := make([]rt.Field, 7)
+		t611[0] = rt.Field{Name: "кэш", Value: t591}
+		t611[1] = rt.Field{Name: "журнал", Value: t597}
+		t611[2] = rt.Field{Name: "сборка", Value: t599}
+		t611[3] = rt.Field{Name: "загрузка", Value: t601}
+		t611[4] = rt.Field{Name: "крупное", Value: t603}
+		t611[5] = rt.Field{Name: "неизвестное", Value: t605}
+		t611[6] = rt.Field{Name: "освободить", Value: t609}
+		return rt.Record(t611), nil
+	} else if rt.VariantIs(t568, "Сборка") {
+		t612, e613 := rt.FieldGet(ctx, svod, "кэш")
+		if e613 != nil {
+			return rt.Value{}, e613
+		}
+		t614, e615 := rt.FieldGet(ctx, svod, "журнал")
+		if e615 != nil {
+			return rt.Value{}, e615
+		}
+		t616, e617 := rt.FieldGet(ctx, svod, "сборка")
+		if e617 != nil {
+			return rt.Value{}, e617
+		}
+		t618, e619 := rt.FieldGet(ctx, reshenie, "вес")
+		if e619 != nil {
+			return rt.Value{}, e619
+		}
+		t620, e621 := rt.Add(ctx, t616, t618)
+		if e621 != nil {
+			return rt.Value{}, e621
+		}
+		t622, e623 := rt.FieldGet(ctx, svod, "загрузка")
+		if e623 != nil {
+			return rt.Value{}, e623
+		}
+		t624, e625 := rt.FieldGet(ctx, svod, "крупное")
+		if e625 != nil {
+			return rt.Value{}, e625
+		}
+		t626, e627 := rt.FieldGet(ctx, svod, "неизвестное")
+		if e627 != nil {
+			return rt.Value{}, e627
+		}
+		t628, e629 := rt.FieldGet(ctx, svod, "освободить")
+		if e629 != nil {
+			return rt.Value{}, e629
+		}
+		t630, e631 := rt.Add(ctx, t628, ubrat)
+		if e631 != nil {
+			return rt.Value{}, e631
+		}
+		t632 := make([]rt.Field, 7)
+		t632[0] = rt.Field{Name: "кэш", Value: t612}
+		t632[1] = rt.Field{Name: "журнал", Value: t614}
+		t632[2] = rt.Field{Name: "сборка", Value: t620}
+		t632[3] = rt.Field{Name: "загрузка", Value: t622}
+		t632[4] = rt.Field{Name: "крупное", Value: t624}
+		t632[5] = rt.Field{Name: "неизвестное", Value: t626}
+		t632[6] = rt.Field{Name: "освободить", Value: t630}
+		return rt.Record(t632), nil
+	} else if rt.VariantIs(t568, "Загрузка") {
+		t633, e634 := rt.FieldGet(ctx, svod, "кэш")
+		if e634 != nil {
+			return rt.Value{}, e634
+		}
+		t635, e636 := rt.FieldGet(ctx, svod, "журнал")
+		if e636 != nil {
+			return rt.Value{}, e636
+		}
+		t637, e638 := rt.FieldGet(ctx, svod, "сборка")
+		if e638 != nil {
+			return rt.Value{}, e638
+		}
+		t639, e640 := rt.FieldGet(ctx, svod, "загрузка")
+		if e640 != nil {
+			return rt.Value{}, e640
+		}
+		t641, e642 := rt.FieldGet(ctx, reshenie, "вес")
+		if e642 != nil {
+			return rt.Value{}, e642
+		}
+		t643, e644 := rt.Add(ctx, t639, t641)
+		if e644 != nil {
+			return rt.Value{}, e644
+		}
+		t645, e646 := rt.FieldGet(ctx, svod, "крупное")
+		if e646 != nil {
+			return rt.Value{}, e646
+		}
+		t647, e648 := rt.FieldGet(ctx, svod, "неизвестное")
+		if e648 != nil {
+			return rt.Value{}, e648
+		}
+		t649, e650 := rt.FieldGet(ctx, svod, "освободить")
+		if e650 != nil {
+			return rt.Value{}, e650
+		}
+		t651, e652 := rt.Add(ctx, t649, ubrat)
+		if e652 != nil {
+			return rt.Value{}, e652
+		}
+		t653 := make([]rt.Field, 7)
+		t653[0] = rt.Field{Name: "кэш", Value: t633}
+		t653[1] = rt.Field{Name: "журнал", Value: t635}
+		t653[2] = rt.Field{Name: "сборка", Value: t637}
+		t653[3] = rt.Field{Name: "загрузка", Value: t643}
+		t653[4] = rt.Field{Name: "крупное", Value: t645}
+		t653[5] = rt.Field{Name: "неизвестное", Value: t647}
+		t653[6] = rt.Field{Name: "освободить", Value: t651}
+		return rt.Record(t653), nil
+	} else if rt.VariantIs(t568, "Крупное") {
+		t654, e655 := rt.FieldGet(ctx, svod, "кэш")
+		if e655 != nil {
+			return rt.Value{}, e655
+		}
+		t656, e657 := rt.FieldGet(ctx, svod, "журнал")
+		if e657 != nil {
+			return rt.Value{}, e657
+		}
+		t658, e659 := rt.FieldGet(ctx, svod, "сборка")
+		if e659 != nil {
+			return rt.Value{}, e659
+		}
+		t660, e661 := rt.FieldGet(ctx, svod, "загрузка")
+		if e661 != nil {
+			return rt.Value{}, e661
+		}
+		t662, e663 := rt.FieldGet(ctx, svod, "крупное")
+		if e663 != nil {
+			return rt.Value{}, e663
+		}
+		t664, e665 := rt.FieldGet(ctx, reshenie, "вес")
+		if e665 != nil {
+			return rt.Value{}, e665
+		}
+		t666, e667 := rt.Add(ctx, t662, t664)
+		if e667 != nil {
+			return rt.Value{}, e667
+		}
+		t668, e669 := rt.FieldGet(ctx, svod, "неизвестное")
+		if e669 != nil {
+			return rt.Value{}, e669
+		}
+		t670, e671 := rt.FieldGet(ctx, svod, "освободить")
+		if e671 != nil {
+			return rt.Value{}, e671
+		}
+		t672, e673 := rt.Add(ctx, t670, ubrat)
+		if e673 != nil {
+			return rt.Value{}, e673
+		}
+		t674 := make([]rt.Field, 7)
+		t674[0] = rt.Field{Name: "кэш", Value: t654}
+		t674[1] = rt.Field{Name: "журнал", Value: t656}
+		t674[2] = rt.Field{Name: "сборка", Value: t658}
+		t674[3] = rt.Field{Name: "загрузка", Value: t660}
+		t674[4] = rt.Field{Name: "крупное", Value: t666}
+		t674[5] = rt.Field{Name: "неизвестное", Value: t668}
+		t674[6] = rt.Field{Name: "освободить", Value: t672}
+		return rt.Record(t674), nil
+	} else if rt.VariantIs(t568, "Неизвестное") {
+		t675, e676 := rt.FieldGet(ctx, svod, "кэш")
+		if e676 != nil {
+			return rt.Value{}, e676
+		}
+		t677, e678 := rt.FieldGet(ctx, svod, "журнал")
+		if e678 != nil {
+			return rt.Value{}, e678
+		}
+		t679, e680 := rt.FieldGet(ctx, svod, "сборка")
+		if e680 != nil {
+			return rt.Value{}, e680
+		}
+		t681, e682 := rt.FieldGet(ctx, svod, "загрузка")
+		if e682 != nil {
+			return rt.Value{}, e682
+		}
+		t683, e684 := rt.FieldGet(ctx, svod, "крупное")
+		if e684 != nil {
+			return rt.Value{}, e684
+		}
+		t685, e686 := rt.FieldGet(ctx, svod, "неизвестное")
+		if e686 != nil {
+			return rt.Value{}, e686
+		}
+		t687, e688 := rt.FieldGet(ctx, reshenie, "вес")
+		if e688 != nil {
+			return rt.Value{}, e688
+		}
+		t689, e690 := rt.Add(ctx, t685, t687)
+		if e690 != nil {
+			return rt.Value{}, e690
+		}
+		t691, e692 := rt.FieldGet(ctx, svod, "освободить")
+		if e692 != nil {
+			return rt.Value{}, e692
+		}
+		t693, e694 := rt.Add(ctx, t691, ubrat)
+		if e694 != nil {
+			return rt.Value{}, e694
+		}
+		t695 := make([]rt.Field, 7)
+		t695[0] = rt.Field{Name: "кэш", Value: t675}
+		t695[1] = rt.Field{Name: "журнал", Value: t677}
+		t695[2] = rt.Field{Name: "сборка", Value: t679}
+		t695[3] = rt.Field{Name: "загрузка", Value: t681}
+		t695[4] = rt.Field{Name: "крупное", Value: t683}
+		t695[5] = rt.Field{Name: "неизвестное", Value: t689}
+		t695[6] = rt.Field{Name: "освободить", Value: t693}
+		return rt.Record(t695), nil
+	} else {
+		return rt.Value{}, rt.MatchFail(ctx, t568)
 	}
 }
 
@@ -2328,43 +2822,43 @@ func PribavitReshenie(ctx *rt.Ctx, svod rt.Value, reshenie rt.Value) (rt.Value, 
 // Параметр spravochnik — «справочник»: список: «Место».
 // Результат — значение: «Свод».
 func Svesti(ctx *rt.Ctx, zapisi rt.Value, spravochnik rt.Value) (rt.Value, error) {
-	t590, e591 := ReshitVsyo(ctx, zapisi, spravochnik)
-	if e591 != nil {
-		return rt.Value{}, e591
+	t696, e697 := ReshitVsyo(ctx, zapisi, spravochnik)
+	if e697 != nil {
+		return rt.Value{}, e697
 	}
-	t592, e593 := rt.RequireList(ctx, t590, "свёртка")
-	if e593 != nil {
-		return rt.Value{}, e593
+	t698, e699 := rt.RequireList(ctx, t696, "свёртка")
+	if e699 != nil {
+		return rt.Value{}, e699
 	}
-	t594, e595 := PustoySvod(ctx)
-	if e595 != nil {
-		return rt.Value{}, e595
+	t700, e701 := PustoySvod(ctx)
+	if e701 != nil {
+		return rt.Value{}, e701
 	}
 	// «свод»
-	svod := t594
-	for t596 := range t592 {
+	svod := t700
+	for t702 := range t698 {
 		// «решение»
-		reshenie := t592[t596]
-		t597, e598 := PribavitReshenie(ctx, svod, reshenie)
-		if e598 != nil {
-			return rt.Value{}, e598
+		reshenie := t698[t702]
+		t703, e704 := PribavitReshenie(ctx, svod, reshenie)
+		if e704 != nil {
+			return rt.Value{}, e704
 		}
-		svod = t597
+		svod = t703
 	}
-	t599 := svod
-	t600, e601 := I2Derzhitsya(ctx, zapisi, spravochnik, t599)
-	if e601 != nil {
-		return rt.Value{}, e601
+	t705 := svod
+	t706, e707 := I2Derzhitsya(ctx, zapisi, spravochnik, t705)
+	if e707 != nil {
+		return rt.Value{}, e707
 	}
 	// постусловие «И2: освобождаемое не больше убираемого»
-	t602, e603 := rt.Post(ctx, t600, "И2: освобождаемое не больше убираемого", "Свести")
-	if e603 != nil {
-		return rt.Value{}, e603
+	t708, e709 := rt.Post(ctx, t706, "И2: освобождаемое не больше убираемого", "Свести")
+	if e709 != nil {
+		return rt.Value{}, e709
 	}
-	if !t602 {
+	if !t708 {
 		return rt.Value{}, rt.Fail("FLANG_PROPERTY", "%s", "нарушено свойство «И2: освобождаемое не больше убираемого» функции «Свести»")
 	}
-	return t599, nil
+	return t705, nil
 }
 
 // SummaRazmerovUbiraemyh — функция flang «Сумма размеров убираемых».
@@ -2375,42 +2869,42 @@ func Svesti(ctx *rt.Ctx, zapisi rt.Value, spravochnik rt.Value) (rt.Value, error
 // Параметр spravochnik — «справочник»: список: «Место».
 // Результат — значение: число.
 func SummaRazmerovUbiraemyh(ctx *rt.Ctx, zapisi rt.Value, spravochnik rt.Value) (rt.Value, error) {
-	t604, e605 := rt.RequireList(ctx, zapisi, "свёртка")
-	if e605 != nil {
-		return rt.Value{}, e605
+	t710, e711 := rt.RequireList(ctx, zapisi, "свёртка")
+	if e711 != nil {
+		return rt.Value{}, e711
 	}
 	// «акк»
 	akk := rt.Number(0.0)
-	for t606 := range t604 {
+	for t712 := range t710 {
 		// «находка»
-		nahodka := t604[t606]
-		var t607 rt.Value
-		t608, e609 := ReshitNahodku(ctx, nahodka, spravochnik)
-		if e609 != nil {
-			return rt.Value{}, e609
+		nahodka := t710[t712]
+		var t713 rt.Value
+		t714, e715 := ReshitNahodku(ctx, nahodka, spravochnik)
+		if e715 != nil {
+			return rt.Value{}, e715
 		}
-		t610, e611 := rt.FieldGet(ctx, t608, "приговор")
-		if e611 != nil {
-			return rt.Value{}, e611
+		t716, e717 := rt.FieldGet(ctx, t714, "приговор")
+		if e717 != nil {
+			return rt.Value{}, e717
 		}
-		if rt.VariantIs(t610, "МожноУбрать") {
-			t612, e613 := rt.FieldGet(ctx, nahodka, "размер")
-			if e613 != nil {
-				return rt.Value{}, e613
+		if rt.VariantIs(t716, "МожноУбрать") {
+			t718, e719 := rt.FieldGet(ctx, nahodka, "размер")
+			if e719 != nil {
+				return rt.Value{}, e719
 			}
-			t614, e615 := rt.Add(ctx, akk, t612)
-			if e615 != nil {
-				return rt.Value{}, e615
+			t720, e721 := rt.Add(ctx, akk, t718)
+			if e721 != nil {
+				return rt.Value{}, e721
 			}
-			t607 = t614
-		} else if rt.VariantIs(t610, "Спросить") {
-			t607 = akk
-		} else if rt.VariantIs(t610, "НеТрогать") {
-			t607 = akk
+			t713 = t720
+		} else if rt.VariantIs(t716, "Спросить") {
+			t713 = akk
+		} else if rt.VariantIs(t716, "НеТрогать") {
+			t713 = akk
 		} else {
-			return rt.Value{}, rt.MatchFail(ctx, t610)
+			return rt.Value{}, rt.MatchFail(ctx, t716)
 		}
-		akk = t607
+		akk = t713
 	}
 	return akk, nil
 }
@@ -2424,19 +2918,19 @@ func SummaRazmerovUbiraemyh(ctx *rt.Ctx, zapisi rt.Value, spravochnik rt.Value) 
 // Параметр svod — «свод»: «Свод».
 // Результат — значение.
 func I2Derzhitsya(ctx *rt.Ctx, zapisi rt.Value, spravochnik rt.Value, svod rt.Value) (rt.Value, error) {
-	t616, e617 := rt.FieldGet(ctx, svod, "освободить")
-	if e617 != nil {
-		return rt.Value{}, e617
+	t722, e723 := rt.FieldGet(ctx, svod, "освободить")
+	if e723 != nil {
+		return rt.Value{}, e723
 	}
-	t618, e619 := SummaRazmerovUbiraemyh(ctx, zapisi, spravochnik)
-	if e619 != nil {
-		return rt.Value{}, e619
+	t724, e725 := SummaRazmerovUbiraemyh(ctx, zapisi, spravochnik)
+	if e725 != nil {
+		return rt.Value{}, e725
 	}
-	t620, e621 := rt.Lte(ctx, t616, t618)
-	if e621 != nil {
-		return rt.Value{}, e621
+	t726, e727 := rt.Lte(ctx, t722, t724)
+	if e727 != nil {
+		return rt.Value{}, e727
 	}
-	return t620, nil
+	return t726, nil
 }
 
 // StrokuOtchyota — функция flang «Строку отчёта».
@@ -2447,18 +2941,18 @@ func I2Derzhitsya(ctx *rt.Ctx, zapisi rt.Value, spravochnik rt.Value, svod rt.Va
 // Параметр spravochnik — «справочник»: список: «Место».
 // Результат — значение: «Строка отчёта».
 func StrokuOtchyota(ctx *rt.Ctx, nahodka rt.Value, spravochnik rt.Value) (rt.Value, error) {
-	t622, e623 := rt.FieldGet(ctx, nahodka, "путь")
-	if e623 != nil {
-		return rt.Value{}, e623
+	t728, e729 := rt.FieldGet(ctx, nahodka, "путь")
+	if e729 != nil {
+		return rt.Value{}, e729
 	}
-	t624, e625 := ReshitNahodku(ctx, nahodka, spravochnik)
-	if e625 != nil {
-		return rt.Value{}, e625
+	t730, e731 := ReshitNahodku(ctx, nahodka, spravochnik)
+	if e731 != nil {
+		return rt.Value{}, e731
 	}
-	t626 := make([]rt.Field, 2)
-	t626[0] = rt.Field{Name: "путь", Value: t622}
-	t626[1] = rt.Field{Name: "решение", Value: t624}
-	return rt.Record(t626), nil
+	t732 := make([]rt.Field, 2)
+	t732[0] = rt.Field{Name: "путь", Value: t728}
+	t732[1] = rt.Field{Name: "решение", Value: t730}
+	return rt.Record(t732), nil
 }
 
 // VstavitPoVesu — функция flang «Вставить по весу».
@@ -2476,46 +2970,46 @@ func VstavitPoVesu(ctx *rt.Ctx, stroka rt.Value, stroki rt.Value) (rt.Value, err
 	}
 	defer ctx.Leave()
 	if rt.ChainEmpty(stroki) {
-		t627 := make([]rt.Value, 1)
-		t627[0] = stroka
-		return rt.List(t627), nil
+		t733 := make([]rt.Value, 1)
+		t733[0] = stroka
+		return rt.List(t733), nil
 	} else if rt.ChainCons(stroki) {
 		// голова «голова»
 		golova := rt.ChainHead(stroki)
 		// хвост «хвост»
 		hvost := rt.ChainTail(stroki)
-		t628, e629 := rt.FieldGet(ctx, stroka, "решение")
-		if e629 != nil {
-			return rt.Value{}, e629
+		t734, e735 := rt.FieldGet(ctx, stroka, "решение")
+		if e735 != nil {
+			return rt.Value{}, e735
 		}
-		t630, e631 := rt.FieldGet(ctx, t628, "вес")
-		if e631 != nil {
-			return rt.Value{}, e631
+		t736, e737 := rt.FieldGet(ctx, t734, "вес")
+		if e737 != nil {
+			return rt.Value{}, e737
 		}
-		t632, e633 := rt.FieldGet(ctx, golova, "решение")
-		if e633 != nil {
-			return rt.Value{}, e633
+		t738, e739 := rt.FieldGet(ctx, golova, "решение")
+		if e739 != nil {
+			return rt.Value{}, e739
 		}
-		t634, e635 := rt.FieldGet(ctx, t632, "вес")
-		if e635 != nil {
-			return rt.Value{}, e635
+		t740, e741 := rt.FieldGet(ctx, t738, "вес")
+		if e741 != nil {
+			return rt.Value{}, e741
 		}
-		t636, e637 := rt.Gte(ctx, t630, t634)
-		if e637 != nil {
-			return rt.Value{}, e637
+		t742, e743 := rt.Gte(ctx, t736, t740)
+		if e743 != nil {
+			return rt.Value{}, e743
 		}
-		t638, e639 := rt.Cond(ctx, t636)
-		if e639 != nil {
-			return rt.Value{}, e639
+		t744, e745 := rt.Cond(ctx, t742)
+		if e745 != nil {
+			return rt.Value{}, e745
 		}
-		if t638 {
+		if t744 {
 			return PripisatStrokuOtchyota(ctx, stroka, stroki)
 		} else {
-			t640, e641 := VstavitPoVesu(ctx, stroka, hvost)
-			if e641 != nil {
-				return rt.Value{}, e641
+			t746, e747 := VstavitPoVesu(ctx, stroka, hvost)
+			if e747 != nil {
+				return rt.Value{}, e747
 			}
-			return PripisatStrokuOtchyota(ctx, golova, t640)
+			return PripisatStrokuOtchyota(ctx, golova, t746)
 		}
 	} else {
 		return rt.Value{}, rt.MatchFail(ctx, stroki)
@@ -2530,23 +3024,23 @@ func VstavitPoVesu(ctx *rt.Ctx, stroka rt.Value, stroki rt.Value) (rt.Value, err
 // Параметр stroki — «строки»: список: «Строка отчёта».
 // Результат — значение: список: «Строка отчёта».
 func PripisatStrokuOtchyota(ctx *rt.Ctx, pervaya rt.Value, stroki rt.Value) (rt.Value, error) {
-	t642, e643 := rt.RequireList(ctx, stroki, "свёртка")
-	if e643 != nil {
-		return rt.Value{}, e643
+	t748, e749 := rt.RequireList(ctx, stroki, "свёртка")
+	if e749 != nil {
+		return rt.Value{}, e749
 	}
-	t644 := make([]rt.Value, 1)
-	t644[0] = pervaya
+	t750 := make([]rt.Value, 1)
+	t750[0] = pervaya
 	// «акк»
-	akk := rt.List(t644)
-	for t645 := range t642 {
+	akk := rt.List(t750)
+	for t751 := range t748 {
 		// «эл»
-		el := t642[t645]
+		el := t748[t751]
 		// «добавить»
-		t646, e647 := rt.BAppend(ctx, el, akk)
-		if e647 != nil {
-			return rt.Value{}, e647
+		t752, e753 := rt.BAppend(ctx, el, akk)
+		if e753 != nil {
+			return rt.Value{}, e753
 		}
-		akk = t646
+		akk = t752
 	}
 	return akk, nil
 }
@@ -2559,39 +3053,39 @@ func PripisatStrokuOtchyota(ctx *rt.Ctx, pervaya rt.Value, stroki rt.Value) (rt.
 // Параметр spravochnik — «справочник»: список: «Место».
 // Результат — значение: список: «Строка отчёта».
 func Otchyot(ctx *rt.Ctx, zapisi rt.Value, spravochnik rt.Value) (rt.Value, error) {
-	t648, e649 := rt.RequireList(ctx, zapisi, "свёртка")
-	if e649 != nil {
-		return rt.Value{}, e649
+	t754, e755 := rt.RequireList(ctx, zapisi, "свёртка")
+	if e755 != nil {
+		return rt.Value{}, e755
 	}
 	// «акк»
 	akk := rt.List(nil)
-	for t650 := range t648 {
+	for t756 := range t754 {
 		// «находка»
-		nahodka := t648[t650]
-		t651, e652 := StrokuOtchyota(ctx, nahodka, spravochnik)
-		if e652 != nil {
-			return rt.Value{}, e652
+		nahodka := t754[t756]
+		t757, e758 := StrokuOtchyota(ctx, nahodka, spravochnik)
+		if e758 != nil {
+			return rt.Value{}, e758
 		}
-		t653, e654 := VstavitPoVesu(ctx, t651, akk)
-		if e654 != nil {
-			return rt.Value{}, e654
+		t759, e760 := VstavitPoVesu(ctx, t757, akk)
+		if e760 != nil {
+			return rt.Value{}, e760
 		}
-		akk = t653
+		akk = t759
 	}
-	t655 := akk
-	t656, e657 := OtchyotToyZheDliny(ctx, zapisi, t655)
-	if e657 != nil {
-		return rt.Value{}, e657
+	t761 := akk
+	t762, e763 := OtchyotToyZheDliny(ctx, zapisi, t761)
+	if e763 != nil {
+		return rt.Value{}, e763
 	}
 	// постусловие «Отчёт той же длины»
-	t658, e659 := rt.Post(ctx, t656, "Отчёт той же длины", "Отчёт")
-	if e659 != nil {
-		return rt.Value{}, e659
+	t764, e765 := rt.Post(ctx, t762, "Отчёт той же длины", "Отчёт")
+	if e765 != nil {
+		return rt.Value{}, e765
 	}
-	if !t658 {
+	if !t764 {
 		return rt.Value{}, rt.Fail("FLANG_PROPERTY", "%s", "нарушено свойство «Отчёт той же длины» функции «Отчёт»")
 	}
-	return t655, nil
+	return t761, nil
 }
 
 // OtchyotToyZheDliny — функция flang «Отчёт той же длины».
@@ -2603,16 +3097,16 @@ func Otchyot(ctx *rt.Ctx, zapisi rt.Value, spravochnik rt.Value) (rt.Value, erro
 // Результат — значение.
 func OtchyotToyZheDliny(ctx *rt.Ctx, zapisi rt.Value, stroki rt.Value) (rt.Value, error) {
 	// «длина»
-	t660, e661 := rt.BLength(ctx, stroki)
-	if e661 != nil {
-		return rt.Value{}, e661
+	t766, e767 := rt.BLength(ctx, stroki)
+	if e767 != nil {
+		return rt.Value{}, e767
 	}
 	// «длина»
-	t662, e663 := rt.BLength(ctx, zapisi)
-	if e663 != nil {
-		return rt.Value{}, e663
+	t768, e769 := rt.BLength(ctx, zapisi)
+	if e769 != nil {
+		return rt.Value{}, e769
 	}
-	return rt.Flag(rt.Equal(t660, t662)), nil
+	return rt.Flag(rt.Equal(t766, t768)), nil
 }
 
 // EtoMozhnoUbrat — функция flang «Это МожноУбрать».
@@ -2659,25 +3153,25 @@ func EtoNeTrogat(ctx *rt.Ctx, prigovor rt.Value) (rt.Value, error) {
 // Параметр prigovor — «приговор»: «Приговор».
 // Результат — значение.
 func I1NaPare(ctx *rt.Ctx, razryad rt.Value, prigovor rt.Value) (rt.Value, error) {
-	t664, e665 := EtoMozhnoUbrat(ctx, prigovor)
-	if e665 != nil {
-		return rt.Value{}, e665
+	t770, e771 := EtoMozhnoUbrat(ctx, prigovor)
+	if e771 != nil {
+		return rt.Value{}, e771
 	}
-	t666, e667 := rt.Cond(ctx, t664)
-	if e667 != nil {
-		return rt.Value{}, e667
+	t772, e773 := rt.Cond(ctx, t770)
+	if e773 != nil {
+		return rt.Value{}, e773
 	}
-	var t668 rt.Value
-	if t666 {
-		t668 = rt.Flag(false)
+	var t774 rt.Value
+	if t772 {
+		t774 = rt.Flag(false)
 	} else {
-		t668 = rt.Flag(true)
+		t774 = rt.Flag(true)
 	}
-	t669, e670 := rt.Cond(ctx, t668)
-	if e670 != nil {
-		return rt.Value{}, e670
+	t775, e776 := rt.Cond(ctx, t774)
+	if e776 != nil {
+		return rt.Value{}, e776
 	}
-	if t669 {
+	if t775 {
 		return rt.Flag(true), nil
 	} else {
 		if rt.VariantIs(razryad, "Кэш") {
@@ -2731,25 +3225,25 @@ func PorogRazryada(ctx *rt.Ctx, razryad rt.Value) (rt.Value, error) {
 // Параметр razryad — «разряд»: «Разряд».
 // Результат — значение.
 func RazryadObosnovan(ctx *rt.Ctx, nahodka rt.Value, mesto rt.Value, razryad rt.Value) (rt.Value, error) {
-	t671, e672 := EtoNeizvestnoe(ctx, mesto)
-	if e672 != nil {
-		return rt.Value{}, e672
+	t777, e778 := EtoNeizvestnoe(ctx, mesto)
+	if e778 != nil {
+		return rt.Value{}, e778
 	}
-	t673, e674 := rt.Cond(ctx, t671)
-	if e674 != nil {
-		return rt.Value{}, e674
+	t779, e780 := rt.Cond(ctx, t777)
+	if e780 != nil {
+		return rt.Value{}, e780
 	}
-	var t675 rt.Value
-	if t673 {
-		t675 = rt.Flag(false)
+	var t781 rt.Value
+	if t779 {
+		t781 = rt.Flag(false)
 	} else {
-		t675 = rt.Flag(true)
+		t781 = rt.Flag(true)
 	}
-	t676, e677 := rt.Cond(ctx, t675)
-	if e677 != nil {
-		return rt.Value{}, e677
+	t782, e783 := rt.Cond(ctx, t781)
+	if e783 != nil {
+		return rt.Value{}, e783
 	}
-	if t676 {
+	if t782 {
 		return TotZheRazryad(ctx, razryad, mesto)
 	} else {
 		return RazryadObosnovanPrimetoy(ctx, nahodka, razryad)
@@ -2764,73 +3258,73 @@ func RazryadObosnovan(ctx *rt.Ctx, nahodka rt.Value, mesto rt.Value, razryad rt.
 // Параметр razryad — «разряд»: «Разряд».
 // Результат — значение.
 func RazryadObosnovanPrimetoy(ctx *rt.Ctx, nahodka rt.Value, razryad rt.Value) (rt.Value, error) {
-	t678, e679 := rt.FieldGet(ctx, nahodka, "путь")
-	if e679 != nil {
-		return rt.Value{}, e679
+	t784, e785 := rt.FieldGet(ctx, nahodka, "путь")
+	if e785 != nil {
+		return rt.Value{}, e785
 	}
-	t680, e681 := PrimetaKesha(ctx, t678)
-	if e681 != nil {
-		return rt.Value{}, e681
+	t786, e787 := PrimetaKesha(ctx, t784)
+	if e787 != nil {
+		return rt.Value{}, e787
 	}
 	// пусть «кэш»
-	kesh := t680
-	t682, e683 := rt.FieldGet(ctx, nahodka, "путь")
-	if e683 != nil {
-		return rt.Value{}, e683
+	kesh := t786
+	t788, e789 := rt.FieldGet(ctx, nahodka, "путь")
+	if e789 != nil {
+		return rt.Value{}, e789
 	}
-	t684, e685 := PrimetaZhurnala(ctx, t682)
-	if e685 != nil {
-		return rt.Value{}, e685
+	t790, e791 := PrimetaZhurnala(ctx, t788)
+	if e791 != nil {
+		return rt.Value{}, e791
 	}
 	// пусть «журнал»
-	zhurnal := t684
-	t686, e687 := rt.FieldGet(ctx, nahodka, "путь")
-	if e687 != nil {
-		return rt.Value{}, e687
+	zhurnal := t790
+	t792, e793 := rt.FieldGet(ctx, nahodka, "путь")
+	if e793 != nil {
+		return rt.Value{}, e793
 	}
-	t688, e689 := PrimetaSborki(ctx, t686)
-	if e689 != nil {
-		return rt.Value{}, e689
+	t794, e795 := PrimetaSborki(ctx, t792)
+	if e795 != nil {
+		return rt.Value{}, e795
 	}
 	// пусть «сборка»
-	sborka := t688
-	t690, e691 := rt.FieldGet(ctx, nahodka, "путь")
-	if e691 != nil {
-		return rt.Value{}, e691
+	sborka := t794
+	t796, e797 := rt.FieldGet(ctx, nahodka, "путь")
+	if e797 != nil {
+		return rt.Value{}, e797
 	}
-	t692, e693 := PrimetaZagruzki(ctx, t690)
-	if e693 != nil {
-		return rt.Value{}, e693
+	t798, e799 := PrimetaZagruzki(ctx, t796)
+	if e799 != nil {
+		return rt.Value{}, e799
 	}
 	// пусть «загрузка»
-	zagruzka := t692
-	t694, e695 := rt.FieldGet(ctx, nahodka, "размер")
-	if e695 != nil {
-		return rt.Value{}, e695
+	zagruzka := t798
+	t800, e801 := rt.FieldGet(ctx, nahodka, "размер")
+	if e801 != nil {
+		return rt.Value{}, e801
 	}
-	t696, e697 := PorogKrupnogo(ctx)
-	if e697 != nil {
-		return rt.Value{}, e697
+	t802, e803 := PorogKrupnogo(ctx)
+	if e803 != nil {
+		return rt.Value{}, e803
 	}
-	t698, e699 := rt.Gte(ctx, t694, t696)
-	if e699 != nil {
-		return rt.Value{}, e699
+	t804, e805 := rt.Gte(ctx, t800, t802)
+	if e805 != nil {
+		return rt.Value{}, e805
 	}
 	// пусть «крупное»
-	krupnoe := t698
+	krupnoe := t804
 	if rt.VariantIs(razryad, "Кэш") {
 		return kesh, nil
 	} else if rt.VariantIs(razryad, "Журнал") {
-		t700, e701 := rt.Cond(ctx, zhurnal)
-		if e701 != nil {
-			return rt.Value{}, e701
+		t806, e807 := rt.Cond(ctx, zhurnal)
+		if e807 != nil {
+			return rt.Value{}, e807
 		}
-		if t700 {
-			t702, e703 := rt.Cond(ctx, kesh)
-			if e703 != nil {
-				return rt.Value{}, e703
+		if t806 {
+			t808, e809 := rt.Cond(ctx, kesh)
+			if e809 != nil {
+				return rt.Value{}, e809
 			}
-			if t702 {
+			if t808 {
 				return rt.Flag(false), nil
 			} else {
 				return rt.Flag(true), nil
@@ -2839,36 +3333,36 @@ func RazryadObosnovanPrimetoy(ctx *rt.Ctx, nahodka rt.Value, razryad rt.Value) (
 			return rt.Flag(false), nil
 		}
 	} else if rt.VariantIs(razryad, "Сборка") {
-		t704, e705 := rt.Cond(ctx, sborka)
-		if e705 != nil {
-			return rt.Value{}, e705
+		t810, e811 := rt.Cond(ctx, sborka)
+		if e811 != nil {
+			return rt.Value{}, e811
 		}
-		var t706 rt.Value
-		if t704 {
-			t707, e708 := rt.Cond(ctx, kesh)
-			if e708 != nil {
-				return rt.Value{}, e708
+		var t812 rt.Value
+		if t810 {
+			t813, e814 := rt.Cond(ctx, kesh)
+			if e814 != nil {
+				return rt.Value{}, e814
 			}
-			var t709 rt.Value
-			if t707 {
-				t709 = rt.Flag(false)
+			var t815 rt.Value
+			if t813 {
+				t815 = rt.Flag(false)
 			} else {
-				t709 = rt.Flag(true)
+				t815 = rt.Flag(true)
 			}
-			t706 = t709
+			t812 = t815
 		} else {
-			t706 = rt.Flag(false)
+			t812 = rt.Flag(false)
 		}
-		t710, e711 := rt.Cond(ctx, t706)
-		if e711 != nil {
-			return rt.Value{}, e711
+		t816, e817 := rt.Cond(ctx, t812)
+		if e817 != nil {
+			return rt.Value{}, e817
 		}
-		if t710 {
-			t712, e713 := rt.Cond(ctx, zhurnal)
-			if e713 != nil {
-				return rt.Value{}, e713
+		if t816 {
+			t818, e819 := rt.Cond(ctx, zhurnal)
+			if e819 != nil {
+				return rt.Value{}, e819
 			}
-			if t712 {
+			if t818 {
 				return rt.Flag(false), nil
 			} else {
 				return rt.Flag(true), nil
@@ -2877,56 +3371,56 @@ func RazryadObosnovanPrimetoy(ctx *rt.Ctx, nahodka rt.Value, razryad rt.Value) (
 			return rt.Flag(false), nil
 		}
 	} else if rt.VariantIs(razryad, "Загрузка") {
-		t714, e715 := rt.Cond(ctx, zagruzka)
-		if e715 != nil {
-			return rt.Value{}, e715
+		t820, e821 := rt.Cond(ctx, zagruzka)
+		if e821 != nil {
+			return rt.Value{}, e821
 		}
-		var t716 rt.Value
-		if t714 {
-			t717, e718 := rt.Cond(ctx, kesh)
-			if e718 != nil {
-				return rt.Value{}, e718
+		var t822 rt.Value
+		if t820 {
+			t823, e824 := rt.Cond(ctx, kesh)
+			if e824 != nil {
+				return rt.Value{}, e824
 			}
-			var t719 rt.Value
-			if t717 {
-				t719 = rt.Flag(false)
+			var t825 rt.Value
+			if t823 {
+				t825 = rt.Flag(false)
 			} else {
-				t719 = rt.Flag(true)
+				t825 = rt.Flag(true)
 			}
-			t716 = t719
+			t822 = t825
 		} else {
-			t716 = rt.Flag(false)
+			t822 = rt.Flag(false)
 		}
-		t720, e721 := rt.Cond(ctx, t716)
-		if e721 != nil {
-			return rt.Value{}, e721
+		t826, e827 := rt.Cond(ctx, t822)
+		if e827 != nil {
+			return rt.Value{}, e827
 		}
-		var t722 rt.Value
-		if t720 {
-			t723, e724 := rt.Cond(ctx, zhurnal)
-			if e724 != nil {
-				return rt.Value{}, e724
+		var t828 rt.Value
+		if t826 {
+			t829, e830 := rt.Cond(ctx, zhurnal)
+			if e830 != nil {
+				return rt.Value{}, e830
 			}
-			var t725 rt.Value
-			if t723 {
-				t725 = rt.Flag(false)
+			var t831 rt.Value
+			if t829 {
+				t831 = rt.Flag(false)
 			} else {
-				t725 = rt.Flag(true)
+				t831 = rt.Flag(true)
 			}
-			t722 = t725
+			t828 = t831
 		} else {
-			t722 = rt.Flag(false)
+			t828 = rt.Flag(false)
 		}
-		t726, e727 := rt.Cond(ctx, t722)
-		if e727 != nil {
-			return rt.Value{}, e727
+		t832, e833 := rt.Cond(ctx, t828)
+		if e833 != nil {
+			return rt.Value{}, e833
 		}
-		if t726 {
-			t728, e729 := rt.Cond(ctx, sborka)
-			if e729 != nil {
-				return rt.Value{}, e729
+		if t832 {
+			t834, e835 := rt.Cond(ctx, sborka)
+			if e835 != nil {
+				return rt.Value{}, e835
 			}
-			if t728 {
+			if t834 {
 				return rt.Flag(false), nil
 			} else {
 				return rt.Flag(true), nil
@@ -2935,76 +3429,76 @@ func RazryadObosnovanPrimetoy(ctx *rt.Ctx, nahodka rt.Value, razryad rt.Value) (
 			return rt.Flag(false), nil
 		}
 	} else if rt.VariantIs(razryad, "Крупное") {
-		t730, e731 := rt.Cond(ctx, krupnoe)
-		if e731 != nil {
-			return rt.Value{}, e731
+		t836, e837 := rt.Cond(ctx, krupnoe)
+		if e837 != nil {
+			return rt.Value{}, e837
 		}
-		var t732 rt.Value
-		if t730 {
-			t733, e734 := rt.Cond(ctx, kesh)
-			if e734 != nil {
-				return rt.Value{}, e734
+		var t838 rt.Value
+		if t836 {
+			t839, e840 := rt.Cond(ctx, kesh)
+			if e840 != nil {
+				return rt.Value{}, e840
 			}
-			var t735 rt.Value
-			if t733 {
-				t735 = rt.Flag(false)
+			var t841 rt.Value
+			if t839 {
+				t841 = rt.Flag(false)
 			} else {
-				t735 = rt.Flag(true)
+				t841 = rt.Flag(true)
 			}
-			t732 = t735
+			t838 = t841
 		} else {
-			t732 = rt.Flag(false)
+			t838 = rt.Flag(false)
 		}
-		t736, e737 := rt.Cond(ctx, t732)
-		if e737 != nil {
-			return rt.Value{}, e737
+		t842, e843 := rt.Cond(ctx, t838)
+		if e843 != nil {
+			return rt.Value{}, e843
 		}
-		var t738 rt.Value
-		if t736 {
-			t739, e740 := rt.Cond(ctx, zhurnal)
-			if e740 != nil {
-				return rt.Value{}, e740
+		var t844 rt.Value
+		if t842 {
+			t845, e846 := rt.Cond(ctx, zhurnal)
+			if e846 != nil {
+				return rt.Value{}, e846
 			}
-			var t741 rt.Value
-			if t739 {
-				t741 = rt.Flag(false)
+			var t847 rt.Value
+			if t845 {
+				t847 = rt.Flag(false)
 			} else {
-				t741 = rt.Flag(true)
+				t847 = rt.Flag(true)
 			}
-			t738 = t741
+			t844 = t847
 		} else {
-			t738 = rt.Flag(false)
+			t844 = rt.Flag(false)
 		}
-		t742, e743 := rt.Cond(ctx, t738)
-		if e743 != nil {
-			return rt.Value{}, e743
+		t848, e849 := rt.Cond(ctx, t844)
+		if e849 != nil {
+			return rt.Value{}, e849
 		}
-		var t744 rt.Value
-		if t742 {
-			t745, e746 := rt.Cond(ctx, sborka)
-			if e746 != nil {
-				return rt.Value{}, e746
+		var t850 rt.Value
+		if t848 {
+			t851, e852 := rt.Cond(ctx, sborka)
+			if e852 != nil {
+				return rt.Value{}, e852
 			}
-			var t747 rt.Value
-			if t745 {
-				t747 = rt.Flag(false)
+			var t853 rt.Value
+			if t851 {
+				t853 = rt.Flag(false)
 			} else {
-				t747 = rt.Flag(true)
+				t853 = rt.Flag(true)
 			}
-			t744 = t747
+			t850 = t853
 		} else {
-			t744 = rt.Flag(false)
+			t850 = rt.Flag(false)
 		}
-		t748, e749 := rt.Cond(ctx, t744)
-		if e749 != nil {
-			return rt.Value{}, e749
+		t854, e855 := rt.Cond(ctx, t850)
+		if e855 != nil {
+			return rt.Value{}, e855
 		}
-		if t748 {
-			t750, e751 := rt.Cond(ctx, zagruzka)
-			if e751 != nil {
-				return rt.Value{}, e751
+		if t854 {
+			t856, e857 := rt.Cond(ctx, zagruzka)
+			if e857 != nil {
+				return rt.Value{}, e857
 			}
-			if t750 {
+			if t856 {
 				return rt.Flag(false), nil
 			} else {
 				return rt.Flag(true), nil
@@ -3013,86 +3507,86 @@ func RazryadObosnovanPrimetoy(ctx *rt.Ctx, nahodka rt.Value, razryad rt.Value) (
 			return rt.Flag(false), nil
 		}
 	} else if rt.VariantIs(razryad, "Неизвестное") {
-		t752, e753 := rt.Cond(ctx, kesh)
-		if e753 != nil {
-			return rt.Value{}, e753
+		t858, e859 := rt.Cond(ctx, kesh)
+		if e859 != nil {
+			return rt.Value{}, e859
 		}
-		var t754 rt.Value
-		if t752 {
-			t754 = rt.Flag(false)
+		var t860 rt.Value
+		if t858 {
+			t860 = rt.Flag(false)
 		} else {
-			t754 = rt.Flag(true)
+			t860 = rt.Flag(true)
 		}
-		t755, e756 := rt.Cond(ctx, t754)
-		if e756 != nil {
-			return rt.Value{}, e756
+		t861, e862 := rt.Cond(ctx, t860)
+		if e862 != nil {
+			return rt.Value{}, e862
 		}
-		var t757 rt.Value
-		if t755 {
-			t758, e759 := rt.Cond(ctx, zhurnal)
-			if e759 != nil {
-				return rt.Value{}, e759
+		var t863 rt.Value
+		if t861 {
+			t864, e865 := rt.Cond(ctx, zhurnal)
+			if e865 != nil {
+				return rt.Value{}, e865
 			}
-			var t760 rt.Value
-			if t758 {
-				t760 = rt.Flag(false)
+			var t866 rt.Value
+			if t864 {
+				t866 = rt.Flag(false)
 			} else {
-				t760 = rt.Flag(true)
+				t866 = rt.Flag(true)
 			}
-			t757 = t760
+			t863 = t866
 		} else {
-			t757 = rt.Flag(false)
+			t863 = rt.Flag(false)
 		}
-		t761, e762 := rt.Cond(ctx, t757)
-		if e762 != nil {
-			return rt.Value{}, e762
+		t867, e868 := rt.Cond(ctx, t863)
+		if e868 != nil {
+			return rt.Value{}, e868
 		}
-		var t763 rt.Value
-		if t761 {
-			t764, e765 := rt.Cond(ctx, sborka)
-			if e765 != nil {
-				return rt.Value{}, e765
+		var t869 rt.Value
+		if t867 {
+			t870, e871 := rt.Cond(ctx, sborka)
+			if e871 != nil {
+				return rt.Value{}, e871
 			}
-			var t766 rt.Value
-			if t764 {
-				t766 = rt.Flag(false)
+			var t872 rt.Value
+			if t870 {
+				t872 = rt.Flag(false)
 			} else {
-				t766 = rt.Flag(true)
+				t872 = rt.Flag(true)
 			}
-			t763 = t766
+			t869 = t872
 		} else {
-			t763 = rt.Flag(false)
+			t869 = rt.Flag(false)
 		}
-		t767, e768 := rt.Cond(ctx, t763)
-		if e768 != nil {
-			return rt.Value{}, e768
+		t873, e874 := rt.Cond(ctx, t869)
+		if e874 != nil {
+			return rt.Value{}, e874
 		}
-		var t769 rt.Value
-		if t767 {
-			t770, e771 := rt.Cond(ctx, zagruzka)
-			if e771 != nil {
-				return rt.Value{}, e771
+		var t875 rt.Value
+		if t873 {
+			t876, e877 := rt.Cond(ctx, zagruzka)
+			if e877 != nil {
+				return rt.Value{}, e877
 			}
-			var t772 rt.Value
-			if t770 {
-				t772 = rt.Flag(false)
+			var t878 rt.Value
+			if t876 {
+				t878 = rt.Flag(false)
 			} else {
-				t772 = rt.Flag(true)
+				t878 = rt.Flag(true)
 			}
-			t769 = t772
+			t875 = t878
 		} else {
-			t769 = rt.Flag(false)
+			t875 = rt.Flag(false)
 		}
-		t773, e774 := rt.Cond(ctx, t769)
-		if e774 != nil {
-			return rt.Value{}, e774
+		t879, e880 := rt.Cond(ctx, t875)
+		if e880 != nil {
+			return rt.Value{}, e880
 		}
-		if t773 {
-			t775, e776 := rt.Cond(ctx, krupnoe)
-			if e776 != nil {
-				return rt.Value{}, e776
+		if t879 {
+			t881, e882 := rt.Cond(ctx, krupnoe)
+			if e882 != nil {
+				return rt.Value{}, e882
 			}
-			if t775 {
+			if t881 {
 				return rt.Flag(false), nil
 			} else {
 				return rt.Flag(true), nil
@@ -3114,93 +3608,93 @@ func RazryadObosnovanPrimetoy(ctx *rt.Ctx, nahodka rt.Value, razryad rt.Value) (
 // Параметр prigovor — «приговор»: «Приговор».
 // Результат — значение.
 func PrigovorObosnovan(ctx *rt.Ctx, nahodka rt.Value, razryad rt.Value, prigovor rt.Value) (rt.Value, error) {
-	t777, e778 := rt.FieldGet(ctx, nahodka, "доступен")
-	if e778 != nil {
-		return rt.Value{}, e778
+	t883, e884 := rt.FieldGet(ctx, nahodka, "доступен")
+	if e884 != nil {
+		return rt.Value{}, e884
 	}
-	t779, e780 := rt.Cond(ctx, t777)
-	if e780 != nil {
-		return rt.Value{}, e780
+	t885, e886 := rt.Cond(ctx, t883)
+	if e886 != nil {
+		return rt.Value{}, e886
 	}
-	var t781 rt.Value
-	if t779 {
-		t781 = rt.Flag(false)
+	var t887 rt.Value
+	if t885 {
+		t887 = rt.Flag(false)
 	} else {
-		t781 = rt.Flag(true)
+		t887 = rt.Flag(true)
 	}
-	t782, e783 := rt.Cond(ctx, t781)
-	if e783 != nil {
-		return rt.Value{}, e783
+	t888, e889 := rt.Cond(ctx, t887)
+	if e889 != nil {
+		return rt.Value{}, e889
 	}
-	if t782 {
+	if t888 {
 		return EtoNeTrogat(ctx, prigovor)
 	} else {
-		t784, e785 := Ssylka(ctx, nahodka)
-		if e785 != nil {
-			return rt.Value{}, e785
+		t890, e891 := Ssylka(ctx, nahodka)
+		if e891 != nil {
+			return rt.Value{}, e891
 		}
-		t786, e787 := rt.Cond(ctx, t784)
-		if e787 != nil {
-			return rt.Value{}, e787
+		t892, e893 := rt.Cond(ctx, t890)
+		if e893 != nil {
+			return rt.Value{}, e893
 		}
-		if t786 {
+		if t892 {
 			return EtoNeTrogat(ctx, prigovor)
 		} else {
-			t788, e789 := EtoMozhnoUbrat(ctx, prigovor)
-			if e789 != nil {
-				return rt.Value{}, e789
+			t894, e895 := EtoMozhnoUbrat(ctx, prigovor)
+			if e895 != nil {
+				return rt.Value{}, e895
 			}
-			t790, e791 := rt.Cond(ctx, t788)
-			if e791 != nil {
-				return rt.Value{}, e791
+			t896, e897 := rt.Cond(ctx, t894)
+			if e897 != nil {
+				return rt.Value{}, e897
 			}
-			if t790 {
-				t792, e793 := I1NaPare(ctx, razryad, prigovor)
-				if e793 != nil {
-					return rt.Value{}, e793
+			if t896 {
+				t898, e899 := I1NaPare(ctx, razryad, prigovor)
+				if e899 != nil {
+					return rt.Value{}, e899
 				}
-				t794, e795 := rt.Cond(ctx, t792)
-				if e795 != nil {
-					return rt.Value{}, e795
+				t900, e901 := rt.Cond(ctx, t898)
+				if e901 != nil {
+					return rt.Value{}, e901
 				}
-				var t796 rt.Value
-				if t794 {
-					t797, e798 := Katalog(ctx, nahodka)
-					if e798 != nil {
-						return rt.Value{}, e798
+				var t902 rt.Value
+				if t900 {
+					t903, e904 := Katalog(ctx, nahodka)
+					if e904 != nil {
+						return rt.Value{}, e904
 					}
-					t799, e800 := rt.Cond(ctx, t797)
-					if e800 != nil {
-						return rt.Value{}, e800
+					t905, e906 := rt.Cond(ctx, t903)
+					if e906 != nil {
+						return rt.Value{}, e906
 					}
-					var t801 rt.Value
-					if t799 {
-						t801 = rt.Flag(false)
+					var t907 rt.Value
+					if t905 {
+						t907 = rt.Flag(false)
 					} else {
-						t801 = rt.Flag(true)
+						t907 = rt.Flag(true)
 					}
-					t796 = t801
+					t902 = t907
 				} else {
-					t796 = rt.Flag(false)
+					t902 = rt.Flag(false)
 				}
-				t802, e803 := rt.Cond(ctx, t796)
-				if e803 != nil {
-					return rt.Value{}, e803
+				t908, e909 := rt.Cond(ctx, t902)
+				if e909 != nil {
+					return rt.Value{}, e909
 				}
-				if t802 {
-					t804, e805 := rt.FieldGet(ctx, nahodka, "возраст_дней")
-					if e805 != nil {
-						return rt.Value{}, e805
+				if t908 {
+					t910, e911 := rt.FieldGet(ctx, nahodka, "возраст_дней")
+					if e911 != nil {
+						return rt.Value{}, e911
 					}
-					t806, e807 := PorogRazryada(ctx, razryad)
-					if e807 != nil {
-						return rt.Value{}, e807
+					t912, e913 := PorogRazryada(ctx, razryad)
+					if e913 != nil {
+						return rt.Value{}, e913
 					}
-					t808, e809 := rt.Gte(ctx, t804, t806)
-					if e809 != nil {
-						return rt.Value{}, e809
+					t914, e915 := rt.Gte(ctx, t910, t912)
+					if e915 != nil {
+						return rt.Value{}, e915
 					}
-					return t808, nil
+					return t914, nil
 				} else {
 					return rt.Flag(false), nil
 				}
@@ -3220,26 +3714,26 @@ func PrigovorObosnovan(ctx *rt.Ctx, nahodka rt.Value, razryad rt.Value, prigovor
 // Параметр ves — «вес»: число.
 // Результат — значение.
 func VesObosnovan(ctx *rt.Ctx, nahodka rt.Value, prigovor rt.Value, ves rt.Value) (rt.Value, error) {
-	t810, e811 := EtoNeTrogat(ctx, prigovor)
-	if e811 != nil {
-		return rt.Value{}, e811
+	t916, e917 := EtoNeTrogat(ctx, prigovor)
+	if e917 != nil {
+		return rt.Value{}, e917
 	}
-	t812, e813 := rt.Cond(ctx, t810)
-	if e813 != nil {
-		return rt.Value{}, e813
+	t918, e919 := rt.Cond(ctx, t916)
+	if e919 != nil {
+		return rt.Value{}, e919
 	}
-	if t812 {
+	if t918 {
 		return rt.Flag(rt.Equal(ves, rt.Number(0.0))), nil
 	} else {
-		t814, e815 := rt.FieldGet(ctx, nahodka, "размер")
-		if e815 != nil {
-			return rt.Value{}, e815
+		t920, e921 := rt.FieldGet(ctx, nahodka, "размер")
+		if e921 != nil {
+			return rt.Value{}, e921
 		}
-		t816, e817 := rt.Cond(ctx, rt.Flag(rt.Equal(ves, t814)))
-		if e817 != nil {
-			return rt.Value{}, e817
+		t922, e923 := rt.Cond(ctx, rt.Flag(rt.Equal(ves, t920)))
+		if e923 != nil {
+			return rt.Value{}, e923
 		}
-		if t816 {
+		if t922 {
 			return VesVGranicah(ctx, nahodka, ves)
 		} else {
 			return rt.Flag(false), nil
@@ -3520,6 +4014,62 @@ func Call(ctx *rt.Ctx, name string, args []rt.Value) (rt.Value, error) {
 				"Решить всё", 2, len(args))
 		}
 		return ReshitVsyo(ctx, args[0], args[1])
+	case "Расширения исходников":
+		if len(args) != 0 {
+			return rt.Value{}, rt.Fail(rt.CodeType,
+				"функция «%s» принимает %d аргум., получено %d",
+				"Расширения исходников", 0, len(args))
+		}
+		return RasshireniyaIshodnikov(ctx)
+	case "Примета исходника":
+		if len(args) != 1 {
+			return rt.Value{}, rt.Fail(rt.CodeType,
+				"функция «%s» принимает %d аргум., получено %d",
+				"Примета исходника", 1, len(args))
+		}
+		return PrimetaIshodnika(ctx, args[0])
+	case "Под присмотром системы версий":
+		if len(args) != 1 {
+			return rt.Value{}, rt.Fail(rt.CodeType,
+				"функция «%s» принимает %d аргум., получено %d",
+				"Под присмотром системы версий", 1, len(args))
+		}
+		return PodPrismotromSistemyVersiy(ctx, args[0])
+	case "Мусорный разряд":
+		if len(args) != 1 {
+			return rt.Value{}, rt.Fail(rt.CodeType,
+				"функция «%s» принимает %d аргум., получено %d",
+				"Мусорный разряд", 1, len(args))
+		}
+		return MusornyyRazryad(ctx, args[0])
+	case "Природа находки":
+		if len(args) != 3 {
+			return rt.Value{}, rt.Fail(rt.CodeType,
+				"функция «%s» принимает %d аргум., получено %d",
+				"Природа находки", 3, len(args))
+		}
+		return PrirodaNahodki(ctx, args[0], args[1], args[2])
+	case "Природа обоснована":
+		if len(args) != 4 {
+			return rt.Value{}, rt.Fail(rt.CodeType,
+				"функция «%s» принимает %d аргум., получено %d",
+				"Природа обоснована", 4, len(args))
+		}
+		return PrirodaObosnovana(ctx, args[0], args[1], args[2], args[3])
+	case "Природа по находке":
+		if len(args) != 2 {
+			return rt.Value{}, rt.Fail(rt.CodeType,
+				"функция «%s» принимает %d аргум., получено %d",
+				"Природа по находке", 2, len(args))
+		}
+		return PrirodaPoNahodke(ctx, args[0], args[1])
+	case "Строгость":
+		if len(args) != 1 {
+			return rt.Value{}, rt.Fail(rt.CodeType,
+				"функция «%s» принимает %d аргум., получено %d",
+				"Строгость", 1, len(args))
+		}
+		return Strogost(ctx, args[0])
 	case "И1 держится":
 		if len(args) != 1 {
 			return rt.Value{}, rt.Fail(rt.CodeType,

@@ -174,3 +174,73 @@ type Placer interface {
 	// справочник the layer would not check.
 	UsePlaces([]Place) error
 }
+
+// Nature is «природа» — the answer to the SECOND question a decision layer may
+// be asked: not "may this be removed" but "what is this and what do you risk".
+//
+// The two questions are not the same one asked twice, and the whole of the
+// забой key rests on the difference.  Verdict answers the question `clean`
+// asks: should the tool go looking for this by itself and carry it off without
+// being told.  «НеТрогать» there means "I will not take this on my own" — it
+// has never meant "a person may not" — but it was READ as a ban, and забой
+// built its plan out of it, so a person who marked their own source directory
+// was told «стирать нечего» about a directory they could see with their eyes.
+//
+// Nature answers the question забой asks.  The person has already decided;
+// what they need is a WORD for what is about to go, not permission for it.  So
+// the verdict is untouched — «Уборка» decides exactly what it decided before —
+// and this stands beside it.
+type Nature string
+
+const (
+	// NatureTrash — «Мусор»: the layer's own verdict is «МожноУбрать».
+	NatureTrash Nature = "Мусор"
+	// NatureFresh — «Свежее»: a разряд the layer calls rubbish, but too
+	// young for its порог.
+	NatureFresh Nature = "Свежее"
+	// NatureSource — «Исходники»: a name ending in a source extension.
+	NatureSource Nature = "Исходники"
+	// NaturePersonal — «Личное»: the layer does not know what this is, and
+	// therefore it is not rubbish.
+	NaturePersonal Nature = "Личное"
+	// NatureStore — «Хранилище»: addressed by its own content — a container
+	// layer, a package tree.
+	NatureStore Nature = "Хранилище"
+	// NatureVCS — «ПодПрисмотром»: inside the machinery of a version
+	// control system.
+	NatureVCS Nature = "ПодПрисмотром"
+)
+
+// Natures lists every природа in order of rising risk.
+var Natures = []Nature{NatureTrash, NatureFresh, NatureSource, NaturePersonal, NatureStore, NatureVCS}
+
+// Strictest is the strictness a host must take when the layer will not say —
+// a layer that does not implement Naturer, or one that failed on this record.
+// "I do not know what this is" is the strongest reason to ask hardest, never a
+// reason to ask less.
+const Strictest = 3
+
+// Naturer is the optional capability that answers the second question.  It is
+// optional for the reason Thresholder and Sizer are: a layer that does not
+// have it gives a SMALLER answer, never a wrong one — and the host then takes
+// the strictest road, which is the safe reply to "I do not know".
+//
+// It decides nothing and forbids nothing.  A природа never keeps a path out of
+// a забой plan; it names the path and sets HOW HARD the question is asked.
+// The hard bans — the root, the system, a whole home directory, digitdisk's
+// own — live in the host, because they are not answers to "what is this path"
+// but standing instructions from whoever holds the machine.  That is the same
+// border the защитный список sits on; see internal/protect.
+type Naturer interface {
+	// Nature names what a record is, given the decision the layer itself
+	// just made about it.  The decision is passed in rather than made
+	// again: the host already has it from the walk, and computing it twice
+	// per file would triple the cost of a plan built by hand.
+	Nature(Record, Decision) Nature
+	// Strictness is how hard the layer says a природа must be confirmed
+	// before something irreversible: 1 — one key, 2 — the exact count of
+	// paths, 3 — the count and a word.  The scale lives in the layer for
+	// the reason the пороги do: a screen holding its own copy would go on
+	// asking softly after the rule said otherwise.
+	Strictness(Nature) int
+}

@@ -35,6 +35,38 @@ static const fl_value opis_diska_text_23 = { FL_STRING, { .string = { "_build", 
 static const fl_value opis_diska_text_24 = { FL_STRING, { .string = { ".gradle", 7, 7 } } };
 static const fl_value opis_diska_text_25 = { FL_STRING, { .string = { "Downloads", 9, 9 } } };
 static const fl_value opis_diska_text_26 = { FL_STRING, { .string = { "Загрузки", 16, 8 } } };
+static const fl_value opis_diska_text_27 = { FL_STRING, { .string = { ".go", 3, 3 } } };
+static const fl_value opis_diska_text_28 = { FL_STRING, { .string = { ".c", 2, 2 } } };
+static const fl_value opis_diska_text_29 = { FL_STRING, { .string = { ".h", 2, 2 } } };
+static const fl_value opis_diska_text_30 = { FL_STRING, { .string = { ".cc", 3, 3 } } };
+static const fl_value opis_diska_text_31 = { FL_STRING, { .string = { ".cpp", 4, 4 } } };
+static const fl_value opis_diska_text_32 = { FL_STRING, { .string = { ".hpp", 4, 4 } } };
+static const fl_value opis_diska_text_33 = { FL_STRING, { .string = { ".rs", 3, 3 } } };
+static const fl_value opis_diska_text_34 = { FL_STRING, { .string = { ".py", 3, 3 } } };
+static const fl_value opis_diska_text_35 = { FL_STRING, { .string = { ".js", 3, 3 } } };
+static const fl_value opis_diska_text_36 = { FL_STRING, { .string = { ".ts", 3, 3 } } };
+static const fl_value opis_diska_text_37 = { FL_STRING, { .string = { ".java", 5, 5 } } };
+static const fl_value opis_diska_text_38 = { FL_STRING, { .string = { ".kt", 3, 3 } } };
+static const fl_value opis_diska_text_39 = { FL_STRING, { .string = { ".rb", 3, 3 } } };
+static const fl_value opis_diska_text_40 = { FL_STRING, { .string = { ".php", 4, 4 } } };
+static const fl_value opis_diska_text_41 = { FL_STRING, { .string = { ".cs", 3, 3 } } };
+static const fl_value opis_diska_text_42 = { FL_STRING, { .string = { ".swift", 6, 6 } } };
+static const fl_value opis_diska_text_43 = { FL_STRING, { .string = { ".ex", 3, 3 } } };
+static const fl_value opis_diska_text_44 = { FL_STRING, { .string = { ".exs", 4, 4 } } };
+static const fl_value opis_diska_text_45 = { FL_STRING, { .string = { ".erl", 4, 4 } } };
+static const fl_value opis_diska_text_46 = { FL_STRING, { .string = { ".lua", 4, 4 } } };
+static const fl_value opis_diska_text_47 = { FL_STRING, { .string = { ".pl", 3, 3 } } };
+static const fl_value opis_diska_text_48 = { FL_STRING, { .string = { ".sh", 3, 3 } } };
+static const fl_value opis_diska_text_49 = { FL_STRING, { .string = { ".sql", 4, 4 } } };
+static const fl_value opis_diska_text_50 = { FL_STRING, { .string = { ".flang", 6, 6 } } };
+static const fl_value opis_diska_text_51 = { FL_STRING, { .string = { ".md", 3, 3 } } };
+static const fl_value opis_diska_text_52 = { FL_STRING, { .string = { ".txt", 4, 4 } } };
+static const fl_value opis_diska_text_53 = { FL_STRING, { .string = { ".rst", 4, 4 } } };
+static const fl_value opis_diska_text_54 = { FL_STRING, { .string = { ".tex", 4, 4 } } };
+static const fl_value opis_diska_text_55 = { FL_STRING, { .string = { ".html", 5, 5 } } };
+static const fl_value opis_diska_text_56 = { FL_STRING, { .string = { ".css", 4, 4 } } };
+static const fl_value opis_diska_text_57 = { FL_STRING, { .string = { ".hg", 3, 3 } } };
+static const fl_value opis_diska_text_58 = { FL_STRING, { .string = { ".svn", 4, 4 } } };
 
 
 /* Фабрика записи FTS «Находка». */
@@ -155,6 +187,36 @@ fl_status opis_diska_variant_otkornya(fl_ctx *ctx, fl_value *out, fl_error *erro
 /* Конструктор варианта «ГдеУгодно» суммы «Якорь». */
 fl_status opis_diska_variant_gdeugodno(fl_ctx *ctx, fl_value *out, fl_error *error) {
   return fl_variant_new(ctx, "ГдеУгодно", NULL, NULL, 0, out, error);
+}
+
+/* Конструктор варианта «Мусор» суммы «Природа». */
+fl_status opis_diska_variant_musor(fl_ctx *ctx, fl_value *out, fl_error *error) {
+  return fl_variant_new(ctx, "Мусор", NULL, NULL, 0, out, error);
+}
+
+/* Конструктор варианта «Свежее» суммы «Природа». */
+fl_status opis_diska_variant_svezhee(fl_ctx *ctx, fl_value *out, fl_error *error) {
+  return fl_variant_new(ctx, "Свежее", NULL, NULL, 0, out, error);
+}
+
+/* Конструктор варианта «Исходники» суммы «Природа». */
+fl_status opis_diska_variant_ishodniki(fl_ctx *ctx, fl_value *out, fl_error *error) {
+  return fl_variant_new(ctx, "Исходники", NULL, NULL, 0, out, error);
+}
+
+/* Конструктор варианта «Личное» суммы «Природа». */
+fl_status opis_diska_variant_lichnoe(fl_ctx *ctx, fl_value *out, fl_error *error) {
+  return fl_variant_new(ctx, "Личное", NULL, NULL, 0, out, error);
+}
+
+/* Конструктор варианта «Хранилище» суммы «Природа». */
+fl_status opis_diska_variant_hranilische(fl_ctx *ctx, fl_value *out, fl_error *error) {
+  return fl_variant_new(ctx, "Хранилище", NULL, NULL, 0, out, error);
+}
+
+/* Конструктор варианта «ПодПрисмотром» суммы «Природа». */
+fl_status opis_diska_variant_podprismotrom(fl_ctx *ctx, fl_value *out, fl_error *error) {
+  return fl_variant_new(ctx, "ПодПрисмотром", NULL, NULL, 0, out, error);
 }
 
 /*
@@ -1582,6 +1644,394 @@ fl_status opis_diska_reshit_vsyo(fl_ctx *ctx, fl_value zapisi, fl_value spravoch
 }
 
 /*
+ * Функция flang «Расширения исходников».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @return значение: список: строка
+ */
+fl_status opis_diska_rasshireniya_ishodnikov(fl_ctx *ctx, fl_value *result, fl_error *error) {
+  fl_value *fl_t263 = NULL;
+  FL_TRY(fl_list_alloc(ctx, 30, &fl_t263, error));
+  fl_t263[0] = opis_diska_text_27;
+  fl_t263[1] = opis_diska_text_28;
+  fl_t263[2] = opis_diska_text_29;
+  fl_t263[3] = opis_diska_text_30;
+  fl_t263[4] = opis_diska_text_31;
+  fl_t263[5] = opis_diska_text_32;
+  fl_t263[6] = opis_diska_text_33;
+  fl_t263[7] = opis_diska_text_34;
+  fl_t263[8] = opis_diska_text_35;
+  fl_t263[9] = opis_diska_text_36;
+  fl_t263[10] = opis_diska_text_37;
+  fl_t263[11] = opis_diska_text_38;
+  fl_t263[12] = opis_diska_text_39;
+  fl_t263[13] = opis_diska_text_40;
+  fl_t263[14] = opis_diska_text_41;
+  fl_t263[15] = opis_diska_text_42;
+  fl_t263[16] = opis_diska_text_43;
+  fl_t263[17] = opis_diska_text_44;
+  fl_t263[18] = opis_diska_text_45;
+  fl_t263[19] = opis_diska_text_46;
+  fl_t263[20] = opis_diska_text_47;
+  fl_t263[21] = opis_diska_text_48;
+  fl_t263[22] = opis_diska_text_49;
+  fl_t263[23] = opis_diska_text_50;
+  fl_t263[24] = opis_diska_text_51;
+  fl_t263[25] = opis_diska_text_52;
+  fl_t263[26] = opis_diska_text_53;
+  fl_t263[27] = opis_diska_text_54;
+  fl_t263[28] = opis_diska_text_55;
+  fl_t263[29] = opis_diska_text_56;
+  *result = fl_list(fl_t263, 30);
+  return FL_OK;
+}
+
+/*
+ * Функция flang «Примета исходника».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @return значение
+ */
+fl_status opis_diska_primeta_ishodnika(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error) {
+  fl_value fl_t264 = fl_nothing();
+  FL_TRY(opis_diska_imya_v_puti(ctx, put, &fl_t264, error));
+  const fl_value imya = fl_t264; /* пусть «имя» */
+  fl_value fl_t265 = fl_nothing();
+  FL_TRY(opis_diska_rasshireniya_ishodnikov(ctx, &fl_t265, error));
+  fl_value fl_t266 = fl_nothing();
+  FL_TRY(fl_require_list(ctx, fl_t265, "отфильтровать", &fl_t266, error));
+  fl_value *fl_t267 = NULL;
+  size_t fl_t268 = 0;
+  FL_TRY(fl_list_alloc(ctx, fl_t266.as.list.count, &fl_t267, error));
+  for (size_t fl_t269 = 0; fl_t269 < fl_t266.as.list.count; fl_t269 += 1) {
+    const fl_value hvost = fl_t266.as.list.items[fl_t269]; /* «хвост» */
+    fl_value fl_t270 = fl_nothing();
+    FL_TRY(opis_diska_okanchivaetsya_na(ctx, imya, hvost, &fl_t270, error));
+    bool fl_t271 = false;
+    FL_TRY(fl_keep(ctx, fl_t270, &fl_t271, error));
+    if (fl_t271) {
+      fl_t267[fl_t268] = hvost;
+      fl_t268 += 1;
+    }
+  }
+  fl_value fl_t272 = fl_nothing(); /* «длина» */
+  FL_TRY(fl_b_dlina(ctx, fl_list(fl_t267, fl_t268), &fl_t272, error));
+  if (fl_t272.tag != FL_NUMBER) FL_TRY(fl_not_order(ctx, fl_t272, fl_number(0.0), error));
+  *result = fl_flag(fl_t272.as.number > 0.0);
+  return FL_OK;
+}
+
+/*
+ * Функция flang «Под присмотром системы версий».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param put — «путь»: строка
+ * @return значение
+ */
+fl_status opis_diska_pod_prismotrom_sistemy_versiy(fl_ctx *ctx, fl_value put, fl_value *result, fl_error *error) {
+  fl_value fl_t273 = fl_nothing();
+  FL_TRY(opis_diska_est_sostavlyayuschaya(ctx, put, opis_diska_text_11, &fl_t273, error));
+  bool fl_t274 = false;
+  FL_TRY(fl_cond(ctx, fl_t273, &fl_t274, error));
+  fl_value fl_t275 = fl_nothing();
+  if (fl_t274) {
+    fl_t275 = fl_flag(true);
+  } else {
+    fl_value fl_t276 = fl_nothing();
+    FL_TRY(opis_diska_est_sostavlyayuschaya(ctx, put, opis_diska_text_57, &fl_t276, error));
+    fl_t275 = fl_t276;
+  }
+  bool fl_t277 = false;
+  FL_TRY(fl_cond(ctx, fl_t275, &fl_t277, error));
+  if (fl_t277) {
+    *result = fl_flag(true);
+    return FL_OK;
+  } else {
+    return opis_diska_est_sostavlyayuschaya(ctx, put, opis_diska_text_58, result, error);
+  }
+}
+
+/*
+ * Функция flang «Мусорный разряд».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param razryad — «разряд»: «Разряд»
+ * @return значение
+ */
+fl_status opis_diska_musornyy_razryad(fl_ctx *ctx, fl_value razryad, fl_value *result, fl_error *error) {
+  if (fl_variant_is(razryad, "Кэш")) {
+    *result = fl_flag(true);
+    return FL_OK;
+  } else if (fl_variant_is(razryad, "Журнал")) {
+    *result = fl_flag(true);
+    return FL_OK;
+  } else if (fl_variant_is(razryad, "Сборка")) {
+    *result = fl_flag(true);
+    return FL_OK;
+  } else if (fl_variant_is(razryad, "Загрузка")) {
+    *result = fl_flag(false);
+    return FL_OK;
+  } else if (fl_variant_is(razryad, "Крупное")) {
+    *result = fl_flag(false);
+    return FL_OK;
+  } else if (fl_variant_is(razryad, "Неизвестное")) {
+    *result = fl_flag(false);
+    return FL_OK;
+  } else {
+    return fl_match_fail(ctx, razryad, error);
+  }
+}
+
+/*
+ * Функция flang «Природа находки».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param nahodka — «находка»: «Находка»
+ * @param razryad — «разряд»: «Разряд»
+ * @param prigovor — «приговор»: «Приговор»
+ * @return значение: «Природа»
+ */
+fl_status opis_diska_priroda_nahodki(fl_ctx *ctx, fl_value nahodka, fl_value razryad, fl_value prigovor, fl_value *result, fl_error *error) {
+  fl_value fl_t278 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t278, error));
+  fl_value fl_t279 = fl_nothing();
+  FL_TRY(opis_diska_pod_prismotrom_sistemy_versiy(ctx, fl_t278, &fl_t279, error));
+  bool fl_t280 = false;
+  FL_TRY(fl_cond(ctx, fl_t279, &fl_t280, error));
+  fl_value fl_t281 = fl_nothing();
+  if (fl_t280) {
+    fl_value fl_t282 = fl_nothing();
+    FL_TRY(fl_variant_new(ctx, "ПодПрисмотром", NULL, NULL, 0, &fl_t282, error));
+    fl_t281 = fl_t282;
+  } else {
+    fl_value fl_t283 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t283, error));
+    fl_value fl_t284 = fl_nothing();
+    FL_TRY(opis_diska_adresuetsya_soderzhimym(ctx, fl_t283, &fl_t284, error));
+    bool fl_t285 = false;
+    FL_TRY(fl_cond(ctx, fl_t284, &fl_t285, error));
+    fl_value fl_t286 = fl_nothing();
+    if (fl_t285) {
+      fl_value fl_t287 = fl_nothing();
+      FL_TRY(fl_variant_new(ctx, "Хранилище", NULL, NULL, 0, &fl_t287, error));
+      fl_t286 = fl_t287;
+    } else {
+      fl_value fl_t288 = fl_nothing();
+      FL_TRY(opis_diska_eto_mozhnoubrat(ctx, prigovor, &fl_t288, error));
+      bool fl_t289 = false;
+      FL_TRY(fl_cond(ctx, fl_t288, &fl_t289, error));
+      fl_value fl_t290 = fl_nothing();
+      if (fl_t289) {
+        fl_value fl_t291 = fl_nothing();
+        FL_TRY(fl_variant_new(ctx, "Мусор", NULL, NULL, 0, &fl_t291, error));
+        fl_t290 = fl_t291;
+      } else {
+        fl_value fl_t292 = fl_nothing();
+        FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t292, error));
+        fl_value fl_t293 = fl_nothing();
+        FL_TRY(opis_diska_primeta_ishodnika(ctx, fl_t292, &fl_t293, error));
+        bool fl_t294 = false;
+        FL_TRY(fl_cond(ctx, fl_t293, &fl_t294, error));
+        fl_value fl_t295 = fl_nothing();
+        if (fl_t294) {
+          fl_value fl_t296 = fl_nothing();
+          FL_TRY(fl_variant_new(ctx, "Исходники", NULL, NULL, 0, &fl_t296, error));
+          fl_t295 = fl_t296;
+        } else {
+          fl_value fl_t297 = fl_nothing();
+          FL_TRY(opis_diska_musornyy_razryad(ctx, razryad, &fl_t297, error));
+          bool fl_t298 = false;
+          FL_TRY(fl_cond(ctx, fl_t297, &fl_t298, error));
+          fl_value fl_t299 = fl_nothing();
+          if (fl_t298) {
+            fl_value fl_t300 = fl_nothing();
+            FL_TRY(fl_variant_new(ctx, "Свежее", NULL, NULL, 0, &fl_t300, error));
+            fl_t299 = fl_t300;
+          } else {
+            fl_value fl_t301 = fl_nothing();
+            FL_TRY(fl_variant_new(ctx, "Личное", NULL, NULL, 0, &fl_t301, error));
+            fl_t299 = fl_t301;
+          }
+          fl_t295 = fl_t299;
+        }
+        fl_t290 = fl_t295;
+      }
+      fl_t286 = fl_t290;
+    }
+    fl_t281 = fl_t286;
+  }
+  const fl_value fl_t302 = fl_t281;
+  fl_value fl_t303 = fl_nothing();
+  FL_TRY(opis_diska_priroda_obosnovana(ctx, nahodka, razryad, prigovor, fl_t302, &fl_t303, error));
+  /* постусловие «Природа обоснована» */
+  bool fl_t304 = false;
+  FL_TRY(fl_post(ctx, fl_t303, "Природа обоснована", "Природа находки", &fl_t304, error));
+  if (!fl_t304) {
+    return fl_fail(ctx, error, "FLANG_PROPERTY", "%s", "нарушено свойство «Природа обоснована» функции «Природа находки»");
+  }
+  *result = fl_t302;
+  return FL_OK;
+}
+
+/*
+ * Функция flang «Природа обоснована».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param nahodka — «находка»: «Находка»
+ * @param razryad — «разряд»: «Разряд»
+ * @param prigovor — «приговор»: «Приговор»
+ * @param priroda — «природа»: «Природа»
+ * @return значение
+ */
+fl_status opis_diska_priroda_obosnovana(fl_ctx *ctx, fl_value nahodka, fl_value razryad, fl_value prigovor, fl_value priroda, fl_value *result, fl_error *error) {
+  if (fl_variant_is(priroda, "Мусор")) {
+    return opis_diska_eto_mozhnoubrat(ctx, prigovor, result, error);
+  } else if (fl_variant_is(priroda, "ПодПрисмотром")) {
+    fl_value fl_t305 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t305, error));
+    return opis_diska_pod_prismotrom_sistemy_versiy(ctx, fl_t305, result, error);
+  } else if (fl_variant_is(priroda, "Хранилище")) {
+    fl_value fl_t306 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t306, error));
+    fl_value fl_t307 = fl_nothing();
+    FL_TRY(opis_diska_adresuetsya_soderzhimym(ctx, fl_t306, &fl_t307, error));
+    bool fl_t308 = false;
+    FL_TRY(fl_cond(ctx, fl_t307, &fl_t308, error));
+    if (fl_t308) {
+      fl_value fl_t309 = fl_nothing();
+      FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t309, error));
+      fl_value fl_t310 = fl_nothing();
+      FL_TRY(opis_diska_pod_prismotrom_sistemy_versiy(ctx, fl_t309, &fl_t310, error));
+      bool fl_t311 = false;
+      FL_TRY(fl_cond(ctx, fl_t310, &fl_t311, error));
+      if (fl_t311) {
+        *result = fl_flag(false);
+        return FL_OK;
+      } else {
+        *result = fl_flag(true);
+        return FL_OK;
+      }
+    } else {
+      *result = fl_flag(false);
+      return FL_OK;
+    }
+  } else if (fl_variant_is(priroda, "Исходники")) {
+    fl_value fl_t312 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t312, error));
+    fl_value fl_t313 = fl_nothing();
+    FL_TRY(opis_diska_primeta_ishodnika(ctx, fl_t312, &fl_t313, error));
+    bool fl_t314 = false;
+    FL_TRY(fl_cond(ctx, fl_t313, &fl_t314, error));
+    if (fl_t314) {
+      fl_value fl_t315 = fl_nothing();
+      FL_TRY(opis_diska_eto_mozhnoubrat(ctx, prigovor, &fl_t315, error));
+      bool fl_t316 = false;
+      FL_TRY(fl_cond(ctx, fl_t315, &fl_t316, error));
+      if (fl_t316) {
+        *result = fl_flag(false);
+        return FL_OK;
+      } else {
+        *result = fl_flag(true);
+        return FL_OK;
+      }
+    } else {
+      *result = fl_flag(false);
+      return FL_OK;
+    }
+  } else if (fl_variant_is(priroda, "Свежее")) {
+    fl_value fl_t317 = fl_nothing();
+    FL_TRY(opis_diska_musornyy_razryad(ctx, razryad, &fl_t317, error));
+    bool fl_t318 = false;
+    FL_TRY(fl_cond(ctx, fl_t317, &fl_t318, error));
+    if (fl_t318) {
+      fl_value fl_t319 = fl_nothing();
+      FL_TRY(opis_diska_eto_mozhnoubrat(ctx, prigovor, &fl_t319, error));
+      bool fl_t320 = false;
+      FL_TRY(fl_cond(ctx, fl_t319, &fl_t320, error));
+      if (fl_t320) {
+        *result = fl_flag(false);
+        return FL_OK;
+      } else {
+        *result = fl_flag(true);
+        return FL_OK;
+      }
+    } else {
+      *result = fl_flag(false);
+      return FL_OK;
+    }
+  } else if (fl_variant_is(priroda, "Личное")) {
+    fl_value fl_t321 = fl_nothing();
+    FL_TRY(opis_diska_eto_mozhnoubrat(ctx, prigovor, &fl_t321, error));
+    bool fl_t322 = false;
+    FL_TRY(fl_cond(ctx, fl_t321, &fl_t322, error));
+    if (fl_t322) {
+      *result = fl_flag(false);
+      return FL_OK;
+    } else {
+      *result = fl_flag(true);
+      return FL_OK;
+    }
+  } else {
+    return fl_match_fail(ctx, priroda, error);
+  }
+}
+
+/*
+ * Функция flang «Природа по находке».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param nahodka — «находка»: «Находка»
+ * @param spravochnik — «справочник»: список: «Место»
+ * @return значение: «Природа»
+ */
+fl_status opis_diska_priroda_po_nahodke(fl_ctx *ctx, fl_value nahodka, fl_value spravochnik, fl_value *result, fl_error *error) {
+  fl_value fl_t323 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t323, error));
+  fl_value fl_t324 = fl_nothing();
+  FL_TRY(opis_diska_razryad_po_spravochniku(ctx, fl_t323, spravochnik, &fl_t324, error));
+  const fl_value mesto = fl_t324; /* пусть «место» */
+  fl_value fl_t325 = fl_nothing();
+  FL_TRY(opis_diska_razryad_nahodki(ctx, nahodka, mesto, &fl_t325, error));
+  const fl_value razryad = fl_t325; /* пусть «разряд» */
+  fl_value fl_t326 = fl_nothing();
+  FL_TRY(opis_diska_prigovor_nahodki(ctx, nahodka, razryad, &fl_t326, error));
+  const fl_value prigovor = fl_t326; /* пусть «приговор» */
+  return opis_diska_priroda_nahodki(ctx, nahodka, razryad, prigovor, result, error);
+}
+
+/*
+ * Функция flang «Строгость».
+ *
+ * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
+ * @param priroda — «природа»: «Природа»
+ * @return значение: число
+ */
+fl_status opis_diska_strogost(fl_ctx *ctx, fl_value priroda, fl_value *result, fl_error *error) {
+  if (fl_variant_is(priroda, "Мусор")) {
+    *result = fl_number(1.0);
+    return FL_OK;
+  } else if (fl_variant_is(priroda, "Свежее")) {
+    *result = fl_number(2.0);
+    return FL_OK;
+  } else if (fl_variant_is(priroda, "Личное")) {
+    *result = fl_number(2.0);
+    return FL_OK;
+  } else if (fl_variant_is(priroda, "Исходники")) {
+    *result = fl_number(2.0);
+    return FL_OK;
+  } else if (fl_variant_is(priroda, "Хранилище")) {
+    *result = fl_number(3.0);
+    return FL_OK;
+  } else if (fl_variant_is(priroda, "ПодПрисмотром")) {
+    *result = fl_number(3.0);
+    return FL_OK;
+  } else {
+    return fl_match_fail(ctx, priroda, error);
+  }
+}
+
+/*
  * Функция flang «И1 держится».
  *
  * Тотальная: завершение доказано анализом завершаемости (totality.mjs).
@@ -1589,40 +2039,40 @@ fl_status opis_diska_reshit_vsyo(fl_ctx *ctx, fl_value zapisi, fl_value spravoch
  * @return значение
  */
 fl_status opis_diska_i1_derzhitsya(fl_ctx *ctx, fl_value reshenie, fl_value *result, fl_error *error) {
-  fl_value fl_t263 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, reshenie, "приговор", &fl_t263, error));
-  if (fl_variant_is(fl_t263, "МожноУбрать")) {
-    fl_value fl_t264 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, reshenie, "разряд", &fl_t264, error));
-    if (fl_variant_is(fl_t264, "Кэш")) {
+  fl_value fl_t327 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, reshenie, "приговор", &fl_t327, error));
+  if (fl_variant_is(fl_t327, "МожноУбрать")) {
+    fl_value fl_t328 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, reshenie, "разряд", &fl_t328, error));
+    if (fl_variant_is(fl_t328, "Кэш")) {
       *result = fl_flag(true);
       return FL_OK;
-    } else if (fl_variant_is(fl_t264, "Журнал")) {
+    } else if (fl_variant_is(fl_t328, "Журнал")) {
       *result = fl_flag(true);
       return FL_OK;
-    } else if (fl_variant_is(fl_t264, "Сборка")) {
+    } else if (fl_variant_is(fl_t328, "Сборка")) {
       *result = fl_flag(true);
       return FL_OK;
-    } else if (fl_variant_is(fl_t264, "Загрузка")) {
+    } else if (fl_variant_is(fl_t328, "Загрузка")) {
       *result = fl_flag(false);
       return FL_OK;
-    } else if (fl_variant_is(fl_t264, "Крупное")) {
+    } else if (fl_variant_is(fl_t328, "Крупное")) {
       *result = fl_flag(false);
       return FL_OK;
-    } else if (fl_variant_is(fl_t264, "Неизвестное")) {
+    } else if (fl_variant_is(fl_t328, "Неизвестное")) {
       *result = fl_flag(false);
       return FL_OK;
     } else {
-      return fl_match_fail(ctx, fl_t264, error);
+      return fl_match_fail(ctx, fl_t328, error);
     }
-  } else if (fl_variant_is(fl_t263, "Спросить")) {
+  } else if (fl_variant_is(fl_t327, "Спросить")) {
     *result = fl_flag(true);
     return FL_OK;
-  } else if (fl_variant_is(fl_t263, "НеТрогать")) {
+  } else if (fl_variant_is(fl_t327, "НеТрогать")) {
     *result = fl_flag(true);
     return FL_OK;
   } else {
-    return fl_match_fail(ctx, fl_t263, error);
+    return fl_match_fail(ctx, fl_t327, error);
   }
 }
 
@@ -1634,26 +2084,26 @@ fl_status opis_diska_i1_derzhitsya(fl_ctx *ctx, fl_value reshenie, fl_value *res
  * @return значение
  */
 fl_status opis_diska_i1_derzhitsya_vsyudu(fl_ctx *ctx, fl_value resheniya, fl_value *result, fl_error *error) {
-  fl_value fl_t265 = fl_nothing();
-  FL_TRY(fl_require_list(ctx, resheniya, "свёртка", &fl_t265, error));
+  fl_value fl_t329 = fl_nothing();
+  FL_TRY(fl_require_list(ctx, resheniya, "свёртка", &fl_t329, error));
   fl_value akk = fl_flag(true); /* «акк» */
-  const fl_mark fl_t267 = fl_region_open(ctx);
-  for (size_t fl_t266 = 0; fl_t266 < fl_t265.as.list.count; fl_t266 += 1) {
-    const fl_value reshenie = fl_t265.as.list.items[fl_t266]; /* «решение» */
-    bool fl_t268 = false;
-    FL_TRY(fl_cond(ctx, akk, &fl_t268, error));
-    fl_value fl_t269 = fl_nothing();
-    if (fl_t268) {
-      fl_value fl_t270 = fl_nothing();
-      FL_TRY(opis_diska_i1_derzhitsya(ctx, reshenie, &fl_t270, error));
-      fl_t269 = fl_t270;
+  const fl_mark fl_t331 = fl_region_open(ctx);
+  for (size_t fl_t330 = 0; fl_t330 < fl_t329.as.list.count; fl_t330 += 1) {
+    const fl_value reshenie = fl_t329.as.list.items[fl_t330]; /* «решение» */
+    bool fl_t332 = false;
+    FL_TRY(fl_cond(ctx, akk, &fl_t332, error));
+    fl_value fl_t333 = fl_nothing();
+    if (fl_t332) {
+      fl_value fl_t334 = fl_nothing();
+      FL_TRY(opis_diska_i1_derzhitsya(ctx, reshenie, &fl_t334, error));
+      fl_t333 = fl_t334;
     } else {
-      fl_t269 = fl_flag(false);
+      fl_t333 = fl_flag(false);
     }
-    akk = fl_t269;
-    FL_TRY(fl_region_recycle(ctx, fl_t267, &akk, error));
+    akk = fl_t333;
+    FL_TRY(fl_region_recycle(ctx, fl_t331, &akk, error));
   }
-  FL_TRY(fl_region_close(ctx, fl_t267, FL_OK, &akk, error));
+  FL_TRY(fl_region_close(ctx, fl_t331, FL_OK, &akk, error));
   *result = akk;
   return FL_OK;
 }
@@ -1665,17 +2115,17 @@ fl_status opis_diska_i1_derzhitsya_vsyudu(fl_ctx *ctx, fl_value resheniya, fl_va
  * @return значение: «Свод»
  */
 fl_status opis_diska_pustoy_svod(fl_ctx *ctx, fl_value *result, fl_error *error) {
-  fl_value fl_t272[7];
-  fl_t272[0] = fl_number(0.0); /* «кэш» */
-  fl_t272[1] = fl_number(0.0); /* «журнал» */
-  fl_t272[2] = fl_number(0.0); /* «сборка» */
-  fl_t272[3] = fl_number(0.0); /* «загрузка» */
-  fl_t272[4] = fl_number(0.0); /* «крупное» */
-  fl_t272[5] = fl_number(0.0); /* «неизвестное» */
-  fl_t272[6] = fl_number(0.0); /* «освободить» */
-  fl_value fl_t271 = fl_nothing();
-  FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t272, 7, &fl_t271, error));
-  *result = fl_t271;
+  fl_value fl_t336[7];
+  fl_t336[0] = fl_number(0.0); /* «кэш» */
+  fl_t336[1] = fl_number(0.0); /* «журнал» */
+  fl_t336[2] = fl_number(0.0); /* «сборка» */
+  fl_t336[3] = fl_number(0.0); /* «загрузка» */
+  fl_t336[4] = fl_number(0.0); /* «крупное» */
+  fl_t336[5] = fl_number(0.0); /* «неизвестное» */
+  fl_t336[6] = fl_number(0.0); /* «освободить» */
+  fl_value fl_t335 = fl_nothing();
+  FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t336, 7, &fl_t335, error));
+  *result = fl_t335;
   return FL_OK;
 }
 
@@ -1688,211 +2138,211 @@ fl_status opis_diska_pustoy_svod(fl_ctx *ctx, fl_value *result, fl_error *error)
  * @return значение: «Свод»
  */
 fl_status opis_diska_pribavit_reshenie(fl_ctx *ctx, fl_value svod, fl_value reshenie, fl_value *result, fl_error *error) {
-  fl_value fl_t273 = fl_nothing();
-  fl_value fl_t274 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, reshenie, "приговор", &fl_t274, error));
-  if (fl_variant_is(fl_t274, "МожноУбрать")) {
-    fl_value fl_t275 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t275, error));
-    fl_t273 = fl_t275;
-  } else if (fl_variant_is(fl_t274, "Спросить")) {
-    fl_t273 = fl_number(0.0);
-  } else if (fl_variant_is(fl_t274, "НеТрогать")) {
-    fl_t273 = fl_number(0.0);
+  fl_value fl_t337 = fl_nothing();
+  fl_value fl_t338 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, reshenie, "приговор", &fl_t338, error));
+  if (fl_variant_is(fl_t338, "МожноУбрать")) {
+    fl_value fl_t339 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t339, error));
+    fl_t337 = fl_t339;
+  } else if (fl_variant_is(fl_t338, "Спросить")) {
+    fl_t337 = fl_number(0.0);
+  } else if (fl_variant_is(fl_t338, "НеТрогать")) {
+    fl_t337 = fl_number(0.0);
   } else {
-    return fl_match_fail(ctx, fl_t274, error);
+    return fl_match_fail(ctx, fl_t338, error);
   }
-  const fl_value ubrat = fl_t273; /* пусть «убрать» */
-  fl_value fl_t276 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, reshenie, "разряд", &fl_t276, error));
-  if (fl_variant_is(fl_t276, "Кэш")) {
-    fl_value fl_t277 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t277, error));
-    fl_value fl_t278 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t278, error));
-    if (fl_t277.tag != FL_NUMBER || fl_t278.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t277, fl_t278, error));
-    fl_value fl_t279 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t279, error));
-    fl_value fl_t280 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t280, error));
-    fl_value fl_t281 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t281, error));
-    fl_value fl_t282 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t282, error));
-    fl_value fl_t283 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t283, error));
-    fl_value fl_t284 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t284, error));
-    if (fl_t284.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t284, ubrat, error));
-    fl_value fl_t286[7];
-    fl_t286[0] = fl_number(fl_t277.as.number + fl_t278.as.number); /* «кэш» */
-    fl_t286[1] = fl_t279; /* «журнал» */
-    fl_t286[2] = fl_t280; /* «сборка» */
-    fl_t286[3] = fl_t281; /* «загрузка» */
-    fl_t286[4] = fl_t282; /* «крупное» */
-    fl_t286[5] = fl_t283; /* «неизвестное» */
-    fl_t286[6] = fl_number(fl_t284.as.number + ubrat.as.number); /* «освободить» */
-    fl_value fl_t285 = fl_nothing();
-    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t286, 7, &fl_t285, error));
-    *result = fl_t285;
+  const fl_value ubrat = fl_t337; /* пусть «убрать» */
+  fl_value fl_t340 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, reshenie, "разряд", &fl_t340, error));
+  if (fl_variant_is(fl_t340, "Кэш")) {
+    fl_value fl_t341 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t341, error));
+    fl_value fl_t342 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t342, error));
+    if (fl_t341.tag != FL_NUMBER || fl_t342.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t341, fl_t342, error));
+    fl_value fl_t343 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t343, error));
+    fl_value fl_t344 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t344, error));
+    fl_value fl_t345 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t345, error));
+    fl_value fl_t346 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t346, error));
+    fl_value fl_t347 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t347, error));
+    fl_value fl_t348 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t348, error));
+    if (fl_t348.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t348, ubrat, error));
+    fl_value fl_t350[7];
+    fl_t350[0] = fl_number(fl_t341.as.number + fl_t342.as.number); /* «кэш» */
+    fl_t350[1] = fl_t343; /* «журнал» */
+    fl_t350[2] = fl_t344; /* «сборка» */
+    fl_t350[3] = fl_t345; /* «загрузка» */
+    fl_t350[4] = fl_t346; /* «крупное» */
+    fl_t350[5] = fl_t347; /* «неизвестное» */
+    fl_t350[6] = fl_number(fl_t348.as.number + ubrat.as.number); /* «освободить» */
+    fl_value fl_t349 = fl_nothing();
+    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t350, 7, &fl_t349, error));
+    *result = fl_t349;
     return FL_OK;
-  } else if (fl_variant_is(fl_t276, "Журнал")) {
-    fl_value fl_t287 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t287, error));
-    fl_value fl_t288 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t288, error));
-    fl_value fl_t289 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t289, error));
-    if (fl_t288.tag != FL_NUMBER || fl_t289.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t288, fl_t289, error));
-    fl_value fl_t290 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t290, error));
-    fl_value fl_t291 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t291, error));
-    fl_value fl_t292 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t292, error));
-    fl_value fl_t293 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t293, error));
-    fl_value fl_t294 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t294, error));
-    if (fl_t294.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t294, ubrat, error));
-    fl_value fl_t296[7];
-    fl_t296[0] = fl_t287; /* «кэш» */
-    fl_t296[1] = fl_number(fl_t288.as.number + fl_t289.as.number); /* «журнал» */
-    fl_t296[2] = fl_t290; /* «сборка» */
-    fl_t296[3] = fl_t291; /* «загрузка» */
-    fl_t296[4] = fl_t292; /* «крупное» */
-    fl_t296[5] = fl_t293; /* «неизвестное» */
-    fl_t296[6] = fl_number(fl_t294.as.number + ubrat.as.number); /* «освободить» */
-    fl_value fl_t295 = fl_nothing();
-    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t296, 7, &fl_t295, error));
-    *result = fl_t295;
+  } else if (fl_variant_is(fl_t340, "Журнал")) {
+    fl_value fl_t351 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t351, error));
+    fl_value fl_t352 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t352, error));
+    fl_value fl_t353 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t353, error));
+    if (fl_t352.tag != FL_NUMBER || fl_t353.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t352, fl_t353, error));
+    fl_value fl_t354 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t354, error));
+    fl_value fl_t355 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t355, error));
+    fl_value fl_t356 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t356, error));
+    fl_value fl_t357 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t357, error));
+    fl_value fl_t358 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t358, error));
+    if (fl_t358.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t358, ubrat, error));
+    fl_value fl_t360[7];
+    fl_t360[0] = fl_t351; /* «кэш» */
+    fl_t360[1] = fl_number(fl_t352.as.number + fl_t353.as.number); /* «журнал» */
+    fl_t360[2] = fl_t354; /* «сборка» */
+    fl_t360[3] = fl_t355; /* «загрузка» */
+    fl_t360[4] = fl_t356; /* «крупное» */
+    fl_t360[5] = fl_t357; /* «неизвестное» */
+    fl_t360[6] = fl_number(fl_t358.as.number + ubrat.as.number); /* «освободить» */
+    fl_value fl_t359 = fl_nothing();
+    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t360, 7, &fl_t359, error));
+    *result = fl_t359;
     return FL_OK;
-  } else if (fl_variant_is(fl_t276, "Сборка")) {
-    fl_value fl_t297 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t297, error));
-    fl_value fl_t298 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t298, error));
-    fl_value fl_t299 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t299, error));
-    fl_value fl_t300 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t300, error));
-    if (fl_t299.tag != FL_NUMBER || fl_t300.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t299, fl_t300, error));
-    fl_value fl_t301 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t301, error));
-    fl_value fl_t302 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t302, error));
-    fl_value fl_t303 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t303, error));
-    fl_value fl_t304 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t304, error));
-    if (fl_t304.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t304, ubrat, error));
-    fl_value fl_t306[7];
-    fl_t306[0] = fl_t297; /* «кэш» */
-    fl_t306[1] = fl_t298; /* «журнал» */
-    fl_t306[2] = fl_number(fl_t299.as.number + fl_t300.as.number); /* «сборка» */
-    fl_t306[3] = fl_t301; /* «загрузка» */
-    fl_t306[4] = fl_t302; /* «крупное» */
-    fl_t306[5] = fl_t303; /* «неизвестное» */
-    fl_t306[6] = fl_number(fl_t304.as.number + ubrat.as.number); /* «освободить» */
-    fl_value fl_t305 = fl_nothing();
-    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t306, 7, &fl_t305, error));
-    *result = fl_t305;
+  } else if (fl_variant_is(fl_t340, "Сборка")) {
+    fl_value fl_t361 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t361, error));
+    fl_value fl_t362 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t362, error));
+    fl_value fl_t363 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t363, error));
+    fl_value fl_t364 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t364, error));
+    if (fl_t363.tag != FL_NUMBER || fl_t364.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t363, fl_t364, error));
+    fl_value fl_t365 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t365, error));
+    fl_value fl_t366 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t366, error));
+    fl_value fl_t367 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t367, error));
+    fl_value fl_t368 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t368, error));
+    if (fl_t368.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t368, ubrat, error));
+    fl_value fl_t370[7];
+    fl_t370[0] = fl_t361; /* «кэш» */
+    fl_t370[1] = fl_t362; /* «журнал» */
+    fl_t370[2] = fl_number(fl_t363.as.number + fl_t364.as.number); /* «сборка» */
+    fl_t370[3] = fl_t365; /* «загрузка» */
+    fl_t370[4] = fl_t366; /* «крупное» */
+    fl_t370[5] = fl_t367; /* «неизвестное» */
+    fl_t370[6] = fl_number(fl_t368.as.number + ubrat.as.number); /* «освободить» */
+    fl_value fl_t369 = fl_nothing();
+    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t370, 7, &fl_t369, error));
+    *result = fl_t369;
     return FL_OK;
-  } else if (fl_variant_is(fl_t276, "Загрузка")) {
-    fl_value fl_t307 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t307, error));
-    fl_value fl_t308 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t308, error));
-    fl_value fl_t309 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t309, error));
-    fl_value fl_t310 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t310, error));
-    fl_value fl_t311 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t311, error));
-    if (fl_t310.tag != FL_NUMBER || fl_t311.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t310, fl_t311, error));
-    fl_value fl_t312 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t312, error));
-    fl_value fl_t313 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t313, error));
-    fl_value fl_t314 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t314, error));
-    if (fl_t314.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t314, ubrat, error));
-    fl_value fl_t316[7];
-    fl_t316[0] = fl_t307; /* «кэш» */
-    fl_t316[1] = fl_t308; /* «журнал» */
-    fl_t316[2] = fl_t309; /* «сборка» */
-    fl_t316[3] = fl_number(fl_t310.as.number + fl_t311.as.number); /* «загрузка» */
-    fl_t316[4] = fl_t312; /* «крупное» */
-    fl_t316[5] = fl_t313; /* «неизвестное» */
-    fl_t316[6] = fl_number(fl_t314.as.number + ubrat.as.number); /* «освободить» */
-    fl_value fl_t315 = fl_nothing();
-    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t316, 7, &fl_t315, error));
-    *result = fl_t315;
+  } else if (fl_variant_is(fl_t340, "Загрузка")) {
+    fl_value fl_t371 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t371, error));
+    fl_value fl_t372 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t372, error));
+    fl_value fl_t373 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t373, error));
+    fl_value fl_t374 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t374, error));
+    fl_value fl_t375 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t375, error));
+    if (fl_t374.tag != FL_NUMBER || fl_t375.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t374, fl_t375, error));
+    fl_value fl_t376 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t376, error));
+    fl_value fl_t377 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t377, error));
+    fl_value fl_t378 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t378, error));
+    if (fl_t378.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t378, ubrat, error));
+    fl_value fl_t380[7];
+    fl_t380[0] = fl_t371; /* «кэш» */
+    fl_t380[1] = fl_t372; /* «журнал» */
+    fl_t380[2] = fl_t373; /* «сборка» */
+    fl_t380[3] = fl_number(fl_t374.as.number + fl_t375.as.number); /* «загрузка» */
+    fl_t380[4] = fl_t376; /* «крупное» */
+    fl_t380[5] = fl_t377; /* «неизвестное» */
+    fl_t380[6] = fl_number(fl_t378.as.number + ubrat.as.number); /* «освободить» */
+    fl_value fl_t379 = fl_nothing();
+    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t380, 7, &fl_t379, error));
+    *result = fl_t379;
     return FL_OK;
-  } else if (fl_variant_is(fl_t276, "Крупное")) {
-    fl_value fl_t317 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t317, error));
-    fl_value fl_t318 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t318, error));
-    fl_value fl_t319 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t319, error));
-    fl_value fl_t320 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t320, error));
-    fl_value fl_t321 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t321, error));
-    fl_value fl_t322 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t322, error));
-    if (fl_t321.tag != FL_NUMBER || fl_t322.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t321, fl_t322, error));
-    fl_value fl_t323 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t323, error));
-    fl_value fl_t324 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t324, error));
-    if (fl_t324.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t324, ubrat, error));
-    fl_value fl_t326[7];
-    fl_t326[0] = fl_t317; /* «кэш» */
-    fl_t326[1] = fl_t318; /* «журнал» */
-    fl_t326[2] = fl_t319; /* «сборка» */
-    fl_t326[3] = fl_t320; /* «загрузка» */
-    fl_t326[4] = fl_number(fl_t321.as.number + fl_t322.as.number); /* «крупное» */
-    fl_t326[5] = fl_t323; /* «неизвестное» */
-    fl_t326[6] = fl_number(fl_t324.as.number + ubrat.as.number); /* «освободить» */
-    fl_value fl_t325 = fl_nothing();
-    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t326, 7, &fl_t325, error));
-    *result = fl_t325;
+  } else if (fl_variant_is(fl_t340, "Крупное")) {
+    fl_value fl_t381 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t381, error));
+    fl_value fl_t382 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t382, error));
+    fl_value fl_t383 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t383, error));
+    fl_value fl_t384 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t384, error));
+    fl_value fl_t385 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t385, error));
+    fl_value fl_t386 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t386, error));
+    if (fl_t385.tag != FL_NUMBER || fl_t386.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t385, fl_t386, error));
+    fl_value fl_t387 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t387, error));
+    fl_value fl_t388 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t388, error));
+    if (fl_t388.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t388, ubrat, error));
+    fl_value fl_t390[7];
+    fl_t390[0] = fl_t381; /* «кэш» */
+    fl_t390[1] = fl_t382; /* «журнал» */
+    fl_t390[2] = fl_t383; /* «сборка» */
+    fl_t390[3] = fl_t384; /* «загрузка» */
+    fl_t390[4] = fl_number(fl_t385.as.number + fl_t386.as.number); /* «крупное» */
+    fl_t390[5] = fl_t387; /* «неизвестное» */
+    fl_t390[6] = fl_number(fl_t388.as.number + ubrat.as.number); /* «освободить» */
+    fl_value fl_t389 = fl_nothing();
+    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t390, 7, &fl_t389, error));
+    *result = fl_t389;
     return FL_OK;
-  } else if (fl_variant_is(fl_t276, "Неизвестное")) {
-    fl_value fl_t327 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t327, error));
-    fl_value fl_t328 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t328, error));
-    fl_value fl_t329 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t329, error));
-    fl_value fl_t330 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t330, error));
-    fl_value fl_t331 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t331, error));
-    fl_value fl_t332 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t332, error));
-    fl_value fl_t333 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t333, error));
-    if (fl_t332.tag != FL_NUMBER || fl_t333.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t332, fl_t333, error));
-    fl_value fl_t334 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t334, error));
-    if (fl_t334.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t334, ubrat, error));
-    fl_value fl_t336[7];
-    fl_t336[0] = fl_t327; /* «кэш» */
-    fl_t336[1] = fl_t328; /* «журнал» */
-    fl_t336[2] = fl_t329; /* «сборка» */
-    fl_t336[3] = fl_t330; /* «загрузка» */
-    fl_t336[4] = fl_t331; /* «крупное» */
-    fl_t336[5] = fl_number(fl_t332.as.number + fl_t333.as.number); /* «неизвестное» */
-    fl_t336[6] = fl_number(fl_t334.as.number + ubrat.as.number); /* «освободить» */
-    fl_value fl_t335 = fl_nothing();
-    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t336, 7, &fl_t335, error));
-    *result = fl_t335;
+  } else if (fl_variant_is(fl_t340, "Неизвестное")) {
+    fl_value fl_t391 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "кэш", &fl_t391, error));
+    fl_value fl_t392 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "журнал", &fl_t392, error));
+    fl_value fl_t393 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "сборка", &fl_t393, error));
+    fl_value fl_t394 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "загрузка", &fl_t394, error));
+    fl_value fl_t395 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "крупное", &fl_t395, error));
+    fl_value fl_t396 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "неизвестное", &fl_t396, error));
+    fl_value fl_t397 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, reshenie, "вес", &fl_t397, error));
+    if (fl_t396.tag != FL_NUMBER || fl_t397.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t396, fl_t397, error));
+    fl_value fl_t398 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t398, error));
+    if (fl_t398.tag != FL_NUMBER || ubrat.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", fl_t398, ubrat, error));
+    fl_value fl_t400[7];
+    fl_t400[0] = fl_t391; /* «кэш» */
+    fl_t400[1] = fl_t392; /* «журнал» */
+    fl_t400[2] = fl_t393; /* «сборка» */
+    fl_t400[3] = fl_t394; /* «загрузка» */
+    fl_t400[4] = fl_t395; /* «крупное» */
+    fl_t400[5] = fl_number(fl_t396.as.number + fl_t397.as.number); /* «неизвестное» */
+    fl_t400[6] = fl_number(fl_t398.as.number + ubrat.as.number); /* «освободить» */
+    fl_value fl_t399 = fl_nothing();
+    FL_TRY(fl_record_new(ctx, opis_diska_names_5, fl_t400, 7, &fl_t399, error));
+    *result = fl_t399;
     return FL_OK;
   } else {
-    return fl_match_fail(ctx, fl_t276, error);
+    return fl_match_fail(ctx, fl_t340, error);
   }
 }
 
@@ -1905,32 +2355,32 @@ fl_status opis_diska_pribavit_reshenie(fl_ctx *ctx, fl_value svod, fl_value resh
  * @return значение: «Свод»
  */
 fl_status opis_diska_svesti(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, fl_value *result, fl_error *error) {
-  fl_value fl_t337 = fl_nothing();
-  FL_TRY(opis_diska_reshit_vsyo(ctx, zapisi, spravochnik, &fl_t337, error));
-  fl_value fl_t338 = fl_nothing();
-  FL_TRY(fl_require_list(ctx, fl_t337, "свёртка", &fl_t338, error));
-  fl_value fl_t339 = fl_nothing();
-  FL_TRY(opis_diska_pustoy_svod(ctx, &fl_t339, error));
-  fl_value svod = fl_t339; /* «свод» */
-  const fl_mark fl_t341 = fl_region_open(ctx);
-  for (size_t fl_t340 = 0; fl_t340 < fl_t338.as.list.count; fl_t340 += 1) {
-    const fl_value reshenie = fl_t338.as.list.items[fl_t340]; /* «решение» */
-    fl_value fl_t342 = fl_nothing();
-    FL_TRY(opis_diska_pribavit_reshenie(ctx, svod, reshenie, &fl_t342, error));
-    svod = fl_t342;
-    FL_TRY(fl_region_recycle(ctx, fl_t341, &svod, error));
+  fl_value fl_t401 = fl_nothing();
+  FL_TRY(opis_diska_reshit_vsyo(ctx, zapisi, spravochnik, &fl_t401, error));
+  fl_value fl_t402 = fl_nothing();
+  FL_TRY(fl_require_list(ctx, fl_t401, "свёртка", &fl_t402, error));
+  fl_value fl_t403 = fl_nothing();
+  FL_TRY(opis_diska_pustoy_svod(ctx, &fl_t403, error));
+  fl_value svod = fl_t403; /* «свод» */
+  const fl_mark fl_t405 = fl_region_open(ctx);
+  for (size_t fl_t404 = 0; fl_t404 < fl_t402.as.list.count; fl_t404 += 1) {
+    const fl_value reshenie = fl_t402.as.list.items[fl_t404]; /* «решение» */
+    fl_value fl_t406 = fl_nothing();
+    FL_TRY(opis_diska_pribavit_reshenie(ctx, svod, reshenie, &fl_t406, error));
+    svod = fl_t406;
+    FL_TRY(fl_region_recycle(ctx, fl_t405, &svod, error));
   }
-  FL_TRY(fl_region_close(ctx, fl_t341, FL_OK, &svod, error));
-  const fl_value fl_t343 = svod;
-  fl_value fl_t344 = fl_nothing();
-  FL_TRY(opis_diska_i2_derzhitsya(ctx, zapisi, spravochnik, fl_t343, &fl_t344, error));
+  FL_TRY(fl_region_close(ctx, fl_t405, FL_OK, &svod, error));
+  const fl_value fl_t407 = svod;
+  fl_value fl_t408 = fl_nothing();
+  FL_TRY(opis_diska_i2_derzhitsya(ctx, zapisi, spravochnik, fl_t407, &fl_t408, error));
   /* постусловие «И2: освобождаемое не больше убираемого» */
-  bool fl_t345 = false;
-  FL_TRY(fl_post(ctx, fl_t344, "И2: освобождаемое не больше убираемого", "Свести", &fl_t345, error));
-  if (!fl_t345) {
+  bool fl_t409 = false;
+  FL_TRY(fl_post(ctx, fl_t408, "И2: освобождаемое не больше убираемого", "Свести", &fl_t409, error));
+  if (!fl_t409) {
     return fl_fail(ctx, error, "FLANG_PROPERTY", "%s", "нарушено свойство «И2: освобождаемое не больше убираемого» функции «Свести»");
   }
-  *result = fl_t343;
+  *result = fl_t407;
   return FL_OK;
 }
 
@@ -1943,33 +2393,33 @@ fl_status opis_diska_svesti(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, 
  * @return значение: число
  */
 fl_status opis_diska_summa_razmerov_ubiraemyh(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, fl_value *result, fl_error *error) {
-  fl_value fl_t346 = fl_nothing();
-  FL_TRY(fl_require_list(ctx, zapisi, "свёртка", &fl_t346, error));
+  fl_value fl_t410 = fl_nothing();
+  FL_TRY(fl_require_list(ctx, zapisi, "свёртка", &fl_t410, error));
   fl_value akk = fl_number(0.0); /* «акк» */
-  const fl_mark fl_t348 = fl_region_open(ctx);
-  for (size_t fl_t347 = 0; fl_t347 < fl_t346.as.list.count; fl_t347 += 1) {
-    const fl_value nahodka = fl_t346.as.list.items[fl_t347]; /* «находка» */
-    fl_value fl_t349 = fl_nothing();
-    fl_value fl_t350 = fl_nothing();
-    FL_TRY(opis_diska_reshit_nahodku(ctx, nahodka, spravochnik, &fl_t350, error));
-    fl_value fl_t351 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, fl_t350, "приговор", &fl_t351, error));
-    if (fl_variant_is(fl_t351, "МожноУбрать")) {
-      fl_value fl_t352 = fl_nothing();
-      FL_TRY(fl_field_get(ctx, nahodka, "размер", &fl_t352, error));
-      if (akk.tag != FL_NUMBER || fl_t352.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", akk, fl_t352, error));
-      fl_t349 = fl_number(akk.as.number + fl_t352.as.number);
-    } else if (fl_variant_is(fl_t351, "Спросить")) {
-      fl_t349 = akk;
-    } else if (fl_variant_is(fl_t351, "НеТрогать")) {
-      fl_t349 = akk;
+  const fl_mark fl_t412 = fl_region_open(ctx);
+  for (size_t fl_t411 = 0; fl_t411 < fl_t410.as.list.count; fl_t411 += 1) {
+    const fl_value nahodka = fl_t410.as.list.items[fl_t411]; /* «находка» */
+    fl_value fl_t413 = fl_nothing();
+    fl_value fl_t414 = fl_nothing();
+    FL_TRY(opis_diska_reshit_nahodku(ctx, nahodka, spravochnik, &fl_t414, error));
+    fl_value fl_t415 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, fl_t414, "приговор", &fl_t415, error));
+    if (fl_variant_is(fl_t415, "МожноУбрать")) {
+      fl_value fl_t416 = fl_nothing();
+      FL_TRY(fl_field_get(ctx, nahodka, "размер", &fl_t416, error));
+      if (akk.tag != FL_NUMBER || fl_t416.tag != FL_NUMBER) FL_TRY(fl_not_numbers(ctx, "add", akk, fl_t416, error));
+      fl_t413 = fl_number(akk.as.number + fl_t416.as.number);
+    } else if (fl_variant_is(fl_t415, "Спросить")) {
+      fl_t413 = akk;
+    } else if (fl_variant_is(fl_t415, "НеТрогать")) {
+      fl_t413 = akk;
     } else {
-      return fl_match_fail(ctx, fl_t351, error);
+      return fl_match_fail(ctx, fl_t415, error);
     }
-    akk = fl_t349;
-    FL_TRY(fl_region_recycle(ctx, fl_t348, &akk, error));
+    akk = fl_t413;
+    FL_TRY(fl_region_recycle(ctx, fl_t412, &akk, error));
   }
-  FL_TRY(fl_region_close(ctx, fl_t348, FL_OK, &akk, error));
+  FL_TRY(fl_region_close(ctx, fl_t412, FL_OK, &akk, error));
   *result = akk;
   return FL_OK;
 }
@@ -1984,12 +2434,12 @@ fl_status opis_diska_summa_razmerov_ubiraemyh(fl_ctx *ctx, fl_value zapisi, fl_v
  * @return значение
  */
 fl_status opis_diska_i2_derzhitsya(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, fl_value svod, fl_value *result, fl_error *error) {
-  fl_value fl_t353 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t353, error));
-  fl_value fl_t354 = fl_nothing();
-  FL_TRY(opis_diska_summa_razmerov_ubiraemyh(ctx, zapisi, spravochnik, &fl_t354, error));
-  if (fl_t353.tag != FL_NUMBER || fl_t354.tag != FL_NUMBER) FL_TRY(fl_not_order(ctx, fl_t353, fl_t354, error));
-  *result = fl_flag(fl_t353.as.number <= fl_t354.as.number);
+  fl_value fl_t417 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, svod, "освободить", &fl_t417, error));
+  fl_value fl_t418 = fl_nothing();
+  FL_TRY(opis_diska_summa_razmerov_ubiraemyh(ctx, zapisi, spravochnik, &fl_t418, error));
+  if (fl_t417.tag != FL_NUMBER || fl_t418.tag != FL_NUMBER) FL_TRY(fl_not_order(ctx, fl_t417, fl_t418, error));
+  *result = fl_flag(fl_t417.as.number <= fl_t418.as.number);
   return FL_OK;
 }
 
@@ -2002,47 +2452,47 @@ fl_status opis_diska_i2_derzhitsya(fl_ctx *ctx, fl_value zapisi, fl_value spravo
  * @return значение: «Строка отчёта»
  */
 fl_status opis_diska_stroku_otchyota(fl_ctx *ctx, fl_value nahodka, fl_value spravochnik, fl_value *result, fl_error *error) {
-  fl_value fl_t355 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t355, error));
-  fl_value fl_t356 = fl_nothing();
-  FL_TRY(opis_diska_reshit_nahodku(ctx, nahodka, spravochnik, &fl_t356, error));
-  fl_value fl_t358[2];
-  fl_t358[0] = fl_t355; /* «путь» */
-  fl_t358[1] = fl_t356; /* «решение» */
-  fl_value fl_t357 = fl_nothing();
-  FL_TRY(fl_record_new(ctx, opis_diska_names_4, fl_t358, 2, &fl_t357, error));
-  *result = fl_t357;
+  fl_value fl_t419 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t419, error));
+  fl_value fl_t420 = fl_nothing();
+  FL_TRY(opis_diska_reshit_nahodku(ctx, nahodka, spravochnik, &fl_t420, error));
+  fl_value fl_t422[2];
+  fl_t422[0] = fl_t419; /* «путь» */
+  fl_t422[1] = fl_t420; /* «решение» */
+  fl_value fl_t421 = fl_nothing();
+  FL_TRY(fl_record_new(ctx, opis_diska_names_4, fl_t422, 2, &fl_t421, error));
+  *result = fl_t421;
   return FL_OK;
 }
 
 /* Тело «Вставить по весу»; глубину считает обёртка ниже. */
 static fl_status opis_diska_vstavit_po_vesu_body(fl_ctx *ctx, fl_value stroka, fl_value stroki, fl_value *result, fl_error *error) {
   if (fl_chain_empty(stroki)) {
-    fl_value *fl_t359 = NULL;
-    FL_TRY(fl_list_alloc(ctx, 1, &fl_t359, error));
-    fl_t359[0] = stroka;
-    *result = fl_list(fl_t359, 1);
+    fl_value *fl_t423 = NULL;
+    FL_TRY(fl_list_alloc(ctx, 1, &fl_t423, error));
+    fl_t423[0] = stroka;
+    *result = fl_list(fl_t423, 1);
     return FL_OK;
   } else if (fl_chain_cons(stroki)) {
     const fl_value golova = fl_chain_head(stroki); /* голова «голова» */
     const fl_value hvost = fl_chain_tail(stroki); /* хвост «хвост» */
-    fl_value fl_t360 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, stroka, "решение", &fl_t360, error));
-    fl_value fl_t361 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, fl_t360, "вес", &fl_t361, error));
-    fl_value fl_t362 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, golova, "решение", &fl_t362, error));
-    fl_value fl_t363 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, fl_t362, "вес", &fl_t363, error));
-    if (fl_t361.tag != FL_NUMBER || fl_t363.tag != FL_NUMBER) FL_TRY(fl_not_order(ctx, fl_t361, fl_t363, error));
-    bool fl_t364 = false;
-    FL_TRY(fl_cond(ctx, fl_flag(fl_t361.as.number >= fl_t363.as.number), &fl_t364, error));
-    if (fl_t364) {
+    fl_value fl_t424 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, stroka, "решение", &fl_t424, error));
+    fl_value fl_t425 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, fl_t424, "вес", &fl_t425, error));
+    fl_value fl_t426 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, golova, "решение", &fl_t426, error));
+    fl_value fl_t427 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, fl_t426, "вес", &fl_t427, error));
+    if (fl_t425.tag != FL_NUMBER || fl_t427.tag != FL_NUMBER) FL_TRY(fl_not_order(ctx, fl_t425, fl_t427, error));
+    bool fl_t428 = false;
+    FL_TRY(fl_cond(ctx, fl_flag(fl_t425.as.number >= fl_t427.as.number), &fl_t428, error));
+    if (fl_t428) {
       return opis_diska_pripisat_stroku_otchyota(ctx, stroka, stroki, result, error);
     } else {
-      fl_value fl_t365 = fl_nothing();
-      FL_TRY(opis_diska_vstavit_po_vesu(ctx, stroka, hvost, &fl_t365, error));
-      return opis_diska_pripisat_stroku_otchyota(ctx, golova, fl_t365, result, error);
+      fl_value fl_t429 = fl_nothing();
+      FL_TRY(opis_diska_vstavit_po_vesu(ctx, stroka, hvost, &fl_t429, error));
+      return opis_diska_pripisat_stroku_otchyota(ctx, golova, fl_t429, result, error);
     }
   } else {
     return fl_match_fail(ctx, stroki, error);
@@ -2078,21 +2528,21 @@ fl_status opis_diska_vstavit_po_vesu(fl_ctx *ctx, fl_value stroka, fl_value stro
  * @return значение: список: «Строка отчёта»
  */
 fl_status opis_diska_pripisat_stroku_otchyota(fl_ctx *ctx, fl_value pervaya, fl_value stroki, fl_value *result, fl_error *error) {
-  fl_value fl_t366 = fl_nothing();
-  FL_TRY(fl_require_list(ctx, stroki, "свёртка", &fl_t366, error));
-  fl_value *fl_t367 = NULL;
-  FL_TRY(fl_list_alloc(ctx, 1, &fl_t367, error));
-  fl_t367[0] = pervaya;
-  fl_value akk = fl_list(fl_t367, 1); /* «акк» */
-  const fl_mark fl_t369 = fl_region_open(ctx);
-  for (size_t fl_t368 = 0; fl_t368 < fl_t366.as.list.count; fl_t368 += 1) {
-    const fl_value el = fl_t366.as.list.items[fl_t368]; /* «эл» */
-    fl_value fl_t370 = fl_nothing(); /* «добавить» */
-    FL_TRY(fl_b_dobavit(ctx, el, akk, &fl_t370, error));
-    akk = fl_t370;
-    FL_TRY(fl_region_recycle(ctx, fl_t369, &akk, error));
+  fl_value fl_t430 = fl_nothing();
+  FL_TRY(fl_require_list(ctx, stroki, "свёртка", &fl_t430, error));
+  fl_value *fl_t431 = NULL;
+  FL_TRY(fl_list_alloc(ctx, 1, &fl_t431, error));
+  fl_t431[0] = pervaya;
+  fl_value akk = fl_list(fl_t431, 1); /* «акк» */
+  const fl_mark fl_t433 = fl_region_open(ctx);
+  for (size_t fl_t432 = 0; fl_t432 < fl_t430.as.list.count; fl_t432 += 1) {
+    const fl_value el = fl_t430.as.list.items[fl_t432]; /* «эл» */
+    fl_value fl_t434 = fl_nothing(); /* «добавить» */
+    FL_TRY(fl_b_dobavit(ctx, el, akk, &fl_t434, error));
+    akk = fl_t434;
+    FL_TRY(fl_region_recycle(ctx, fl_t433, &akk, error));
   }
-  FL_TRY(fl_region_close(ctx, fl_t369, FL_OK, &akk, error));
+  FL_TRY(fl_region_close(ctx, fl_t433, FL_OK, &akk, error));
   *result = akk;
   return FL_OK;
 }
@@ -2106,30 +2556,30 @@ fl_status opis_diska_pripisat_stroku_otchyota(fl_ctx *ctx, fl_value pervaya, fl_
  * @return значение: список: «Строка отчёта»
  */
 fl_status opis_diska_otchyot(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik, fl_value *result, fl_error *error) {
-  fl_value fl_t371 = fl_nothing();
-  FL_TRY(fl_require_list(ctx, zapisi, "свёртка", &fl_t371, error));
+  fl_value fl_t435 = fl_nothing();
+  FL_TRY(fl_require_list(ctx, zapisi, "свёртка", &fl_t435, error));
   fl_value akk = fl_list(NULL, 0); /* «акк» */
-  const fl_mark fl_t373 = fl_region_open(ctx);
-  for (size_t fl_t372 = 0; fl_t372 < fl_t371.as.list.count; fl_t372 += 1) {
-    const fl_value nahodka = fl_t371.as.list.items[fl_t372]; /* «находка» */
-    fl_value fl_t374 = fl_nothing();
-    FL_TRY(opis_diska_stroku_otchyota(ctx, nahodka, spravochnik, &fl_t374, error));
-    fl_value fl_t375 = fl_nothing();
-    FL_TRY(opis_diska_vstavit_po_vesu(ctx, fl_t374, akk, &fl_t375, error));
-    akk = fl_t375;
-    FL_TRY(fl_region_recycle(ctx, fl_t373, &akk, error));
+  const fl_mark fl_t437 = fl_region_open(ctx);
+  for (size_t fl_t436 = 0; fl_t436 < fl_t435.as.list.count; fl_t436 += 1) {
+    const fl_value nahodka = fl_t435.as.list.items[fl_t436]; /* «находка» */
+    fl_value fl_t438 = fl_nothing();
+    FL_TRY(opis_diska_stroku_otchyota(ctx, nahodka, spravochnik, &fl_t438, error));
+    fl_value fl_t439 = fl_nothing();
+    FL_TRY(opis_diska_vstavit_po_vesu(ctx, fl_t438, akk, &fl_t439, error));
+    akk = fl_t439;
+    FL_TRY(fl_region_recycle(ctx, fl_t437, &akk, error));
   }
-  FL_TRY(fl_region_close(ctx, fl_t373, FL_OK, &akk, error));
-  const fl_value fl_t376 = akk;
-  fl_value fl_t377 = fl_nothing();
-  FL_TRY(opis_diska_otchyot_toy_zhe_dliny(ctx, zapisi, fl_t376, &fl_t377, error));
+  FL_TRY(fl_region_close(ctx, fl_t437, FL_OK, &akk, error));
+  const fl_value fl_t440 = akk;
+  fl_value fl_t441 = fl_nothing();
+  FL_TRY(opis_diska_otchyot_toy_zhe_dliny(ctx, zapisi, fl_t440, &fl_t441, error));
   /* постусловие «Отчёт той же длины» */
-  bool fl_t378 = false;
-  FL_TRY(fl_post(ctx, fl_t377, "Отчёт той же длины", "Отчёт", &fl_t378, error));
-  if (!fl_t378) {
+  bool fl_t442 = false;
+  FL_TRY(fl_post(ctx, fl_t441, "Отчёт той же длины", "Отчёт", &fl_t442, error));
+  if (!fl_t442) {
     return fl_fail(ctx, error, "FLANG_PROPERTY", "%s", "нарушено свойство «Отчёт той же длины» функции «Отчёт»");
   }
-  *result = fl_t376;
+  *result = fl_t440;
   return FL_OK;
 }
 
@@ -2142,11 +2592,11 @@ fl_status opis_diska_otchyot(fl_ctx *ctx, fl_value zapisi, fl_value spravochnik,
  * @return значение
  */
 fl_status opis_diska_otchyot_toy_zhe_dliny(fl_ctx *ctx, fl_value zapisi, fl_value stroki, fl_value *result, fl_error *error) {
-  fl_value fl_t379 = fl_nothing(); /* «длина» */
-  FL_TRY(fl_b_dlina(ctx, stroki, &fl_t379, error));
-  fl_value fl_t380 = fl_nothing(); /* «длина» */
-  FL_TRY(fl_b_dlina(ctx, zapisi, &fl_t380, error));
-  *result = fl_flag(fl_equal(fl_t379, fl_t380));
+  fl_value fl_t443 = fl_nothing(); /* «длина» */
+  FL_TRY(fl_b_dlina(ctx, stroki, &fl_t443, error));
+  fl_value fl_t444 = fl_nothing(); /* «длина» */
+  FL_TRY(fl_b_dlina(ctx, zapisi, &fl_t444, error));
+  *result = fl_flag(fl_equal(fl_t443, fl_t444));
   return FL_OK;
 }
 
@@ -2203,19 +2653,19 @@ fl_status opis_diska_eto_netrogat(fl_ctx *ctx, fl_value prigovor, fl_value *resu
  * @return значение
  */
 fl_status opis_diska_i1_na_pare(fl_ctx *ctx, fl_value razryad, fl_value prigovor, fl_value *result, fl_error *error) {
-  fl_value fl_t381 = fl_nothing();
-  FL_TRY(opis_diska_eto_mozhnoubrat(ctx, prigovor, &fl_t381, error));
-  bool fl_t382 = false;
-  FL_TRY(fl_cond(ctx, fl_t381, &fl_t382, error));
-  fl_value fl_t383 = fl_nothing();
-  if (fl_t382) {
-    fl_t383 = fl_flag(false);
+  fl_value fl_t445 = fl_nothing();
+  FL_TRY(opis_diska_eto_mozhnoubrat(ctx, prigovor, &fl_t445, error));
+  bool fl_t446 = false;
+  FL_TRY(fl_cond(ctx, fl_t445, &fl_t446, error));
+  fl_value fl_t447 = fl_nothing();
+  if (fl_t446) {
+    fl_t447 = fl_flag(false);
   } else {
-    fl_t383 = fl_flag(true);
+    fl_t447 = fl_flag(true);
   }
-  bool fl_t384 = false;
-  FL_TRY(fl_cond(ctx, fl_t383, &fl_t384, error));
-  if (fl_t384) {
+  bool fl_t448 = false;
+  FL_TRY(fl_cond(ctx, fl_t447, &fl_t448, error));
+  if (fl_t448) {
     *result = fl_flag(true);
     return FL_OK;
   } else {
@@ -2280,19 +2730,19 @@ fl_status opis_diska_porog_razryada(fl_ctx *ctx, fl_value razryad, fl_value *res
  * @return значение
  */
 fl_status opis_diska_razryad_obosnovan(fl_ctx *ctx, fl_value nahodka, fl_value mesto, fl_value razryad, fl_value *result, fl_error *error) {
-  fl_value fl_t385 = fl_nothing();
-  FL_TRY(opis_diska_eto_neizvestnoe(ctx, mesto, &fl_t385, error));
-  bool fl_t386 = false;
-  FL_TRY(fl_cond(ctx, fl_t385, &fl_t386, error));
-  fl_value fl_t387 = fl_nothing();
-  if (fl_t386) {
-    fl_t387 = fl_flag(false);
+  fl_value fl_t449 = fl_nothing();
+  FL_TRY(opis_diska_eto_neizvestnoe(ctx, mesto, &fl_t449, error));
+  bool fl_t450 = false;
+  FL_TRY(fl_cond(ctx, fl_t449, &fl_t450, error));
+  fl_value fl_t451 = fl_nothing();
+  if (fl_t450) {
+    fl_t451 = fl_flag(false);
   } else {
-    fl_t387 = fl_flag(true);
+    fl_t451 = fl_flag(true);
   }
-  bool fl_t388 = false;
-  FL_TRY(fl_cond(ctx, fl_t387, &fl_t388, error));
-  if (fl_t388) {
+  bool fl_t452 = false;
+  FL_TRY(fl_cond(ctx, fl_t451, &fl_t452, error));
+  if (fl_t452) {
     return opis_diska_tot_zhe_razryad(ctx, razryad, mesto, result, error);
   } else {
     return opis_diska_razryad_obosnovan_primetoy(ctx, nahodka, razryad, result, error);
@@ -2308,42 +2758,42 @@ fl_status opis_diska_razryad_obosnovan(fl_ctx *ctx, fl_value nahodka, fl_value m
  * @return значение
  */
 fl_status opis_diska_razryad_obosnovan_primetoy(fl_ctx *ctx, fl_value nahodka, fl_value razryad, fl_value *result, fl_error *error) {
-  fl_value fl_t389 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t389, error));
-  fl_value fl_t390 = fl_nothing();
-  FL_TRY(opis_diska_primeta_kesha(ctx, fl_t389, &fl_t390, error));
-  const fl_value kesh = fl_t390; /* пусть «кэш» */
-  fl_value fl_t391 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t391, error));
-  fl_value fl_t392 = fl_nothing();
-  FL_TRY(opis_diska_primeta_zhurnala(ctx, fl_t391, &fl_t392, error));
-  const fl_value zhurnal = fl_t392; /* пусть «журнал» */
-  fl_value fl_t393 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t393, error));
-  fl_value fl_t394 = fl_nothing();
-  FL_TRY(opis_diska_primeta_sborki(ctx, fl_t393, &fl_t394, error));
-  const fl_value sborka = fl_t394; /* пусть «сборка» */
-  fl_value fl_t395 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t395, error));
-  fl_value fl_t396 = fl_nothing();
-  FL_TRY(opis_diska_primeta_zagruzki(ctx, fl_t395, &fl_t396, error));
-  const fl_value zagruzka = fl_t396; /* пусть «загрузка» */
-  fl_value fl_t397 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, nahodka, "размер", &fl_t397, error));
-  fl_value fl_t398 = fl_nothing();
-  FL_TRY(opis_diska_porog_krupnogo(ctx, &fl_t398, error));
-  if (fl_t397.tag != FL_NUMBER || fl_t398.tag != FL_NUMBER) FL_TRY(fl_not_order(ctx, fl_t397, fl_t398, error));
-  const fl_value krupnoe = fl_flag(fl_t397.as.number >= fl_t398.as.number); /* пусть «крупное» */
+  fl_value fl_t453 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t453, error));
+  fl_value fl_t454 = fl_nothing();
+  FL_TRY(opis_diska_primeta_kesha(ctx, fl_t453, &fl_t454, error));
+  const fl_value kesh = fl_t454; /* пусть «кэш» */
+  fl_value fl_t455 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t455, error));
+  fl_value fl_t456 = fl_nothing();
+  FL_TRY(opis_diska_primeta_zhurnala(ctx, fl_t455, &fl_t456, error));
+  const fl_value zhurnal = fl_t456; /* пусть «журнал» */
+  fl_value fl_t457 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t457, error));
+  fl_value fl_t458 = fl_nothing();
+  FL_TRY(opis_diska_primeta_sborki(ctx, fl_t457, &fl_t458, error));
+  const fl_value sborka = fl_t458; /* пусть «сборка» */
+  fl_value fl_t459 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, nahodka, "путь", &fl_t459, error));
+  fl_value fl_t460 = fl_nothing();
+  FL_TRY(opis_diska_primeta_zagruzki(ctx, fl_t459, &fl_t460, error));
+  const fl_value zagruzka = fl_t460; /* пусть «загрузка» */
+  fl_value fl_t461 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, nahodka, "размер", &fl_t461, error));
+  fl_value fl_t462 = fl_nothing();
+  FL_TRY(opis_diska_porog_krupnogo(ctx, &fl_t462, error));
+  if (fl_t461.tag != FL_NUMBER || fl_t462.tag != FL_NUMBER) FL_TRY(fl_not_order(ctx, fl_t461, fl_t462, error));
+  const fl_value krupnoe = fl_flag(fl_t461.as.number >= fl_t462.as.number); /* пусть «крупное» */
   if (fl_variant_is(razryad, "Кэш")) {
     *result = kesh;
     return FL_OK;
   } else if (fl_variant_is(razryad, "Журнал")) {
-    bool fl_t399 = false;
-    FL_TRY(fl_cond(ctx, zhurnal, &fl_t399, error));
-    if (fl_t399) {
-      bool fl_t400 = false;
-      FL_TRY(fl_cond(ctx, kesh, &fl_t400, error));
-      if (fl_t400) {
+    bool fl_t463 = false;
+    FL_TRY(fl_cond(ctx, zhurnal, &fl_t463, error));
+    if (fl_t463) {
+      bool fl_t464 = false;
+      FL_TRY(fl_cond(ctx, kesh, &fl_t464, error));
+      if (fl_t464) {
         *result = fl_flag(false);
         return FL_OK;
       } else {
@@ -2355,28 +2805,28 @@ fl_status opis_diska_razryad_obosnovan_primetoy(fl_ctx *ctx, fl_value nahodka, f
       return FL_OK;
     }
   } else if (fl_variant_is(razryad, "Сборка")) {
-    bool fl_t401 = false;
-    FL_TRY(fl_cond(ctx, sborka, &fl_t401, error));
-    fl_value fl_t402 = fl_nothing();
-    if (fl_t401) {
-      bool fl_t403 = false;
-      FL_TRY(fl_cond(ctx, kesh, &fl_t403, error));
-      fl_value fl_t404 = fl_nothing();
-      if (fl_t403) {
-        fl_t404 = fl_flag(false);
+    bool fl_t465 = false;
+    FL_TRY(fl_cond(ctx, sborka, &fl_t465, error));
+    fl_value fl_t466 = fl_nothing();
+    if (fl_t465) {
+      bool fl_t467 = false;
+      FL_TRY(fl_cond(ctx, kesh, &fl_t467, error));
+      fl_value fl_t468 = fl_nothing();
+      if (fl_t467) {
+        fl_t468 = fl_flag(false);
       } else {
-        fl_t404 = fl_flag(true);
+        fl_t468 = fl_flag(true);
       }
-      fl_t402 = fl_t404;
+      fl_t466 = fl_t468;
     } else {
-      fl_t402 = fl_flag(false);
+      fl_t466 = fl_flag(false);
     }
-    bool fl_t405 = false;
-    FL_TRY(fl_cond(ctx, fl_t402, &fl_t405, error));
-    if (fl_t405) {
-      bool fl_t406 = false;
-      FL_TRY(fl_cond(ctx, zhurnal, &fl_t406, error));
-      if (fl_t406) {
+    bool fl_t469 = false;
+    FL_TRY(fl_cond(ctx, fl_t466, &fl_t469, error));
+    if (fl_t469) {
+      bool fl_t470 = false;
+      FL_TRY(fl_cond(ctx, zhurnal, &fl_t470, error));
+      if (fl_t470) {
         *result = fl_flag(false);
         return FL_OK;
       } else {
@@ -2388,44 +2838,44 @@ fl_status opis_diska_razryad_obosnovan_primetoy(fl_ctx *ctx, fl_value nahodka, f
       return FL_OK;
     }
   } else if (fl_variant_is(razryad, "Загрузка")) {
-    bool fl_t407 = false;
-    FL_TRY(fl_cond(ctx, zagruzka, &fl_t407, error));
-    fl_value fl_t408 = fl_nothing();
-    if (fl_t407) {
-      bool fl_t409 = false;
-      FL_TRY(fl_cond(ctx, kesh, &fl_t409, error));
-      fl_value fl_t410 = fl_nothing();
-      if (fl_t409) {
-        fl_t410 = fl_flag(false);
+    bool fl_t471 = false;
+    FL_TRY(fl_cond(ctx, zagruzka, &fl_t471, error));
+    fl_value fl_t472 = fl_nothing();
+    if (fl_t471) {
+      bool fl_t473 = false;
+      FL_TRY(fl_cond(ctx, kesh, &fl_t473, error));
+      fl_value fl_t474 = fl_nothing();
+      if (fl_t473) {
+        fl_t474 = fl_flag(false);
       } else {
-        fl_t410 = fl_flag(true);
+        fl_t474 = fl_flag(true);
       }
-      fl_t408 = fl_t410;
+      fl_t472 = fl_t474;
     } else {
-      fl_t408 = fl_flag(false);
+      fl_t472 = fl_flag(false);
     }
-    bool fl_t411 = false;
-    FL_TRY(fl_cond(ctx, fl_t408, &fl_t411, error));
-    fl_value fl_t412 = fl_nothing();
-    if (fl_t411) {
-      bool fl_t413 = false;
-      FL_TRY(fl_cond(ctx, zhurnal, &fl_t413, error));
-      fl_value fl_t414 = fl_nothing();
-      if (fl_t413) {
-        fl_t414 = fl_flag(false);
+    bool fl_t475 = false;
+    FL_TRY(fl_cond(ctx, fl_t472, &fl_t475, error));
+    fl_value fl_t476 = fl_nothing();
+    if (fl_t475) {
+      bool fl_t477 = false;
+      FL_TRY(fl_cond(ctx, zhurnal, &fl_t477, error));
+      fl_value fl_t478 = fl_nothing();
+      if (fl_t477) {
+        fl_t478 = fl_flag(false);
       } else {
-        fl_t414 = fl_flag(true);
+        fl_t478 = fl_flag(true);
       }
-      fl_t412 = fl_t414;
+      fl_t476 = fl_t478;
     } else {
-      fl_t412 = fl_flag(false);
+      fl_t476 = fl_flag(false);
     }
-    bool fl_t415 = false;
-    FL_TRY(fl_cond(ctx, fl_t412, &fl_t415, error));
-    if (fl_t415) {
-      bool fl_t416 = false;
-      FL_TRY(fl_cond(ctx, sborka, &fl_t416, error));
-      if (fl_t416) {
+    bool fl_t479 = false;
+    FL_TRY(fl_cond(ctx, fl_t476, &fl_t479, error));
+    if (fl_t479) {
+      bool fl_t480 = false;
+      FL_TRY(fl_cond(ctx, sborka, &fl_t480, error));
+      if (fl_t480) {
         *result = fl_flag(false);
         return FL_OK;
       } else {
@@ -2437,60 +2887,60 @@ fl_status opis_diska_razryad_obosnovan_primetoy(fl_ctx *ctx, fl_value nahodka, f
       return FL_OK;
     }
   } else if (fl_variant_is(razryad, "Крупное")) {
-    bool fl_t417 = false;
-    FL_TRY(fl_cond(ctx, krupnoe, &fl_t417, error));
-    fl_value fl_t418 = fl_nothing();
-    if (fl_t417) {
-      bool fl_t419 = false;
-      FL_TRY(fl_cond(ctx, kesh, &fl_t419, error));
-      fl_value fl_t420 = fl_nothing();
-      if (fl_t419) {
-        fl_t420 = fl_flag(false);
+    bool fl_t481 = false;
+    FL_TRY(fl_cond(ctx, krupnoe, &fl_t481, error));
+    fl_value fl_t482 = fl_nothing();
+    if (fl_t481) {
+      bool fl_t483 = false;
+      FL_TRY(fl_cond(ctx, kesh, &fl_t483, error));
+      fl_value fl_t484 = fl_nothing();
+      if (fl_t483) {
+        fl_t484 = fl_flag(false);
       } else {
-        fl_t420 = fl_flag(true);
+        fl_t484 = fl_flag(true);
       }
-      fl_t418 = fl_t420;
+      fl_t482 = fl_t484;
     } else {
-      fl_t418 = fl_flag(false);
+      fl_t482 = fl_flag(false);
     }
-    bool fl_t421 = false;
-    FL_TRY(fl_cond(ctx, fl_t418, &fl_t421, error));
-    fl_value fl_t422 = fl_nothing();
-    if (fl_t421) {
-      bool fl_t423 = false;
-      FL_TRY(fl_cond(ctx, zhurnal, &fl_t423, error));
-      fl_value fl_t424 = fl_nothing();
-      if (fl_t423) {
-        fl_t424 = fl_flag(false);
+    bool fl_t485 = false;
+    FL_TRY(fl_cond(ctx, fl_t482, &fl_t485, error));
+    fl_value fl_t486 = fl_nothing();
+    if (fl_t485) {
+      bool fl_t487 = false;
+      FL_TRY(fl_cond(ctx, zhurnal, &fl_t487, error));
+      fl_value fl_t488 = fl_nothing();
+      if (fl_t487) {
+        fl_t488 = fl_flag(false);
       } else {
-        fl_t424 = fl_flag(true);
+        fl_t488 = fl_flag(true);
       }
-      fl_t422 = fl_t424;
+      fl_t486 = fl_t488;
     } else {
-      fl_t422 = fl_flag(false);
+      fl_t486 = fl_flag(false);
     }
-    bool fl_t425 = false;
-    FL_TRY(fl_cond(ctx, fl_t422, &fl_t425, error));
-    fl_value fl_t426 = fl_nothing();
-    if (fl_t425) {
-      bool fl_t427 = false;
-      FL_TRY(fl_cond(ctx, sborka, &fl_t427, error));
-      fl_value fl_t428 = fl_nothing();
-      if (fl_t427) {
-        fl_t428 = fl_flag(false);
+    bool fl_t489 = false;
+    FL_TRY(fl_cond(ctx, fl_t486, &fl_t489, error));
+    fl_value fl_t490 = fl_nothing();
+    if (fl_t489) {
+      bool fl_t491 = false;
+      FL_TRY(fl_cond(ctx, sborka, &fl_t491, error));
+      fl_value fl_t492 = fl_nothing();
+      if (fl_t491) {
+        fl_t492 = fl_flag(false);
       } else {
-        fl_t428 = fl_flag(true);
+        fl_t492 = fl_flag(true);
       }
-      fl_t426 = fl_t428;
+      fl_t490 = fl_t492;
     } else {
-      fl_t426 = fl_flag(false);
+      fl_t490 = fl_flag(false);
     }
-    bool fl_t429 = false;
-    FL_TRY(fl_cond(ctx, fl_t426, &fl_t429, error));
-    if (fl_t429) {
-      bool fl_t430 = false;
-      FL_TRY(fl_cond(ctx, zagruzka, &fl_t430, error));
-      if (fl_t430) {
+    bool fl_t493 = false;
+    FL_TRY(fl_cond(ctx, fl_t490, &fl_t493, error));
+    if (fl_t493) {
+      bool fl_t494 = false;
+      FL_TRY(fl_cond(ctx, zagruzka, &fl_t494, error));
+      if (fl_t494) {
         *result = fl_flag(false);
         return FL_OK;
       } else {
@@ -2502,68 +2952,68 @@ fl_status opis_diska_razryad_obosnovan_primetoy(fl_ctx *ctx, fl_value nahodka, f
       return FL_OK;
     }
   } else if (fl_variant_is(razryad, "Неизвестное")) {
-    bool fl_t431 = false;
-    FL_TRY(fl_cond(ctx, kesh, &fl_t431, error));
-    fl_value fl_t432 = fl_nothing();
-    if (fl_t431) {
-      fl_t432 = fl_flag(false);
+    bool fl_t495 = false;
+    FL_TRY(fl_cond(ctx, kesh, &fl_t495, error));
+    fl_value fl_t496 = fl_nothing();
+    if (fl_t495) {
+      fl_t496 = fl_flag(false);
     } else {
-      fl_t432 = fl_flag(true);
+      fl_t496 = fl_flag(true);
     }
-    bool fl_t433 = false;
-    FL_TRY(fl_cond(ctx, fl_t432, &fl_t433, error));
-    fl_value fl_t434 = fl_nothing();
-    if (fl_t433) {
-      bool fl_t435 = false;
-      FL_TRY(fl_cond(ctx, zhurnal, &fl_t435, error));
-      fl_value fl_t436 = fl_nothing();
-      if (fl_t435) {
-        fl_t436 = fl_flag(false);
+    bool fl_t497 = false;
+    FL_TRY(fl_cond(ctx, fl_t496, &fl_t497, error));
+    fl_value fl_t498 = fl_nothing();
+    if (fl_t497) {
+      bool fl_t499 = false;
+      FL_TRY(fl_cond(ctx, zhurnal, &fl_t499, error));
+      fl_value fl_t500 = fl_nothing();
+      if (fl_t499) {
+        fl_t500 = fl_flag(false);
       } else {
-        fl_t436 = fl_flag(true);
+        fl_t500 = fl_flag(true);
       }
-      fl_t434 = fl_t436;
+      fl_t498 = fl_t500;
     } else {
-      fl_t434 = fl_flag(false);
+      fl_t498 = fl_flag(false);
     }
-    bool fl_t437 = false;
-    FL_TRY(fl_cond(ctx, fl_t434, &fl_t437, error));
-    fl_value fl_t438 = fl_nothing();
-    if (fl_t437) {
-      bool fl_t439 = false;
-      FL_TRY(fl_cond(ctx, sborka, &fl_t439, error));
-      fl_value fl_t440 = fl_nothing();
-      if (fl_t439) {
-        fl_t440 = fl_flag(false);
+    bool fl_t501 = false;
+    FL_TRY(fl_cond(ctx, fl_t498, &fl_t501, error));
+    fl_value fl_t502 = fl_nothing();
+    if (fl_t501) {
+      bool fl_t503 = false;
+      FL_TRY(fl_cond(ctx, sborka, &fl_t503, error));
+      fl_value fl_t504 = fl_nothing();
+      if (fl_t503) {
+        fl_t504 = fl_flag(false);
       } else {
-        fl_t440 = fl_flag(true);
+        fl_t504 = fl_flag(true);
       }
-      fl_t438 = fl_t440;
+      fl_t502 = fl_t504;
     } else {
-      fl_t438 = fl_flag(false);
+      fl_t502 = fl_flag(false);
     }
-    bool fl_t441 = false;
-    FL_TRY(fl_cond(ctx, fl_t438, &fl_t441, error));
-    fl_value fl_t442 = fl_nothing();
-    if (fl_t441) {
-      bool fl_t443 = false;
-      FL_TRY(fl_cond(ctx, zagruzka, &fl_t443, error));
-      fl_value fl_t444 = fl_nothing();
-      if (fl_t443) {
-        fl_t444 = fl_flag(false);
+    bool fl_t505 = false;
+    FL_TRY(fl_cond(ctx, fl_t502, &fl_t505, error));
+    fl_value fl_t506 = fl_nothing();
+    if (fl_t505) {
+      bool fl_t507 = false;
+      FL_TRY(fl_cond(ctx, zagruzka, &fl_t507, error));
+      fl_value fl_t508 = fl_nothing();
+      if (fl_t507) {
+        fl_t508 = fl_flag(false);
       } else {
-        fl_t444 = fl_flag(true);
+        fl_t508 = fl_flag(true);
       }
-      fl_t442 = fl_t444;
+      fl_t506 = fl_t508;
     } else {
-      fl_t442 = fl_flag(false);
+      fl_t506 = fl_flag(false);
     }
-    bool fl_t445 = false;
-    FL_TRY(fl_cond(ctx, fl_t442, &fl_t445, error));
-    if (fl_t445) {
-      bool fl_t446 = false;
-      FL_TRY(fl_cond(ctx, krupnoe, &fl_t446, error));
-      if (fl_t446) {
+    bool fl_t509 = false;
+    FL_TRY(fl_cond(ctx, fl_t506, &fl_t509, error));
+    if (fl_t509) {
+      bool fl_t510 = false;
+      FL_TRY(fl_cond(ctx, krupnoe, &fl_t510, error));
+      if (fl_t510) {
         *result = fl_flag(false);
         return FL_OK;
       } else {
@@ -2589,62 +3039,62 @@ fl_status opis_diska_razryad_obosnovan_primetoy(fl_ctx *ctx, fl_value nahodka, f
  * @return значение
  */
 fl_status opis_diska_prigovor_obosnovan(fl_ctx *ctx, fl_value nahodka, fl_value razryad, fl_value prigovor, fl_value *result, fl_error *error) {
-  fl_value fl_t447 = fl_nothing();
-  FL_TRY(fl_field_get(ctx, nahodka, "доступен", &fl_t447, error));
-  bool fl_t448 = false;
-  FL_TRY(fl_cond(ctx, fl_t447, &fl_t448, error));
-  fl_value fl_t449 = fl_nothing();
-  if (fl_t448) {
-    fl_t449 = fl_flag(false);
+  fl_value fl_t511 = fl_nothing();
+  FL_TRY(fl_field_get(ctx, nahodka, "доступен", &fl_t511, error));
+  bool fl_t512 = false;
+  FL_TRY(fl_cond(ctx, fl_t511, &fl_t512, error));
+  fl_value fl_t513 = fl_nothing();
+  if (fl_t512) {
+    fl_t513 = fl_flag(false);
   } else {
-    fl_t449 = fl_flag(true);
+    fl_t513 = fl_flag(true);
   }
-  bool fl_t450 = false;
-  FL_TRY(fl_cond(ctx, fl_t449, &fl_t450, error));
-  if (fl_t450) {
+  bool fl_t514 = false;
+  FL_TRY(fl_cond(ctx, fl_t513, &fl_t514, error));
+  if (fl_t514) {
     return opis_diska_eto_netrogat(ctx, prigovor, result, error);
   } else {
-    fl_value fl_t451 = fl_nothing();
-    FL_TRY(opis_diska_ssylka(ctx, nahodka, &fl_t451, error));
-    bool fl_t452 = false;
-    FL_TRY(fl_cond(ctx, fl_t451, &fl_t452, error));
-    if (fl_t452) {
+    fl_value fl_t515 = fl_nothing();
+    FL_TRY(opis_diska_ssylka(ctx, nahodka, &fl_t515, error));
+    bool fl_t516 = false;
+    FL_TRY(fl_cond(ctx, fl_t515, &fl_t516, error));
+    if (fl_t516) {
       return opis_diska_eto_netrogat(ctx, prigovor, result, error);
     } else {
-      fl_value fl_t453 = fl_nothing();
-      FL_TRY(opis_diska_eto_mozhnoubrat(ctx, prigovor, &fl_t453, error));
-      bool fl_t454 = false;
-      FL_TRY(fl_cond(ctx, fl_t453, &fl_t454, error));
-      if (fl_t454) {
-        fl_value fl_t455 = fl_nothing();
-        FL_TRY(opis_diska_i1_na_pare(ctx, razryad, prigovor, &fl_t455, error));
-        bool fl_t456 = false;
-        FL_TRY(fl_cond(ctx, fl_t455, &fl_t456, error));
-        fl_value fl_t457 = fl_nothing();
-        if (fl_t456) {
-          fl_value fl_t458 = fl_nothing();
-          FL_TRY(opis_diska_katalog(ctx, nahodka, &fl_t458, error));
-          bool fl_t459 = false;
-          FL_TRY(fl_cond(ctx, fl_t458, &fl_t459, error));
-          fl_value fl_t460 = fl_nothing();
-          if (fl_t459) {
-            fl_t460 = fl_flag(false);
+      fl_value fl_t517 = fl_nothing();
+      FL_TRY(opis_diska_eto_mozhnoubrat(ctx, prigovor, &fl_t517, error));
+      bool fl_t518 = false;
+      FL_TRY(fl_cond(ctx, fl_t517, &fl_t518, error));
+      if (fl_t518) {
+        fl_value fl_t519 = fl_nothing();
+        FL_TRY(opis_diska_i1_na_pare(ctx, razryad, prigovor, &fl_t519, error));
+        bool fl_t520 = false;
+        FL_TRY(fl_cond(ctx, fl_t519, &fl_t520, error));
+        fl_value fl_t521 = fl_nothing();
+        if (fl_t520) {
+          fl_value fl_t522 = fl_nothing();
+          FL_TRY(opis_diska_katalog(ctx, nahodka, &fl_t522, error));
+          bool fl_t523 = false;
+          FL_TRY(fl_cond(ctx, fl_t522, &fl_t523, error));
+          fl_value fl_t524 = fl_nothing();
+          if (fl_t523) {
+            fl_t524 = fl_flag(false);
           } else {
-            fl_t460 = fl_flag(true);
+            fl_t524 = fl_flag(true);
           }
-          fl_t457 = fl_t460;
+          fl_t521 = fl_t524;
         } else {
-          fl_t457 = fl_flag(false);
+          fl_t521 = fl_flag(false);
         }
-        bool fl_t461 = false;
-        FL_TRY(fl_cond(ctx, fl_t457, &fl_t461, error));
-        if (fl_t461) {
-          fl_value fl_t462 = fl_nothing();
-          FL_TRY(fl_field_get(ctx, nahodka, "возраст_дней", &fl_t462, error));
-          fl_value fl_t463 = fl_nothing();
-          FL_TRY(opis_diska_porog_razryada(ctx, razryad, &fl_t463, error));
-          if (fl_t462.tag != FL_NUMBER || fl_t463.tag != FL_NUMBER) FL_TRY(fl_not_order(ctx, fl_t462, fl_t463, error));
-          *result = fl_flag(fl_t462.as.number >= fl_t463.as.number);
+        bool fl_t525 = false;
+        FL_TRY(fl_cond(ctx, fl_t521, &fl_t525, error));
+        if (fl_t525) {
+          fl_value fl_t526 = fl_nothing();
+          FL_TRY(fl_field_get(ctx, nahodka, "возраст_дней", &fl_t526, error));
+          fl_value fl_t527 = fl_nothing();
+          FL_TRY(opis_diska_porog_razryada(ctx, razryad, &fl_t527, error));
+          if (fl_t526.tag != FL_NUMBER || fl_t527.tag != FL_NUMBER) FL_TRY(fl_not_order(ctx, fl_t526, fl_t527, error));
+          *result = fl_flag(fl_t526.as.number >= fl_t527.as.number);
           return FL_OK;
         } else {
           *result = fl_flag(false);
@@ -2668,19 +3118,19 @@ fl_status opis_diska_prigovor_obosnovan(fl_ctx *ctx, fl_value nahodka, fl_value 
  * @return значение
  */
 fl_status opis_diska_ves_obosnovan(fl_ctx *ctx, fl_value nahodka, fl_value prigovor, fl_value ves, fl_value *result, fl_error *error) {
-  fl_value fl_t464 = fl_nothing();
-  FL_TRY(opis_diska_eto_netrogat(ctx, prigovor, &fl_t464, error));
-  bool fl_t465 = false;
-  FL_TRY(fl_cond(ctx, fl_t464, &fl_t465, error));
-  if (fl_t465) {
+  fl_value fl_t528 = fl_nothing();
+  FL_TRY(opis_diska_eto_netrogat(ctx, prigovor, &fl_t528, error));
+  bool fl_t529 = false;
+  FL_TRY(fl_cond(ctx, fl_t528, &fl_t529, error));
+  if (fl_t529) {
     *result = fl_flag(fl_equal(ves, fl_number(0.0)));
     return FL_OK;
   } else {
-    fl_value fl_t466 = fl_nothing();
-    FL_TRY(fl_field_get(ctx, nahodka, "размер", &fl_t466, error));
-    bool fl_t467 = false;
-    FL_TRY(fl_cond(ctx, fl_flag(fl_equal(ves, fl_t466)), &fl_t467, error));
-    if (fl_t467) {
+    fl_value fl_t530 = fl_nothing();
+    FL_TRY(fl_field_get(ctx, nahodka, "размер", &fl_t530, error));
+    bool fl_t531 = false;
+    FL_TRY(fl_cond(ctx, fl_flag(fl_equal(ves, fl_t530)), &fl_t531, error));
+    if (fl_t531) {
       return opis_diska_ves_v_granicah(ctx, nahodka, ves, result, error);
     } else {
       *result = fl_flag(false);
@@ -2961,6 +3411,62 @@ fl_status opis_diska_call(fl_ctx *ctx, const char *name, const fl_value *args, s
     }
     return opis_diska_reshit_vsyo(ctx, args[0], args[1], result, error);
   }
+  if (strcmp(name, "Расширения исходников") == 0) {
+    if (count != 0) {
+      return fl_fail(ctx, error, FL_CODE_TYPE, "функция «%s» принимает %lu аргум., получено %lu",
+                     "Расширения исходников", (unsigned long)0, (unsigned long)count);
+    }
+    return opis_diska_rasshireniya_ishodnikov(ctx, result, error);
+  }
+  if (strcmp(name, "Примета исходника") == 0) {
+    if (count != 1) {
+      return fl_fail(ctx, error, FL_CODE_TYPE, "функция «%s» принимает %lu аргум., получено %lu",
+                     "Примета исходника", (unsigned long)1, (unsigned long)count);
+    }
+    return opis_diska_primeta_ishodnika(ctx, args[0], result, error);
+  }
+  if (strcmp(name, "Под присмотром системы версий") == 0) {
+    if (count != 1) {
+      return fl_fail(ctx, error, FL_CODE_TYPE, "функция «%s» принимает %lu аргум., получено %lu",
+                     "Под присмотром системы версий", (unsigned long)1, (unsigned long)count);
+    }
+    return opis_diska_pod_prismotrom_sistemy_versiy(ctx, args[0], result, error);
+  }
+  if (strcmp(name, "Мусорный разряд") == 0) {
+    if (count != 1) {
+      return fl_fail(ctx, error, FL_CODE_TYPE, "функция «%s» принимает %lu аргум., получено %lu",
+                     "Мусорный разряд", (unsigned long)1, (unsigned long)count);
+    }
+    return opis_diska_musornyy_razryad(ctx, args[0], result, error);
+  }
+  if (strcmp(name, "Природа находки") == 0) {
+    if (count != 3) {
+      return fl_fail(ctx, error, FL_CODE_TYPE, "функция «%s» принимает %lu аргум., получено %lu",
+                     "Природа находки", (unsigned long)3, (unsigned long)count);
+    }
+    return opis_diska_priroda_nahodki(ctx, args[0], args[1], args[2], result, error);
+  }
+  if (strcmp(name, "Природа обоснована") == 0) {
+    if (count != 4) {
+      return fl_fail(ctx, error, FL_CODE_TYPE, "функция «%s» принимает %lu аргум., получено %lu",
+                     "Природа обоснована", (unsigned long)4, (unsigned long)count);
+    }
+    return opis_diska_priroda_obosnovana(ctx, args[0], args[1], args[2], args[3], result, error);
+  }
+  if (strcmp(name, "Природа по находке") == 0) {
+    if (count != 2) {
+      return fl_fail(ctx, error, FL_CODE_TYPE, "функция «%s» принимает %lu аргум., получено %lu",
+                     "Природа по находке", (unsigned long)2, (unsigned long)count);
+    }
+    return opis_diska_priroda_po_nahodke(ctx, args[0], args[1], result, error);
+  }
+  if (strcmp(name, "Строгость") == 0) {
+    if (count != 1) {
+      return fl_fail(ctx, error, FL_CODE_TYPE, "функция «%s» принимает %lu аргум., получено %lu",
+                     "Строгость", (unsigned long)1, (unsigned long)count);
+    }
+    return opis_diska_strogost(ctx, args[0], result, error);
+  }
   if (strcmp(name, "И1 держится") == 0) {
     if (count != 1) {
       return fl_fail(ctx, error, FL_CODE_TYPE, "функция «%s» принимает %lu аргум., получено %lu",
@@ -3149,7 +3655,7 @@ static const fl_type_field opis_diska_entry_fields[] = {
   { "неизвестное", 6 },
   { "освободить", 6 },
   { "путь", 0 },
-  { "решение", 11 },
+  { "решение", 12 },
 };
 
 static const fl_type_variant opis_diska_entry_variants[] = {
@@ -3167,6 +3673,12 @@ static const fl_type_variant opis_diska_entry_variants[] = {
   { "МожноУбрать", 8, 0 },
   { "Спросить", 8, 0 },
   { "НеТрогать", 8, 0 },
+  { "Мусор", 8, 0 },
+  { "Свежее", 8, 0 },
+  { "Исходники", 8, 0 },
+  { "Личное", 8, 0 },
+  { "Хранилище", 8, 0 },
+  { "ПодПрисмотром", 8, 0 },
 };
 
 static const fl_type opis_diska_entry_types[] = {
@@ -3181,11 +3693,12 @@ static const fl_type opis_diska_entry_types[] = {
   { FL_TYPE_FLAG, "признак", "", false, false, false, 0.0, 0.0, 0, 0, 0, 0, 0 },
   { FL_TYPE_SUM, "«Приговор»", "Приговор", false, false, false, 0.0, 0.0, 0, 0, 0, 11, 3 },
   { FL_TYPE_LIST, "список «Находка»", "", false, false, false, 0.0, 0.0, 5, 0, 0, 0, 0 },
+  { FL_TYPE_SUM, "«Природа»", "Природа", false, false, false, 0.0, 0.0, 0, 0, 0, 14, 6 },
   { FL_TYPE_RECORD, "«Решение»", "Решение", false, false, false, 0.0, 0.0, 0, 8, 3, 0, 0 },
-  { FL_TYPE_LIST, "список «Решение»", "", false, false, false, 0.0, 0.0, 11, 0, 0, 0, 0 },
+  { FL_TYPE_LIST, "список «Решение»", "", false, false, false, 0.0, 0.0, 12, 0, 0, 0, 0 },
   { FL_TYPE_RECORD, "«Свод»", "Свод", false, false, false, 0.0, 0.0, 0, 11, 7, 0, 0 },
   { FL_TYPE_RECORD, "«Строка отчёта»", "Строка отчёта", false, false, false, 0.0, 0.0, 0, 18, 2, 0, 0 },
-  { FL_TYPE_LIST, "список «Строка отчёта»", "", false, false, false, 0.0, 0.0, 14, 0, 0, 0, 0 },
+  { FL_TYPE_LIST, "список «Строка отчёта»", "", false, false, false, 0.0, 0.0, 15, 0, 0, 0, 0 },
 };
 
 static const fl_entry_param opis_diska_entry_params[] = {
@@ -3239,27 +3752,40 @@ static const fl_entry_param opis_diska_entry_params[] = {
   { "Решить находку", "справочник", 1 },
   { "Решить всё", "записи", 10 },
   { "Решить всё", "справочник", 1 },
-  { "И1 держится", "решение", 11 },
-  { "И1 держится всюду", "решения", 12 },
-  { "Прибавить решение", "свод", 13 },
-  { "Прибавить решение", "решение", 11 },
+  { "Примета исходника", "путь", 0 },
+  { "Под присмотром системы версий", "путь", 0 },
+  { "Мусорный разряд", "разряд", 3 },
+  { "Природа находки", "находка", 5 },
+  { "Природа находки", "разряд", 3 },
+  { "Природа находки", "приговор", 9 },
+  { "Природа обоснована", "находка", 5 },
+  { "Природа обоснована", "разряд", 3 },
+  { "Природа обоснована", "приговор", 9 },
+  { "Природа обоснована", "природа", 11 },
+  { "Природа по находке", "находка", 5 },
+  { "Природа по находке", "справочник", 1 },
+  { "Строгость", "природа", 11 },
+  { "И1 держится", "решение", 12 },
+  { "И1 держится всюду", "решения", 13 },
+  { "Прибавить решение", "свод", 14 },
+  { "Прибавить решение", "решение", 12 },
   { "Свести", "записи", 10 },
   { "Свести", "справочник", 1 },
   { "Сумма размеров убираемых", "записи", 10 },
   { "Сумма размеров убираемых", "справочник", 1 },
   { "И2 держится", "записи", 10 },
   { "И2 держится", "справочник", 1 },
-  { "И2 держится", "свод", 13 },
+  { "И2 держится", "свод", 14 },
   { "Строку отчёта", "находка", 5 },
   { "Строку отчёта", "справочник", 1 },
-  { "Вставить по весу", "строка", 14 },
-  { "Вставить по весу", "строки", 15 },
-  { "Приписать строку отчёта", "первая", 14 },
-  { "Приписать строку отчёта", "строки", 15 },
+  { "Вставить по весу", "строка", 15 },
+  { "Вставить по весу", "строки", 16 },
+  { "Приписать строку отчёта", "первая", 15 },
+  { "Приписать строку отчёта", "строки", 16 },
   { "Отчёт", "записи", 10 },
   { "Отчёт", "справочник", 1 },
   { "Отчёт той же длины", "записи", 10 },
-  { "Отчёт той же длины", "строки", 15 },
+  { "Отчёт той же длины", "строки", 16 },
   { "Это МожноУбрать", "приговор", 9 },
   { "Это НеТрогать", "приговор", 9 },
   { "И1 на паре", "разряд", 3 },
@@ -3279,10 +3805,10 @@ static const fl_entry_param opis_diska_entry_params[] = {
 };
 
 static const fl_entry_table opis_diska_entry_table = {
-  opis_diska_entry_types, 16,
+  opis_diska_entry_types, 17,
   opis_diska_entry_fields, 20,
-  opis_diska_entry_variants, 14,
-  opis_diska_entry_params, 87
+  opis_diska_entry_variants, 20,
+  opis_diska_entry_params, 100
 };
 
 const fl_entry_table *opis_diska_entry(void) {

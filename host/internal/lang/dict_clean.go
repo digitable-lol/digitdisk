@@ -39,6 +39,43 @@ func init() {
 		"путь вне указанного корня":                                           "the path is outside the given root",
 		"путь внутри корзины digitdisk — своё же убирает `purge`, не `clean`": "the path is inside digitdisk's trash — its own is erased by `purge`, not by `clean`",
 
+		// ── забой по воле человека: сторож и твёрдые запреты ─────────
+		"это символическая ссылка: она указывает в другое место, и снос ссылки не то же самое, что снос того, на что она указывает": "this is a symbolic link: it points elsewhere, and removing the link is not the same as removing what it points at",
+		"забой стирает то, на что указали, а указано ничего: отметьте каталог Пробелом или встаньте на строку":                      "Backspace erases what you point at, and nothing is pointed at: mark a directory with Space or stand on a row",
+		"стирать нечего: под указанным нет ни одного обычного файла и ни одного каталога, который можно снять":                      "nothing to erase: under what you pointed at there is not one ordinary file and not one directory that can be taken",
+		"перестал быть каталогом (стал %v)": "stopped being a directory (became %v)",
+		"не снят: %v": "not taken: %v",
+
+		// Причины и обходы твёрдых запретов.  Каждая причина ходит парой со
+		// своим обходом: отказ без «как быть» гонит человека искать дорогу
+		// мимо инструмента, а мимо инструмента — это `rm -rf` вслепую.
+		"путь не приводится к абсолютному: %s":                          "the path does not resolve to an absolute one: %s",
+		"назовите путь заново — от корня, без «..»":                     "name the path again — from the root, without «..»",
+		"это корень файловой системы: под ним лежит вся машина целиком": "this is the root of the filesystem: the whole machine lies under it",
+		"назовите каталог, а не корень — забой стирает то, на что указали, и на корень указывать нечем, кроме как всем сразу":                                 "name a directory, not the root — Backspace erases what you point at, and at the root there is nothing to point but everything at once",
+		"%s — системный каталог: его содержимое ставит менеджер пакетов, а не человек, и машина после его выноса не загрузится":                               "%s is a system directory: a package manager puts its contents there, not a person, and the machine will not boot once it is gone",
+		"снимите пакет тем, кто его поставил (apt, dnf, brew), либо укажите каталог ВНУТРИ него: запрещён каталог целиком, а не то, что в нём лежит":          "remove the package with whatever installed it (apt, dnf, brew), or point INSIDE it: what is banned is the whole directory, not what lies in it",
+		"%s — домашний каталог целиком: это всё, что у вас есть на этой машине":                                                                               "%s is the whole home directory: it is everything you have on this machine",
+		"укажите каталог внутри дома — забой возьмёт его вместе со всем содержимым; дом целиком не берётся никогда":                                           "point at a directory inside the home — Backspace will take it with everything in it; the whole home is never taken",
+		"здесь лежит сам digitdisk, который сейчас работает":                                                                                                  "this is where the digitdisk that is running right now lies",
+		"снимите инструмент так, как ставили (brew uninstall, rm самого файла), а не им самим: стирание, снёсшее себя на середине, дописать журнал уже нечем": "remove the tool the way you installed it (brew uninstall, rm of the file itself), not with the tool: an erasure that took itself out halfway has nothing left to finish its journal with",
+		"здесь настройки digitdisk: язык, справочник мест и защитный список":                                                                                  "this holds digitdisk's settings: the language, the directory of places and the protect list",
+		"здесь прежний дом настроек digitdisk": "this is digitdisk's former settings home",
+		"правьте эти файлы редактором — они текстовые; забой на них снёс бы и защитный список заодно":                        "edit these files in an editor — they are text; Backspace on them would take the protect list along with everything else",
+		"это корзина digitdisk (%s): в ней лежит и журнал того, что в неё попало":                                            "this is digitdisk's trash (%s): the journal of what went into it lies there too",
+		"корзину опустошает `digitdisk purge <корзина> --confirm N` — он читает журнал и стирает ровно то, что там записано": "a trash is emptied by `digitdisk purge <trash> --confirm N` — it reads the journal and erases exactly what is written there",
+		`СТИРАТЬ ОТСЮДА НЕЛЬЗЯ: %s
+
+%s.
+
+Как быть, если вы всё же правы: %s`: `NOTHING IS ERASED FROM HERE: %s
+
+%s.
+
+What to do if you are right after all: %s`,
+		"этот путь держит защитный список: %s": "the protect list holds this path: %s",
+		"снимите эту строку из защитного списка или уберите ключ --protect: список — ваше собственное распоряжение, и digitdisk не отменяет его сам": "take that line out of the protect list, or drop the --protect flag: the list is your own standing order, and digitdisk does not overrule it by itself",
+
 		// ── корзина и корень ─────────────────────────────────────────
 		`корзина %s лежит вне корня %s.
 Корзина обязана быть внутри корня: тогда перенос — это rename(2), то есть

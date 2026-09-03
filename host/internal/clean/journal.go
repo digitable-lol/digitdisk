@@ -44,6 +44,16 @@ type Journal struct {
 	Items           []Item    `json:"записи"`
 	Refused         []Refusal `json:"отказано,omitempty"`
 
+	// ByHand records which of the two questions built this plan: the
+	// приговор of the layer (`clean`, забой as it was) or the человек
+	// pointing at something (забой as it is).  A person reading a journal
+	// months later asks exactly that first, and a journal that does not say
+	// leaves them guessing from the paths.
+	ByHand bool `json:"по_воле_человека,omitempty"`
+
+	// Dirs are the directories removed after their files, deepest first.
+	Dirs []DirItem `json:"каталоги,omitempty"`
+
 	// path is where this journal was read from or written to.  It is not
 	// serialised: a file that carries its own location is wrong the moment
 	// the directory is renamed.
@@ -105,6 +115,28 @@ func (j *Journal) Restored() (n int, bytes int64) {
 		}
 	}
 	return n, bytes
+}
+
+// PurgedDirs counts the directories removed after their files.
+func (j *Journal) PurgedDirs() int {
+	n := 0
+	for _, d := range j.Dirs {
+		if d.RemovedAt != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// KeptDirs are the directories that are still there, and why.
+func (j *Journal) KeptDirs() []DirItem {
+	var out []DirItem
+	for _, d := range j.Dirs {
+		if d.RemovedAt == "" && !d.Failed.Empty() {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // Purged counts the entries erased.

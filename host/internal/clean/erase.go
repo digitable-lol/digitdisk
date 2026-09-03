@@ -12,15 +12,17 @@ import (
 	"digitdisk/internal/lang"
 )
 
-// Erase removes the files a plan lists.  For good: there is no корзина behind
-// this, and `restore` has nothing to work with afterwards.
+// Erase removes the files a plan lists, and then the directories they left
+// empty.  For good: there is no корзина behind this, and `restore` has nothing
+// to work with afterwards.
 //
-// IT IS THE SAME PLAN.  Erase takes what Make produced and nothing else — the
-// приговор «МожноУбрать» of the decision layer, narrowed by the отметки, minus
-// what the защитный список kept and minus what guard() refused.  It adds no
-// rule, widens no ground and knows no path the plan does not name.  A caller
-// who wants to erase something the layer did not mark has no way to say so
-// here, and that is the whole point of this file being three dozen lines long.
+// IT IS THE PLAN AND NOTHING BUT THE PLAN.  Erase takes what Make produced —
+// whichever of the two questions built it, the приговор of `clean` or the
+// finger of a person on the забой road — minus what the защитный список kept,
+// minus what the твёрдые запреты refused, minus what the guards would not
+// touch.  It adds no rule, widens no ground and knows no path the plan does
+// not name.  A caller who wants to erase something the plan does not list has
+// no way to say so here, and that is the whole point of this file being short.
 //
 // What differs from Apply, and only this:
 //
@@ -28,6 +30,13 @@ import (
 //     is gone rather than renamed;
 //   - the корзина that is made holds the JOURNAL ALONE.  Nothing is put in it,
 //     because there is nothing left to put;
+//   - after the files, the DIRECTORIES the plan names are removed, deepest
+//     first, by a call that takes an empty directory and refuses a full one.
+//     «Удалить папку» means the папка too; a directory left standing empty
+//     answers the letter of the request and none of its meaning.  A directory
+//     that still holds anything stays and says so — which is what makes this
+//     safe, because a directory can only go once everything inside it has
+//     already passed the checks one at a time;
 //   - the journal is stamped «способ: стирание», so it can never be read back
 //     as a корзина somebody could empty.
 //
@@ -54,7 +63,10 @@ func Erase(p Plan, opt Options) (*Journal, error) {
 Собери хозяина с признаком flangcore: go build -tags flangcore -o digitdisk ./host`,
 			p.Decider, "МожноУбрать")
 	}
-	if len(p.Items) == 0 {
+	if p.Paths() == 0 {
+		if p.ByHand {
+			return nil, lang.Errorf("стирать нечего: под указанным нет ни одного обычного файла и ни одного каталога, который можно снять")
+		}
 		return nil, lang.Errorf("стирать нечего: ядро не пометило «%s» ни одного файла под %s", "МожноУбрать", p.Root)
 	}
 
@@ -85,6 +97,8 @@ func Erase(p Plan, opt Options) (*Journal, error) {
 		StartedAt:       now.UTC().Format(time.RFC3339Nano),
 		Items:           append([]Item(nil), p.Items...),
 		Refused:         p.Refused,
+		ByHand:          p.ByHand,
+		Dirs:            append([]DirItem(nil), p.Dirs...),
 	}
 
 	journalRel := path.Join(boxRelPath, JournalName)
@@ -107,6 +121,19 @@ func Erase(p Plan, opt Options) (*Journal, error) {
 			continue
 		}
 		erased++
+	}
+
+	// The directories come after every file, in the order Make sorted them:
+	// deepest first.  A parent whose child is still standing therefore meets
+	// a non-empty directory and stays, which is the answer we want — the
+	// refusal is the filesystem's own and needs no rule of ours behind it.
+	for i := range j.Dirs {
+		d := &j.Dirs[i]
+		if err := removeDir(root, d); err != nil {
+			d.Failed = phraseOf(err)
+			continue
+		}
+		d.RemovedAt = now.UTC().Format(time.RFC3339Nano)
 	}
 
 	j.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
@@ -140,5 +167,27 @@ func eraseOne(root *os.Root, it *Item, now time.Time) error {
 		return lang.Errorf("не стирается: %v", err)
 	}
 	it.PurgedAt = now.UTC().Format(time.RFC3339Nano)
+	return nil
+}
+
+// removeDir takes one directory, and only when it is a directory and only when
+// it is empty.  os.Root.Remove is the call that refuses a full one, so
+// "everything inside has already gone" is a property of the syscall and not of
+// a check somebody could forget.  The recursive remove this tree forbids by
+// name is not used and not needed: nothing here asks for recursion.
+func removeDir(root *os.Root, d *DirItem) error {
+	info, err := root.Lstat(d.Rel)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return lang.Errorf("исчез между обходом и стиранием")
+		}
+		return lang.Errorf("не читается: %v", err)
+	}
+	if !info.IsDir() {
+		return lang.Errorf("перестал быть каталогом (стал %v)", info.Mode())
+	}
+	if err := root.Remove(d.Rel); err != nil {
+		return lang.Errorf("не снят: %v", err)
+	}
 	return nil
 }

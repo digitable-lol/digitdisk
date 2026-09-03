@@ -10,7 +10,7 @@
 #define FL_MAX_DEPTH 10000
 #define FL_MAX_STEPS 1000000
 #define FL_MAX_TAIL_ARGS 1
-#define FL_MAX_ARGS 3
+#define FL_MAX_ARGS 4
 
 /* SPDX-FileCopyrightText: 2026 Digitable (Marat Zimnurov) */
 /* SPDX-License-Identifier: BSD-2-Clause */
