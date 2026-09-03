@@ -141,7 +141,17 @@ jobs:
           n=$(jq '.gpus | length' "$RUNNER_TEMP/iokit.json")
           echo "карт в снимке: $n"
           [ "$n" -ge 1 ] || { echo "Раздел ВИДЕОКАРТЫ по-прежнему пуст." >&2; exit 1; }
-          "$RUNNER_TEMP/digitdisk-iokit" status --sample 1 --why | grep -i -A2 'видеокарт' || true
+
+          # Карта приехала — а вместе с ней могло приехать и объяснение.
+          # Тот же сторож, что стоит ниже на весь снимок, но здесь он
+          # доходит до дела, даже когда шаг с тестами красный по чужой
+          # причине.
+          "$RUNNER_TEMP/digitdisk-iokit" status --sample 1 > "$RUNNER_TEMP/iokit-status.txt"
+          sed -n '/ВИДЕОКАРТ/,/^$/p;/VIDEO CARD/,/^$/p' "$RUNNER_TEMP/iokit-status.txt"
+          if grep -nE 'Mach|cgo|sysctl|IOKit|libproc|host_statistics|proc_pidinfo' "$RUNNER_TEMP/iokit-status.txt"; then
+            echo "Вместе с картой в снимок приехало объяснение." >&2
+            exit 1
+          fi
 
       - name: Тесты, включая те, которым нужен мак
         # Здесь исполняются host/internal/sysinfo/sysinfo_darwin_test.go: они
