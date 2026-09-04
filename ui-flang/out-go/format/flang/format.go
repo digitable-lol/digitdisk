@@ -796,56 +796,39 @@ func DelitelBayt(ctx *rt.Ctx, vitki rt.Value, zapas rt.Value) (rt.Value, error) 
 	if e237 != nil {
 		return rt.Value{}, e237
 	}
-	var t238 rt.Value
 	if t236 {
-		t238 = rt.Number(1024.0)
+		return rt.Number(1024.0), nil
 	} else {
-		t239, e240 := rt.Gte(ctx, vitki, rt.Number(1024.0))
-		if e240 != nil {
-			return rt.Value{}, e240
+		t238, e239 := rt.Gte(ctx, vitki, rt.Number(1024.0))
+		if e239 != nil {
+			return rt.Value{}, e239
 		}
-		t241, e242 := rt.Cond(ctx, t239)
-		if e242 != nil {
-			return rt.Value{}, e242
+		t240, e241 := rt.Cond(ctx, t238)
+		if e241 != nil {
+			return rt.Value{}, e241
 		}
-		var t243 rt.Value
-		if t241 {
-			t244, e245 := DelenieNacelo(ctx, vitki, rt.Number(1024.0))
+		if t240 {
+			t242, e243 := DelenieNacelo(ctx, vitki, rt.Number(1024.0))
+			if e243 != nil {
+				return rt.Value{}, e243
+			}
+			t244, e245 := rt.Sub(ctx, zapas, rt.Number(1.0))
 			if e245 != nil {
 				return rt.Value{}, e245
 			}
-			t246, e247 := rt.Sub(ctx, zapas, rt.Number(1.0))
+			t246, e247 := DelitelBayt(ctx, t242, t244)
 			if e247 != nil {
 				return rt.Value{}, e247
 			}
-			t248, e249 := DelitelBayt(ctx, t244, t246)
+			t248, e249 := rt.Mul(ctx, rt.Number(1024.0), t246)
 			if e249 != nil {
 				return rt.Value{}, e249
 			}
-			t250, e251 := rt.Mul(ctx, rt.Number(1024.0), t248)
-			if e251 != nil {
-				return rt.Value{}, e251
-			}
-			t243 = t250
+			return t248, nil
 		} else {
-			t243 = rt.Number(1024.0)
+			return rt.Number(1024.0), nil
 		}
-		t238 = t243
 	}
-	t252 := t238
-	t253, e254 := rt.Gte(ctx, t252, rt.Number(1024.0))
-	if e254 != nil {
-		return rt.Value{}, e254
-	}
-	// постусловие «делитель не меньше тысячи двадцати четырёх»
-	t255, e256 := rt.Post(ctx, t253, "делитель не меньше тысячи двадцати четырёх", "Делитель байт")
-	if e256 != nil {
-		return rt.Value{}, e256
-	}
-	if !t255 {
-		return rt.Value{}, rt.Fail("FLANG_PROPERTY", "%s", "нарушено свойство «делитель не меньше тысячи двадцати четырёх» функции «Делитель байт»")
-	}
-	return t252, nil
 }
 
 // EdinicaBayt — функция flang «Единица байт».
@@ -855,44 +838,44 @@ func DelitelBayt(ctx *rt.Ctx, vitki rt.Value, zapas rt.Value) (rt.Value, error) 
 // Параметр stupen — «ступень»: число.
 // Результат — значение: строка.
 func EdinicaBayt(ctx *rt.Ctx, stupen rt.Value) (rt.Value, error) {
-	t257, e258 := rt.Lte(ctx, stupen, rt.Number(0.0))
-	if e258 != nil {
-		return rt.Value{}, e258
+	t250, e251 := rt.Lte(ctx, stupen, rt.Number(0.0))
+	if e251 != nil {
+		return rt.Value{}, e251
 	}
-	t259, e260 := rt.Cond(ctx, t257)
-	if e260 != nil {
-		return rt.Value{}, e260
+	t252, e253 := rt.Cond(ctx, t250)
+	if e253 != nil {
+		return rt.Value{}, e253
 	}
-	if t259 {
+	if t252 {
 		return rt.Text("КиБ"), nil
 	} else {
-		t261, e262 := rt.Gte(ctx, stupen, rt.Number(4.0))
-		if e262 != nil {
-			return rt.Value{}, e262
+		t254, e255 := rt.Gte(ctx, stupen, rt.Number(4.0))
+		if e255 != nil {
+			return rt.Value{}, e255
 		}
-		t263, e264 := rt.Cond(ctx, t261)
-		if e264 != nil {
-			return rt.Value{}, e264
+		t256, e257 := rt.Cond(ctx, t254)
+		if e257 != nil {
+			return rt.Value{}, e257
 		}
-		if t263 {
+		if t256 {
 			return rt.Text("ПиБ"), nil
 		} else {
-			t265, e266 := rt.Add(ctx, stupen, rt.Number(1.0))
-			if e266 != nil {
-				return rt.Value{}, e266
+			t258, e259 := rt.Add(ctx, stupen, rt.Number(1.0))
+			if e259 != nil {
+				return rt.Value{}, e259
 			}
-			t267 := make([]rt.Value, 5)
-			t267[0] = rt.Text("КиБ")
-			t267[1] = rt.Text("МиБ")
-			t267[2] = rt.Text("ГиБ")
-			t267[3] = rt.Text("ТиБ")
-			t267[4] = rt.Text("ПиБ")
+			t260 := make([]rt.Value, 5)
+			t260[0] = rt.Text("КиБ")
+			t260[1] = rt.Text("МиБ")
+			t260[2] = rt.Text("ГиБ")
+			t260[3] = rt.Text("ТиБ")
+			t260[4] = rt.Text("ПиБ")
 			// «элемент»
-			t268, e269 := rt.BElement(ctx, t265, rt.List(t267))
-			if e269 != nil {
-				return rt.Value{}, e269
+			t261, e262 := rt.BElement(ctx, t258, rt.List(t260))
+			if e262 != nil {
+				return rt.Value{}, e262
 			}
-			return t268, nil
+			return t261, nil
 		}
 	}
 }
@@ -905,109 +888,109 @@ func EdinicaBayt(ctx *rt.Ctx, stupen rt.Value) (rt.Value, error) {
 // Параметр razdelitel — «разделитель»: строка.
 // Результат — значение: строка.
 func BaytyZnakom(ctx *rt.Ctx, skolko rt.Value, razdelitel rt.Value) (rt.Value, error) {
-	t270, e271 := rt.Lt(ctx, skolko, rt.Number(0.0))
+	t263, e264 := rt.Lt(ctx, skolko, rt.Number(0.0))
+	if e264 != nil {
+		return rt.Value{}, e264
+	}
+	t265, e266 := rt.Cond(ctx, t263)
+	if e266 != nil {
+		return rt.Value{}, e266
+	}
+	var t267 rt.Value
+	if t265 {
+		t267 = rt.Text("-")
+	} else {
+		t267 = rt.Text("")
+	}
+	// пусть «знак»
+	znak := t267
+	t268, e269 := rt.Lt(ctx, skolko, rt.Number(0.0))
+	if e269 != nil {
+		return rt.Value{}, e269
+	}
+	t270, e271 := rt.Cond(ctx, t268)
 	if e271 != nil {
 		return rt.Value{}, e271
 	}
-	t272, e273 := rt.Cond(ctx, t270)
-	if e273 != nil {
-		return rt.Value{}, e273
-	}
-	var t274 rt.Value
-	if t272 {
-		t274 = rt.Text("-")
+	var t272 rt.Value
+	if t270 {
+		t273, e274 := rt.Sub(ctx, rt.Number(0.0), skolko)
+		if e274 != nil {
+			return rt.Value{}, e274
+		}
+		t272 = t273
 	} else {
-		t274 = rt.Text("")
+		t272 = skolko
 	}
-	// пусть «знак»
-	znak := t274
-	t275, e276 := rt.Lt(ctx, skolko, rt.Number(0.0))
+	t275, e276 := CeloeKNulyu(ctx, t272)
 	if e276 != nil {
 		return rt.Value{}, e276
 	}
-	t277, e278 := rt.Cond(ctx, t275)
+	// пусть «величина»
+	velichina := t275
+	t277, e278 := rt.Lt(ctx, velichina, rt.Number(1024.0))
 	if e278 != nil {
 		return rt.Value{}, e278
 	}
-	var t279 rt.Value
-	if t277 {
-		t280, e281 := rt.Sub(ctx, rt.Number(0.0), skolko)
-		if e281 != nil {
-			return rt.Value{}, e281
-		}
-		t279 = t280
-	} else {
-		t279 = skolko
+	t279, e280 := rt.Cond(ctx, t277)
+	if e280 != nil {
+		return rt.Value{}, e280
 	}
-	t282, e283 := CeloeKNulyu(ctx, t279)
-	if e283 != nil {
-		return rt.Value{}, e283
-	}
-	// пусть «величина»
-	velichina := t282
-	t284, e285 := rt.Lt(ctx, velichina, rt.Number(1024.0))
-	if e285 != nil {
-		return rt.Value{}, e285
-	}
-	t286, e287 := rt.Cond(ctx, t284)
-	if e287 != nil {
-		return rt.Value{}, e287
-	}
-	if t286 {
+	if t279 {
 		// «к строке»
-		t288, e289 := rt.BToString(ctx, velichina)
-		if e289 != nil {
-			return rt.Value{}, e289
+		t281, e282 := rt.BToString(ctx, velichina)
+		if e282 != nil {
+			return rt.Value{}, e282
 		}
-		t290, e291 := rt.Concat(ctx, znak, t288)
-		if e291 != nil {
-			return rt.Value{}, e291
+		t283, e284 := rt.Concat(ctx, znak, t281)
+		if e284 != nil {
+			return rt.Value{}, e284
 		}
-		t292, e293 := rt.Concat(ctx, t290, rt.Text(" Б"))
-		if e293 != nil {
-			return rt.Value{}, e293
+		t285, e286 := rt.Concat(ctx, t283, rt.Text(" Б"))
+		if e286 != nil {
+			return rt.Value{}, e286
 		}
-		return t292, nil
+		return t285, nil
 	} else {
-		t294, e295 := DelenieNacelo(ctx, velichina, rt.Number(1024.0))
-		if e295 != nil {
-			return rt.Value{}, e295
+		t287, e288 := DelenieNacelo(ctx, velichina, rt.Number(1024.0))
+		if e288 != nil {
+			return rt.Value{}, e288
 		}
 		// пусть «витки»
-		vitki := t294
-		t296, e297 := DelitelBayt(ctx, vitki, rt.Number(4.0))
-		if e297 != nil {
-			return rt.Value{}, e297
+		vitki := t287
+		t289, e290 := DelitelBayt(ctx, vitki, rt.Number(4.0))
+		if e290 != nil {
+			return rt.Value{}, e290
 		}
-		t298, e299 := rt.Div(ctx, velichina, t296)
-		if e299 != nil {
-			return rt.Value{}, e299
+		t291, e292 := rt.Div(ctx, velichina, t289)
+		if e292 != nil {
+			return rt.Value{}, e292
 		}
-		t300, e301 := Drobyu(ctx, t298, rt.Number(1.0), razdelitel)
-		if e301 != nil {
-			return rt.Value{}, e301
+		t293, e294 := Drobyu(ctx, t291, rt.Number(1.0), razdelitel)
+		if e294 != nil {
+			return rt.Value{}, e294
 		}
-		t302, e303 := rt.Concat(ctx, znak, t300)
-		if e303 != nil {
-			return rt.Value{}, e303
+		t295, e296 := rt.Concat(ctx, znak, t293)
+		if e296 != nil {
+			return rt.Value{}, e296
 		}
-		t304, e305 := rt.Concat(ctx, t302, rt.Text(" "))
-		if e305 != nil {
-			return rt.Value{}, e305
+		t297, e298 := rt.Concat(ctx, t295, rt.Text(" "))
+		if e298 != nil {
+			return rt.Value{}, e298
 		}
-		t306, e307 := StupenBayt(ctx, vitki, rt.Number(4.0))
-		if e307 != nil {
-			return rt.Value{}, e307
+		t299, e300 := StupenBayt(ctx, vitki, rt.Number(4.0))
+		if e300 != nil {
+			return rt.Value{}, e300
 		}
-		t308, e309 := EdinicaBayt(ctx, t306)
-		if e309 != nil {
-			return rt.Value{}, e309
+		t301, e302 := EdinicaBayt(ctx, t299)
+		if e302 != nil {
+			return rt.Value{}, e302
 		}
-		t310, e311 := rt.Concat(ctx, t304, t308)
-		if e311 != nil {
-			return rt.Value{}, e311
+		t303, e304 := rt.Concat(ctx, t297, t301)
+		if e304 != nil {
+			return rt.Value{}, e304
 		}
-		return t310, nil
+		return t303, nil
 	}
 }
 
@@ -1035,43 +1018,43 @@ func StupenTysyach(ctx *rt.Ctx, vitki rt.Value, zapas rt.Value) (rt.Value, error
 		return rt.Value{}, err
 	}
 	defer ctx.Leave()
-	t312, e313 := rt.Lte(ctx, zapas, rt.Number(0.0))
-	if e313 != nil {
-		return rt.Value{}, e313
+	t305, e306 := rt.Lte(ctx, zapas, rt.Number(0.0))
+	if e306 != nil {
+		return rt.Value{}, e306
 	}
-	t314, e315 := rt.Cond(ctx, t312)
-	if e315 != nil {
-		return rt.Value{}, e315
+	t307, e308 := rt.Cond(ctx, t305)
+	if e308 != nil {
+		return rt.Value{}, e308
 	}
-	if t314 {
+	if t307 {
 		return rt.Number(0.0), nil
 	} else {
-		t316, e317 := rt.Gte(ctx, vitki, rt.Number(1000.0))
-		if e317 != nil {
-			return rt.Value{}, e317
+		t309, e310 := rt.Gte(ctx, vitki, rt.Number(1000.0))
+		if e310 != nil {
+			return rt.Value{}, e310
 		}
-		t318, e319 := rt.Cond(ctx, t316)
-		if e319 != nil {
-			return rt.Value{}, e319
+		t311, e312 := rt.Cond(ctx, t309)
+		if e312 != nil {
+			return rt.Value{}, e312
 		}
-		if t318 {
-			t320, e321 := DelenieNacelo(ctx, vitki, rt.Number(1000.0))
-			if e321 != nil {
-				return rt.Value{}, e321
+		if t311 {
+			t313, e314 := DelenieNacelo(ctx, vitki, rt.Number(1000.0))
+			if e314 != nil {
+				return rt.Value{}, e314
 			}
-			t322, e323 := rt.Sub(ctx, zapas, rt.Number(1.0))
-			if e323 != nil {
-				return rt.Value{}, e323
+			t315, e316 := rt.Sub(ctx, zapas, rt.Number(1.0))
+			if e316 != nil {
+				return rt.Value{}, e316
 			}
-			t324, e325 := StupenTysyach(ctx, t320, t322)
-			if e325 != nil {
-				return rt.Value{}, e325
+			t317, e318 := StupenTysyach(ctx, t313, t315)
+			if e318 != nil {
+				return rt.Value{}, e318
 			}
-			t326, e327 := rt.Add(ctx, rt.Number(1.0), t324)
-			if e327 != nil {
-				return rt.Value{}, e327
+			t319, e320 := rt.Add(ctx, rt.Number(1.0), t317)
+			if e320 != nil {
+				return rt.Value{}, e320
 			}
-			return t326, nil
+			return t319, nil
 		} else {
 			return rt.Number(0.0), nil
 		}
@@ -1092,64 +1075,47 @@ func DelitelTysyach(ctx *rt.Ctx, vitki rt.Value, zapas rt.Value) (rt.Value, erro
 		return rt.Value{}, err
 	}
 	defer ctx.Leave()
-	t328, e329 := rt.Lte(ctx, zapas, rt.Number(0.0))
-	if e329 != nil {
-		return rt.Value{}, e329
+	t321, e322 := rt.Lte(ctx, zapas, rt.Number(0.0))
+	if e322 != nil {
+		return rt.Value{}, e322
 	}
-	t330, e331 := rt.Cond(ctx, t328)
-	if e331 != nil {
-		return rt.Value{}, e331
+	t323, e324 := rt.Cond(ctx, t321)
+	if e324 != nil {
+		return rt.Value{}, e324
 	}
-	var t332 rt.Value
-	if t330 {
-		t332 = rt.Number(1000.0)
+	if t323 {
+		return rt.Number(1000.0), nil
 	} else {
-		t333, e334 := rt.Gte(ctx, vitki, rt.Number(1000.0))
-		if e334 != nil {
-			return rt.Value{}, e334
+		t325, e326 := rt.Gte(ctx, vitki, rt.Number(1000.0))
+		if e326 != nil {
+			return rt.Value{}, e326
 		}
-		t335, e336 := rt.Cond(ctx, t333)
-		if e336 != nil {
-			return rt.Value{}, e336
+		t327, e328 := rt.Cond(ctx, t325)
+		if e328 != nil {
+			return rt.Value{}, e328
 		}
-		var t337 rt.Value
-		if t335 {
-			t338, e339 := DelenieNacelo(ctx, vitki, rt.Number(1000.0))
-			if e339 != nil {
-				return rt.Value{}, e339
+		if t327 {
+			t329, e330 := DelenieNacelo(ctx, vitki, rt.Number(1000.0))
+			if e330 != nil {
+				return rt.Value{}, e330
 			}
-			t340, e341 := rt.Sub(ctx, zapas, rt.Number(1.0))
-			if e341 != nil {
-				return rt.Value{}, e341
+			t331, e332 := rt.Sub(ctx, zapas, rt.Number(1.0))
+			if e332 != nil {
+				return rt.Value{}, e332
 			}
-			t342, e343 := DelitelTysyach(ctx, t338, t340)
-			if e343 != nil {
-				return rt.Value{}, e343
+			t333, e334 := DelitelTysyach(ctx, t329, t331)
+			if e334 != nil {
+				return rt.Value{}, e334
 			}
-			t344, e345 := rt.Mul(ctx, rt.Number(1000.0), t342)
-			if e345 != nil {
-				return rt.Value{}, e345
+			t335, e336 := rt.Mul(ctx, rt.Number(1000.0), t333)
+			if e336 != nil {
+				return rt.Value{}, e336
 			}
-			t337 = t344
+			return t335, nil
 		} else {
-			t337 = rt.Number(1000.0)
+			return rt.Number(1000.0), nil
 		}
-		t332 = t337
 	}
-	t346 := t332
-	t347, e348 := rt.Gte(ctx, t346, rt.Number(1000.0))
-	if e348 != nil {
-		return rt.Value{}, e348
-	}
-	// постусловие «делитель не меньше тысячи»
-	t349, e350 := rt.Post(ctx, t347, "делитель не меньше тысячи", "Делитель тысяч")
-	if e350 != nil {
-		return rt.Value{}, e350
-	}
-	if !t349 {
-		return rt.Value{}, rt.Fail("FLANG_PROPERTY", "%s", "нарушено свойство «делитель не меньше тысячи» функции «Делитель тысяч»")
-	}
-	return t346, nil
 }
 
 // EdinicaTysyach — функция flang «Единица тысяч».
@@ -1159,44 +1125,44 @@ func DelitelTysyach(ctx *rt.Ctx, vitki rt.Value, zapas rt.Value) (rt.Value, erro
 // Параметр stupen — «ступень»: число.
 // Результат — значение: строка.
 func EdinicaTysyach(ctx *rt.Ctx, stupen rt.Value) (rt.Value, error) {
-	t351, e352 := rt.Lte(ctx, stupen, rt.Number(0.0))
-	if e352 != nil {
-		return rt.Value{}, e352
+	t337, e338 := rt.Lte(ctx, stupen, rt.Number(0.0))
+	if e338 != nil {
+		return rt.Value{}, e338
 	}
-	t353, e354 := rt.Cond(ctx, t351)
-	if e354 != nil {
-		return rt.Value{}, e354
+	t339, e340 := rt.Cond(ctx, t337)
+	if e340 != nil {
+		return rt.Value{}, e340
 	}
-	if t353 {
+	if t339 {
 		return rt.Text("КБ"), nil
 	} else {
-		t355, e356 := rt.Gte(ctx, stupen, rt.Number(4.0))
-		if e356 != nil {
-			return rt.Value{}, e356
+		t341, e342 := rt.Gte(ctx, stupen, rt.Number(4.0))
+		if e342 != nil {
+			return rt.Value{}, e342
 		}
-		t357, e358 := rt.Cond(ctx, t355)
-		if e358 != nil {
-			return rt.Value{}, e358
+		t343, e344 := rt.Cond(ctx, t341)
+		if e344 != nil {
+			return rt.Value{}, e344
 		}
-		if t357 {
+		if t343 {
 			return rt.Text("ПБ"), nil
 		} else {
-			t359, e360 := rt.Add(ctx, stupen, rt.Number(1.0))
-			if e360 != nil {
-				return rt.Value{}, e360
+			t345, e346 := rt.Add(ctx, stupen, rt.Number(1.0))
+			if e346 != nil {
+				return rt.Value{}, e346
 			}
-			t361 := make([]rt.Value, 5)
-			t361[0] = rt.Text("КБ")
-			t361[1] = rt.Text("МБ")
-			t361[2] = rt.Text("ГБ")
-			t361[3] = rt.Text("ТБ")
-			t361[4] = rt.Text("ПБ")
+			t347 := make([]rt.Value, 5)
+			t347[0] = rt.Text("КБ")
+			t347[1] = rt.Text("МБ")
+			t347[2] = rt.Text("ГБ")
+			t347[3] = rt.Text("ТБ")
+			t347[4] = rt.Text("ПБ")
 			// «элемент»
-			t362, e363 := rt.BElement(ctx, t359, rt.List(t361))
-			if e363 != nil {
-				return rt.Value{}, e363
+			t348, e349 := rt.BElement(ctx, t345, rt.List(t347))
+			if e349 != nil {
+				return rt.Value{}, e349
 			}
-			return t362, nil
+			return t348, nil
 		}
 	}
 }
@@ -1209,7 +1175,47 @@ func EdinicaTysyach(ctx *rt.Ctx, stupen rt.Value) (rt.Value, error) {
 // Параметр razdelitel — «разделитель»: строка.
 // Результат — значение: строка.
 func BaytyDesyatichno(ctx *rt.Ctx, skolko rt.Value, razdelitel rt.Value) (rt.Value, error) {
-	t364, e365 := rt.Lt(ctx, skolko, rt.Number(0.0))
+	t350, e351 := rt.Lt(ctx, skolko, rt.Number(0.0))
+	if e351 != nil {
+		return rt.Value{}, e351
+	}
+	t352, e353 := rt.Cond(ctx, t350)
+	if e353 != nil {
+		return rt.Value{}, e353
+	}
+	var t354 rt.Value
+	if t352 {
+		t354 = rt.Text("-")
+	} else {
+		t354 = rt.Text("")
+	}
+	// пусть «знак»
+	znak := t354
+	t355, e356 := rt.Lt(ctx, skolko, rt.Number(0.0))
+	if e356 != nil {
+		return rt.Value{}, e356
+	}
+	t357, e358 := rt.Cond(ctx, t355)
+	if e358 != nil {
+		return rt.Value{}, e358
+	}
+	var t359 rt.Value
+	if t357 {
+		t360, e361 := rt.Sub(ctx, rt.Number(0.0), skolko)
+		if e361 != nil {
+			return rt.Value{}, e361
+		}
+		t359 = t360
+	} else {
+		t359 = skolko
+	}
+	t362, e363 := CeloeKNulyu(ctx, t359)
+	if e363 != nil {
+		return rt.Value{}, e363
+	}
+	// пусть «величина»
+	velichina := t362
+	t364, e365 := rt.Lt(ctx, velichina, rt.Number(1000.0))
 	if e365 != nil {
 		return rt.Value{}, e365
 	}
@@ -1217,101 +1223,61 @@ func BaytyDesyatichno(ctx *rt.Ctx, skolko rt.Value, razdelitel rt.Value) (rt.Val
 	if e367 != nil {
 		return rt.Value{}, e367
 	}
-	var t368 rt.Value
 	if t366 {
-		t368 = rt.Text("-")
+		// «к строке»
+		t368, e369 := rt.BToString(ctx, velichina)
+		if e369 != nil {
+			return rt.Value{}, e369
+		}
+		t370, e371 := rt.Concat(ctx, znak, t368)
+		if e371 != nil {
+			return rt.Value{}, e371
+		}
+		t372, e373 := rt.Concat(ctx, t370, rt.Text(" Б"))
+		if e373 != nil {
+			return rt.Value{}, e373
+		}
+		return t372, nil
 	} else {
-		t368 = rt.Text("")
-	}
-	// пусть «знак»
-	znak := t368
-	t369, e370 := rt.Lt(ctx, skolko, rt.Number(0.0))
-	if e370 != nil {
-		return rt.Value{}, e370
-	}
-	t371, e372 := rt.Cond(ctx, t369)
-	if e372 != nil {
-		return rt.Value{}, e372
-	}
-	var t373 rt.Value
-	if t371 {
-		t374, e375 := rt.Sub(ctx, rt.Number(0.0), skolko)
+		t374, e375 := DelenieNacelo(ctx, velichina, rt.Number(1000.0))
 		if e375 != nil {
 			return rt.Value{}, e375
 		}
-		t373 = t374
-	} else {
-		t373 = skolko
-	}
-	t376, e377 := CeloeKNulyu(ctx, t373)
-	if e377 != nil {
-		return rt.Value{}, e377
-	}
-	// пусть «величина»
-	velichina := t376
-	t378, e379 := rt.Lt(ctx, velichina, rt.Number(1000.0))
-	if e379 != nil {
-		return rt.Value{}, e379
-	}
-	t380, e381 := rt.Cond(ctx, t378)
-	if e381 != nil {
-		return rt.Value{}, e381
-	}
-	if t380 {
-		// «к строке»
-		t382, e383 := rt.BToString(ctx, velichina)
+		// пусть «витки»
+		vitki := t374
+		t376, e377 := DelitelTysyach(ctx, vitki, rt.Number(4.0))
+		if e377 != nil {
+			return rt.Value{}, e377
+		}
+		t378, e379 := rt.Div(ctx, velichina, t376)
+		if e379 != nil {
+			return rt.Value{}, e379
+		}
+		t380, e381 := Drobyu(ctx, t378, rt.Number(1.0), razdelitel)
+		if e381 != nil {
+			return rt.Value{}, e381
+		}
+		t382, e383 := rt.Concat(ctx, znak, t380)
 		if e383 != nil {
 			return rt.Value{}, e383
 		}
-		t384, e385 := rt.Concat(ctx, znak, t382)
+		t384, e385 := rt.Concat(ctx, t382, rt.Text(" "))
 		if e385 != nil {
 			return rt.Value{}, e385
 		}
-		t386, e387 := rt.Concat(ctx, t384, rt.Text(" Б"))
+		t386, e387 := StupenTysyach(ctx, vitki, rt.Number(4.0))
 		if e387 != nil {
 			return rt.Value{}, e387
 		}
-		return t386, nil
-	} else {
-		t388, e389 := DelenieNacelo(ctx, velichina, rt.Number(1000.0))
+		t388, e389 := EdinicaTysyach(ctx, t386)
 		if e389 != nil {
 			return rt.Value{}, e389
 		}
-		// пусть «витки»
-		vitki := t388
-		t390, e391 := DelitelTysyach(ctx, vitki, rt.Number(4.0))
+		t390, e391 := rt.Concat(ctx, t384, t388)
 		if e391 != nil {
 			return rt.Value{}, e391
 		}
-		t392, e393 := rt.Div(ctx, velichina, t390)
-		if e393 != nil {
-			return rt.Value{}, e393
-		}
-		t394, e395 := Drobyu(ctx, t392, rt.Number(1.0), razdelitel)
-		if e395 != nil {
-			return rt.Value{}, e395
-		}
-		t396, e397 := rt.Concat(ctx, znak, t394)
-		if e397 != nil {
-			return rt.Value{}, e397
-		}
-		t398, e399 := rt.Concat(ctx, t396, rt.Text(" "))
-		if e399 != nil {
-			return rt.Value{}, e399
-		}
-		t400, e401 := StupenTysyach(ctx, vitki, rt.Number(4.0))
-		if e401 != nil {
-			return rt.Value{}, e401
-		}
-		t402, e403 := EdinicaTysyach(ctx, t400)
-		if e403 != nil {
-			return rt.Value{}, e403
-		}
-		t404, e405 := rt.Concat(ctx, t398, t402)
-		if e405 != nil {
-			return rt.Value{}, e405
-		}
-		return t404, nil
+		return t390, nil
 	}
 }
 
@@ -1323,18 +1289,18 @@ func BaytyDesyatichno(ctx *rt.Ctx, skolko rt.Value, razdelitel rt.Value) (rt.Val
 // Параметр celoe — «целое»: число.
 // Результат — значение: число.
 func DolyaOt(ctx *rt.Ctx, chast rt.Value, celoe rt.Value) (rt.Value, error) {
-	t406, e407 := rt.Cond(ctx, rt.Flag(rt.Equal(celoe, rt.Number(0.0))))
-	if e407 != nil {
-		return rt.Value{}, e407
+	t392, e393 := rt.Cond(ctx, rt.Flag(rt.Equal(celoe, rt.Number(0.0))))
+	if e393 != nil {
+		return rt.Value{}, e393
 	}
-	if t406 {
+	if t392 {
 		return rt.Number(0.0), nil
 	} else {
-		t408, e409 := rt.Div(ctx, chast, celoe)
-		if e409 != nil {
-			return rt.Value{}, e409
+		t394, e395 := rt.Div(ctx, chast, celoe)
+		if e395 != nil {
+			return rt.Value{}, e395
 		}
-		return t408, nil
+		return t394, nil
 	}
 }
 
@@ -1346,22 +1312,22 @@ func DolyaOt(ctx *rt.Ctx, chast rt.Value, celoe rt.Value) (rt.Value, error) {
 // Параметр celoe — «целое»: число.
 // Результат — значение: число.
 func ProcentCelogo(ctx *rt.Ctx, chast rt.Value, celoe rt.Value) (rt.Value, error) {
-	t410, e411 := rt.Cond(ctx, rt.Flag(rt.Equal(celoe, rt.Number(0.0))))
-	if e411 != nil {
-		return rt.Value{}, e411
+	t396, e397 := rt.Cond(ctx, rt.Flag(rt.Equal(celoe, rt.Number(0.0))))
+	if e397 != nil {
+		return rt.Value{}, e397
 	}
-	if t410 {
+	if t396 {
 		return rt.Number(0.0), nil
 	} else {
-		t412, e413 := rt.Mul(ctx, rt.Number(100.0), chast)
-		if e413 != nil {
-			return rt.Value{}, e413
+		t398, e399 := rt.Mul(ctx, rt.Number(100.0), chast)
+		if e399 != nil {
+			return rt.Value{}, e399
 		}
-		t414, e415 := rt.Div(ctx, t412, celoe)
-		if e415 != nil {
-			return rt.Value{}, e415
+		t400, e401 := rt.Div(ctx, t398, celoe)
+		if e401 != nil {
+			return rt.Value{}, e401
 		}
-		return t414, nil
+		return t400, nil
 	}
 }
 
@@ -1373,19 +1339,19 @@ func ProcentCelogo(ctx *rt.Ctx, chast rt.Value, celoe rt.Value) (rt.Value, error
 // Параметр razdelitel — «разделитель»: строка.
 // Результат — значение: строка.
 func ProcentyZnakom(ctx *rt.Ctx, dolya rt.Value, razdelitel rt.Value) (rt.Value, error) {
-	t416, e417 := rt.Mul(ctx, dolya, rt.Number(100.0))
-	if e417 != nil {
-		return rt.Value{}, e417
+	t402, e403 := rt.Mul(ctx, dolya, rt.Number(100.0))
+	if e403 != nil {
+		return rt.Value{}, e403
 	}
-	t418, e419 := Drobyu(ctx, t416, rt.Number(1.0), razdelitel)
-	if e419 != nil {
-		return rt.Value{}, e419
+	t404, e405 := Drobyu(ctx, t402, rt.Number(1.0), razdelitel)
+	if e405 != nil {
+		return rt.Value{}, e405
 	}
-	t420, e421 := rt.Concat(ctx, t418, rt.Text("%"))
-	if e421 != nil {
-		return rt.Value{}, e421
+	t406, e407 := rt.Concat(ctx, t404, rt.Text("%"))
+	if e407 != nil {
+		return rt.Value{}, e407
 	}
-	return t420, nil
+	return t406, nil
 }
 
 // Procenty — функция flang «Проценты».
@@ -1405,106 +1371,106 @@ func Procenty(ctx *rt.Ctx, dolya rt.Value) (rt.Value, error) {
 // Параметр sekundy — «секунды»: число.
 // Результат — значение: строка.
 func Dlitelnost(ctx *rt.Ctx, sekundy rt.Value) (rt.Value, error) {
-	t422, e423 := rt.Lte(ctx, sekundy, rt.Number(0.0))
-	if e423 != nil {
-		return rt.Value{}, e423
+	t408, e409 := rt.Lte(ctx, sekundy, rt.Number(0.0))
+	if e409 != nil {
+		return rt.Value{}, e409
 	}
-	t424, e425 := rt.Cond(ctx, t422)
-	if e425 != nil {
-		return rt.Value{}, e425
+	t410, e411 := rt.Cond(ctx, t408)
+	if e411 != nil {
+		return rt.Value{}, e411
 	}
-	if t424 {
+	if t410 {
 		return rt.Text(""), nil
 	} else {
-		t426, e427 := CeloeKNulyu(ctx, sekundy)
+		t412, e413 := CeloeKNulyu(ctx, sekundy)
+		if e413 != nil {
+			return rt.Value{}, e413
+		}
+		// пусть «всего»
+		vsego := t412
+		t414, e415 := DelenieNacelo(ctx, vsego, rt.Number(3600.0))
+		if e415 != nil {
+			return rt.Value{}, e415
+		}
+		// пусть «часов всего»
+		chasovVsego := t414
+		t416, e417 := DelenieNacelo(ctx, chasovVsego, rt.Number(24.0))
+		if e417 != nil {
+			return rt.Value{}, e417
+		}
+		// пусть «дней»
+		dney := t416
+		t418, e419 := rt.Mod(ctx, chasovVsego, rt.Number(24.0))
+		if e419 != nil {
+			return rt.Value{}, e419
+		}
+		// пусть «часов»
+		chasov := t418
+		t420, e421 := DelenieNacelo(ctx, vsego, rt.Number(60.0))
+		if e421 != nil {
+			return rt.Value{}, e421
+		}
+		t422, e423 := rt.Mod(ctx, t420, rt.Number(60.0))
+		if e423 != nil {
+			return rt.Value{}, e423
+		}
+		// пусть «минут»
+		minut := t422
+		// «к строке»
+		t424, e425 := rt.BToString(ctx, chasov)
+		if e425 != nil {
+			return rt.Value{}, e425
+		}
+		t426, e427 := SlevaNulyami(ctx, t424, rt.Number(2.0))
 		if e427 != nil {
 			return rt.Value{}, e427
 		}
-		// пусть «всего»
-		vsego := t426
-		t428, e429 := DelenieNacelo(ctx, vsego, rt.Number(3600.0))
+		t428, e429 := rt.Concat(ctx, t426, rt.Text(":"))
 		if e429 != nil {
 			return rt.Value{}, e429
 		}
-		// пусть «часов всего»
-		chasovVsego := t428
-		t430, e431 := DelenieNacelo(ctx, chasovVsego, rt.Number(24.0))
+		// «к строке»
+		t430, e431 := rt.BToString(ctx, minut)
 		if e431 != nil {
 			return rt.Value{}, e431
 		}
-		// пусть «дней»
-		dney := t430
-		t432, e433 := rt.Mod(ctx, chasovVsego, rt.Number(24.0))
+		t432, e433 := SlevaNulyami(ctx, t430, rt.Number(2.0))
 		if e433 != nil {
 			return rt.Value{}, e433
 		}
-		// пусть «часов»
-		chasov := t432
-		t434, e435 := DelenieNacelo(ctx, vsego, rt.Number(60.0))
+		t434, e435 := rt.Concat(ctx, t428, t432)
 		if e435 != nil {
 			return rt.Value{}, e435
 		}
-		t436, e437 := rt.Mod(ctx, t434, rt.Number(60.0))
+		// пусть «время»
+		vremya := t434
+		t436, e437 := rt.Gt(ctx, dney, rt.Number(0.0))
 		if e437 != nil {
 			return rt.Value{}, e437
 		}
-		// пусть «минут»
-		minut := t436
-		// «к строке»
-		t438, e439 := rt.BToString(ctx, chasov)
+		t438, e439 := rt.Cond(ctx, t436)
 		if e439 != nil {
 			return rt.Value{}, e439
 		}
-		t440, e441 := SlevaNulyami(ctx, t438, rt.Number(2.0))
-		if e441 != nil {
-			return rt.Value{}, e441
-		}
-		t442, e443 := rt.Concat(ctx, t440, rt.Text(":"))
-		if e443 != nil {
-			return rt.Value{}, e443
-		}
-		// «к строке»
-		t444, e445 := rt.BToString(ctx, minut)
-		if e445 != nil {
-			return rt.Value{}, e445
-		}
-		t446, e447 := SlevaNulyami(ctx, t444, rt.Number(2.0))
-		if e447 != nil {
-			return rt.Value{}, e447
-		}
-		t448, e449 := rt.Concat(ctx, t442, t446)
-		if e449 != nil {
-			return rt.Value{}, e449
-		}
-		// пусть «время»
-		vremya := t448
-		t450, e451 := rt.Gt(ctx, dney, rt.Number(0.0))
-		if e451 != nil {
-			return rt.Value{}, e451
-		}
-		t452, e453 := rt.Cond(ctx, t450)
-		if e453 != nil {
-			return rt.Value{}, e453
-		}
-		if t452 {
+		if t438 {
 			// «к строке»
-			t454, e455 := rt.BToString(ctx, dney)
-			if e455 != nil {
-				return rt.Value{}, e455
+			t440, e441 := rt.BToString(ctx, dney)
+			if e441 != nil {
+				return rt.Value{}, e441
 			}
-			t456, e457 := rt.Concat(ctx, t454, rt.Text("д"))
-			if e457 != nil {
-				return rt.Value{}, e457
+			t442, e443 := rt.Concat(ctx, t440, rt.Text("д"))
+			if e443 != nil {
+				return rt.Value{}, e443
 			}
-			t458, e459 := rt.Concat(ctx, t456, rt.Text(" "))
-			if e459 != nil {
-				return rt.Value{}, e459
+			t444, e445 := rt.Concat(ctx, t442, rt.Text(" "))
+			if e445 != nil {
+				return rt.Value{}, e445
 			}
-			t460, e461 := rt.Concat(ctx, t458, vremya)
-			if e461 != nil {
-				return rt.Value{}, e461
+			t446, e447 := rt.Concat(ctx, t444, vremya)
+			if e447 != nil {
+				return rt.Value{}, e447
 			}
-			return t460, nil
+			return t446, nil
 		} else {
 			return vremya, nil
 		}
@@ -1518,88 +1484,88 @@ func Dlitelnost(ctx *rt.Ctx, sekundy rt.Value) (rt.Value, error) {
 // Параметр sekundy — «секунды»: число.
 // Результат — значение: строка.
 func Proshlo(ctx *rt.Ctx, sekundy rt.Value) (rt.Value, error) {
-	t462, e463 := rt.Lt(ctx, sekundy, rt.Number(3600.0))
-	if e463 != nil {
-		return rt.Value{}, e463
+	t448, e449 := rt.Lt(ctx, sekundy, rt.Number(3600.0))
+	if e449 != nil {
+		return rt.Value{}, e449
 	}
-	t464, e465 := rt.Cond(ctx, t462)
-	if e465 != nil {
-		return rt.Value{}, e465
+	t450, e451 := rt.Cond(ctx, t448)
+	if e451 != nil {
+		return rt.Value{}, e451
 	}
-	if t464 {
-		t466, e467 := DelenieNacelo(ctx, sekundy, rt.Number(60.0))
-		if e467 != nil {
-			return rt.Value{}, e467
+	if t450 {
+		t452, e453 := DelenieNacelo(ctx, sekundy, rt.Number(60.0))
+		if e453 != nil {
+			return rt.Value{}, e453
 		}
 		// «к строке»
-		t468, e469 := rt.BToString(ctx, t466)
-		if e469 != nil {
-			return rt.Value{}, e469
+		t454, e455 := rt.BToString(ctx, t452)
+		if e455 != nil {
+			return rt.Value{}, e455
 		}
-		t470, e471 := rt.Concat(ctx, t468, rt.Text(" "))
-		if e471 != nil {
-			return rt.Value{}, e471
+		t456, e457 := rt.Concat(ctx, t454, rt.Text(" "))
+		if e457 != nil {
+			return rt.Value{}, e457
 		}
-		t472, e473 := rt.Concat(ctx, t470, rt.Text("мин"))
-		if e473 != nil {
-			return rt.Value{}, e473
+		t458, e459 := rt.Concat(ctx, t456, rt.Text("мин"))
+		if e459 != nil {
+			return rt.Value{}, e459
 		}
-		return t472, nil
+		return t458, nil
 	} else {
-		t474, e475 := rt.Lt(ctx, sekundy, rt.Number(172800.0))
-		if e475 != nil {
-			return rt.Value{}, e475
+		t460, e461 := rt.Lt(ctx, sekundy, rt.Number(172800.0))
+		if e461 != nil {
+			return rt.Value{}, e461
 		}
-		t476, e477 := rt.Cond(ctx, t474)
-		if e477 != nil {
-			return rt.Value{}, e477
+		t462, e463 := rt.Cond(ctx, t460)
+		if e463 != nil {
+			return rt.Value{}, e463
 		}
-		if t476 {
-			t478, e479 := DelenieNacelo(ctx, sekundy, rt.Number(3600.0))
+		if t462 {
+			t464, e465 := DelenieNacelo(ctx, sekundy, rt.Number(3600.0))
+			if e465 != nil {
+				return rt.Value{}, e465
+			}
+			// «к строке»
+			t466, e467 := rt.BToString(ctx, t464)
+			if e467 != nil {
+				return rt.Value{}, e467
+			}
+			t468, e469 := rt.Concat(ctx, t466, rt.Text(" "))
+			if e469 != nil {
+				return rt.Value{}, e469
+			}
+			t470, e471 := rt.Concat(ctx, t468, rt.Text("ч"))
+			if e471 != nil {
+				return rt.Value{}, e471
+			}
+			return t470, nil
+		} else {
+			t472, e473 := rt.Div(ctx, sekundy, rt.Number(3600.0))
+			if e473 != nil {
+				return rt.Value{}, e473
+			}
+			t474, e475 := rt.Div(ctx, t472, rt.Number(24.0))
+			if e475 != nil {
+				return rt.Value{}, e475
+			}
+			t476, e477 := CeloeKNulyu(ctx, t474)
+			if e477 != nil {
+				return rt.Value{}, e477
+			}
+			// «к строке»
+			t478, e479 := rt.BToString(ctx, t476)
 			if e479 != nil {
 				return rt.Value{}, e479
 			}
-			// «к строке»
-			t480, e481 := rt.BToString(ctx, t478)
+			t480, e481 := rt.Concat(ctx, t478, rt.Text(" "))
 			if e481 != nil {
 				return rt.Value{}, e481
 			}
-			t482, e483 := rt.Concat(ctx, t480, rt.Text(" "))
+			t482, e483 := rt.Concat(ctx, t480, rt.Text("дн"))
 			if e483 != nil {
 				return rt.Value{}, e483
 			}
-			t484, e485 := rt.Concat(ctx, t482, rt.Text("ч"))
-			if e485 != nil {
-				return rt.Value{}, e485
-			}
-			return t484, nil
-		} else {
-			t486, e487 := rt.Div(ctx, sekundy, rt.Number(3600.0))
-			if e487 != nil {
-				return rt.Value{}, e487
-			}
-			t488, e489 := rt.Div(ctx, t486, rt.Number(24.0))
-			if e489 != nil {
-				return rt.Value{}, e489
-			}
-			t490, e491 := CeloeKNulyu(ctx, t488)
-			if e491 != nil {
-				return rt.Value{}, e491
-			}
-			// «к строке»
-			t492, e493 := rt.BToString(ctx, t490)
-			if e493 != nil {
-				return rt.Value{}, e493
-			}
-			t494, e495 := rt.Concat(ctx, t492, rt.Text(" "))
-			if e495 != nil {
-				return rt.Value{}, e495
-			}
-			t496, e497 := rt.Concat(ctx, t494, rt.Text("дн"))
-			if e497 != nil {
-				return rt.Value{}, e497
-			}
-			return t496, nil
+			return t482, nil
 		}
 	}
 }
@@ -1612,43 +1578,43 @@ func Proshlo(ctx *rt.Ctx, sekundy rt.Value) (rt.Value, error) {
 // Параметр razdelitel — «разделитель»: строка.
 // Результат — значение: строка.
 func ZanyaloZnakom(ctx *rt.Ctx, millisekundy rt.Value, razdelitel rt.Value) (rt.Value, error) {
-	t498, e499 := rt.Lt(ctx, millisekundy, rt.Number(1000.0))
-	if e499 != nil {
-		return rt.Value{}, e499
+	t484, e485 := rt.Lt(ctx, millisekundy, rt.Number(1000.0))
+	if e485 != nil {
+		return rt.Value{}, e485
 	}
-	t500, e501 := rt.Cond(ctx, t498)
-	if e501 != nil {
-		return rt.Value{}, e501
+	t486, e487 := rt.Cond(ctx, t484)
+	if e487 != nil {
+		return rt.Value{}, e487
 	}
-	if t500 {
-		t502, e503 := CeloeKNulyu(ctx, millisekundy)
-		if e503 != nil {
-			return rt.Value{}, e503
+	if t486 {
+		t488, e489 := CeloeKNulyu(ctx, millisekundy)
+		if e489 != nil {
+			return rt.Value{}, e489
 		}
 		// «к строке»
-		t504, e505 := rt.BToString(ctx, t502)
-		if e505 != nil {
-			return rt.Value{}, e505
+		t490, e491 := rt.BToString(ctx, t488)
+		if e491 != nil {
+			return rt.Value{}, e491
 		}
-		t506, e507 := rt.Concat(ctx, t504, rt.Text(" мс"))
-		if e507 != nil {
-			return rt.Value{}, e507
+		t492, e493 := rt.Concat(ctx, t490, rt.Text(" мс"))
+		if e493 != nil {
+			return rt.Value{}, e493
 		}
-		return t506, nil
+		return t492, nil
 	} else {
-		t508, e509 := rt.Div(ctx, millisekundy, rt.Number(1000.0))
-		if e509 != nil {
-			return rt.Value{}, e509
+		t494, e495 := rt.Div(ctx, millisekundy, rt.Number(1000.0))
+		if e495 != nil {
+			return rt.Value{}, e495
 		}
-		t510, e511 := Drobyu(ctx, t508, rt.Number(1.0), razdelitel)
-		if e511 != nil {
-			return rt.Value{}, e511
+		t496, e497 := Drobyu(ctx, t494, rt.Number(1.0), razdelitel)
+		if e497 != nil {
+			return rt.Value{}, e497
 		}
-		t512, e513 := rt.Concat(ctx, t510, rt.Text(" с"))
-		if e513 != nil {
-			return rt.Value{}, e513
+		t498, e499 := rt.Concat(ctx, t496, rt.Text(" с"))
+		if e499 != nil {
+			return rt.Value{}, e499
 		}
-		return t512, nil
+		return t498, nil
 	}
 }
 
@@ -1670,141 +1636,141 @@ func Zanyalo(ctx *rt.Ctx, millisekundy rt.Value) (rt.Value, error) {
 // Параметр cifra — «цифра»: строка.
 // Результат — значение: «Ход разрядов».
 func ShagRazryada(ctx *rt.Ctx, hod rt.Value, cifra rt.Value) (rt.Value, error) {
-	t514, e515 := rt.FieldGet(ctx, hod, "осталось")
-	if e515 != nil {
-		return rt.Value{}, e515
+	t500, e501 := rt.FieldGet(ctx, hod, "осталось")
+	if e501 != nil {
+		return rt.Value{}, e501
 	}
-	t516, e517 := rt.Mod(ctx, t514, rt.Number(3.0))
-	if e517 != nil {
-		return rt.Value{}, e517
+	t502, e503 := rt.Mod(ctx, t500, rt.Number(3.0))
+	if e503 != nil {
+		return rt.Value{}, e503
 	}
-	t518, e519 := rt.Cond(ctx, rt.Flag(rt.Equal(t516, rt.Number(0.0))))
-	if e519 != nil {
-		return rt.Value{}, e519
+	t504, e505 := rt.Cond(ctx, rt.Flag(rt.Equal(t502, rt.Number(0.0))))
+	if e505 != nil {
+		return rt.Value{}, e505
 	}
-	var t520 rt.Value
-	if t518 {
-		t521, e522 := rt.FieldGet(ctx, hod, "собрано")
-		if e522 != nil {
-			return rt.Value{}, e522
+	var t506 rt.Value
+	if t504 {
+		t507, e508 := rt.FieldGet(ctx, hod, "собрано")
+		if e508 != nil {
+			return rt.Value{}, e508
 		}
 		// «длина»
-		t523, e524 := rt.BLength(ctx, t521)
-		if e524 != nil {
-			return rt.Value{}, e524
+		t509, e510 := rt.BLength(ctx, t507)
+		if e510 != nil {
+			return rt.Value{}, e510
 		}
-		t525, e526 := rt.Gt(ctx, t523, rt.Number(0.0))
-		if e526 != nil {
-			return rt.Value{}, e526
+		t511, e512 := rt.Gt(ctx, t509, rt.Number(0.0))
+		if e512 != nil {
+			return rt.Value{}, e512
 		}
-		t520 = t525
+		t506 = t511
 	} else {
-		t520 = rt.Flag(false)
+		t506 = rt.Flag(false)
 	}
-	t527, e528 := rt.Cond(ctx, t520)
-	if e528 != nil {
-		return rt.Value{}, e528
+	t513, e514 := rt.Cond(ctx, t506)
+	if e514 != nil {
+		return rt.Value{}, e514
 	}
-	var t529 rt.Value
-	if t527 {
-		t530, e531 := rt.FieldGet(ctx, hod, "собрано")
-		if e531 != nil {
-			return rt.Value{}, e531
+	var t515 rt.Value
+	if t513 {
+		t516, e517 := rt.FieldGet(ctx, hod, "собрано")
+		if e517 != nil {
+			return rt.Value{}, e517
 		}
-		t532, e533 := rt.FieldGet(ctx, hod, "разделитель")
-		if e533 != nil {
-			return rt.Value{}, e533
+		t518, e519 := rt.FieldGet(ctx, hod, "разделитель")
+		if e519 != nil {
+			return rt.Value{}, e519
 		}
-		t534, e535 := rt.Concat(ctx, t530, t532)
-		if e535 != nil {
-			return rt.Value{}, e535
+		t520, e521 := rt.Concat(ctx, t516, t518)
+		if e521 != nil {
+			return rt.Value{}, e521
 		}
-		t536, e537 := rt.Concat(ctx, t534, cifra)
-		if e537 != nil {
-			return rt.Value{}, e537
+		t522, e523 := rt.Concat(ctx, t520, cifra)
+		if e523 != nil {
+			return rt.Value{}, e523
 		}
-		t538, e539 := rt.FieldGet(ctx, hod, "осталось")
-		if e539 != nil {
-			return rt.Value{}, e539
+		t524, e525 := rt.FieldGet(ctx, hod, "осталось")
+		if e525 != nil {
+			return rt.Value{}, e525
 		}
-		t540, e541 := rt.Sub(ctx, t538, rt.Number(1.0))
-		if e541 != nil {
-			return rt.Value{}, e541
+		t526, e527 := rt.Sub(ctx, t524, rt.Number(1.0))
+		if e527 != nil {
+			return rt.Value{}, e527
 		}
-		t542, e543 := rt.FieldGet(ctx, hod, "разделитель")
-		if e543 != nil {
-			return rt.Value{}, e543
+		t528, e529 := rt.FieldGet(ctx, hod, "разделитель")
+		if e529 != nil {
+			return rt.Value{}, e529
 		}
-		t544 := make([]rt.Field, 3)
-		t544[0] = rt.Field{Name: "собрано", Value: t536}
-		t544[1] = rt.Field{Name: "осталось", Value: t540}
-		t544[2] = rt.Field{Name: "разделитель", Value: t542}
-		t529 = rt.Record(t544)
+		t530 := make([]rt.Field, 3)
+		t530[0] = rt.Field{Name: "собрано", Value: t522}
+		t530[1] = rt.Field{Name: "осталось", Value: t526}
+		t530[2] = rt.Field{Name: "разделитель", Value: t528}
+		t515 = rt.Record(t530)
 	} else {
-		t545, e546 := rt.FieldGet(ctx, hod, "собрано")
-		if e546 != nil {
-			return rt.Value{}, e546
+		t531, e532 := rt.FieldGet(ctx, hod, "собрано")
+		if e532 != nil {
+			return rt.Value{}, e532
 		}
-		t547, e548 := rt.Concat(ctx, t545, cifra)
-		if e548 != nil {
-			return rt.Value{}, e548
+		t533, e534 := rt.Concat(ctx, t531, cifra)
+		if e534 != nil {
+			return rt.Value{}, e534
 		}
-		t549, e550 := rt.FieldGet(ctx, hod, "осталось")
-		if e550 != nil {
-			return rt.Value{}, e550
+		t535, e536 := rt.FieldGet(ctx, hod, "осталось")
+		if e536 != nil {
+			return rt.Value{}, e536
 		}
-		t551, e552 := rt.Sub(ctx, t549, rt.Number(1.0))
-		if e552 != nil {
-			return rt.Value{}, e552
+		t537, e538 := rt.Sub(ctx, t535, rt.Number(1.0))
+		if e538 != nil {
+			return rt.Value{}, e538
 		}
-		t553, e554 := rt.FieldGet(ctx, hod, "разделитель")
-		if e554 != nil {
-			return rt.Value{}, e554
+		t539, e540 := rt.FieldGet(ctx, hod, "разделитель")
+		if e540 != nil {
+			return rt.Value{}, e540
 		}
-		t555 := make([]rt.Field, 3)
-		t555[0] = rt.Field{Name: "собрано", Value: t547}
-		t555[1] = rt.Field{Name: "осталось", Value: t551}
-		t555[2] = rt.Field{Name: "разделитель", Value: t553}
-		t529 = rt.Record(t555)
+		t541 := make([]rt.Field, 3)
+		t541[0] = rt.Field{Name: "собрано", Value: t533}
+		t541[1] = rt.Field{Name: "осталось", Value: t537}
+		t541[2] = rt.Field{Name: "разделитель", Value: t539}
+		t515 = rt.Record(t541)
 	}
-	t556 := t529
-	t557, e558 := rt.FieldGet(ctx, t556, "осталось")
-	if e558 != nil {
-		return rt.Value{}, e558
+	t542 := t515
+	t543, e544 := rt.FieldGet(ctx, t542, "осталось")
+	if e544 != nil {
+		return rt.Value{}, e544
 	}
-	t559, e560 := rt.FieldGet(ctx, hod, "осталось")
-	if e560 != nil {
-		return rt.Value{}, e560
+	t545, e546 := rt.FieldGet(ctx, hod, "осталось")
+	if e546 != nil {
+		return rt.Value{}, e546
 	}
-	t561, e562 := rt.Lt(ctx, t557, t559)
-	if e562 != nil {
-		return rt.Value{}, e562
+	t547, e548 := rt.Lt(ctx, t543, t545)
+	if e548 != nil {
+		return rt.Value{}, e548
 	}
 	// постусловие «осталось убывает»
-	t563, e564 := rt.Post(ctx, t561, "осталось убывает", "Шаг разряда")
-	if e564 != nil {
-		return rt.Value{}, e564
+	t549, e550 := rt.Post(ctx, t547, "осталось убывает", "Шаг разряда")
+	if e550 != nil {
+		return rt.Value{}, e550
 	}
-	if !t563 {
+	if !t549 {
 		return rt.Value{}, rt.Fail("FLANG_PROPERTY", "%s", "нарушено свойство «осталось убывает» функции «Шаг разряда»")
 	}
-	t565, e566 := rt.FieldGet(ctx, t556, "разделитель")
-	if e566 != nil {
-		return rt.Value{}, e566
+	t551, e552 := rt.FieldGet(ctx, t542, "разделитель")
+	if e552 != nil {
+		return rt.Value{}, e552
 	}
-	t567, e568 := rt.FieldGet(ctx, hod, "разделитель")
-	if e568 != nil {
-		return rt.Value{}, e568
+	t553, e554 := rt.FieldGet(ctx, hod, "разделитель")
+	if e554 != nil {
+		return rt.Value{}, e554
 	}
 	// постусловие «разделитель не меняется»
-	t569, e570 := rt.Post(ctx, rt.Flag(rt.Equal(t565, t567)), "разделитель не меняется", "Шаг разряда")
-	if e570 != nil {
-		return rt.Value{}, e570
+	t555, e556 := rt.Post(ctx, rt.Flag(rt.Equal(t551, t553)), "разделитель не меняется", "Шаг разряда")
+	if e556 != nil {
+		return rt.Value{}, e556
 	}
-	if !t569 {
+	if !t555 {
 		return rt.Value{}, rt.Fail("FLANG_PROPERTY", "%s", "нарушено свойство «разделитель не меняется» функции «Шаг разряда»")
 	}
-	return t556, nil
+	return t542, nil
 }
 
 // Razryadami — функция flang «Разрядами».
@@ -1815,89 +1781,89 @@ func ShagRazryada(ctx *rt.Ctx, hod rt.Value, cifra rt.Value) (rt.Value, error) {
 // Параметр razdelitel — «разделитель»: строка.
 // Результат — значение: строка.
 func Razryadami(ctx *rt.Ctx, znachenie rt.Value, razdelitel rt.Value) (rt.Value, error) {
-	t571, e572 := rt.Lt(ctx, znachenie, rt.Number(0.0))
+	t557, e558 := rt.Lt(ctx, znachenie, rt.Number(0.0))
+	if e558 != nil {
+		return rt.Value{}, e558
+	}
+	t559, e560 := rt.Cond(ctx, t557)
+	if e560 != nil {
+		return rt.Value{}, e560
+	}
+	var t561 rt.Value
+	if t559 {
+		t561 = rt.Text("-")
+	} else {
+		t561 = rt.Text("")
+	}
+	// пусть «знак»
+	znak := t561
+	t562, e563 := rt.Lt(ctx, znachenie, rt.Number(0.0))
+	if e563 != nil {
+		return rt.Value{}, e563
+	}
+	t564, e565 := rt.Cond(ctx, t562)
+	if e565 != nil {
+		return rt.Value{}, e565
+	}
+	var t566 rt.Value
+	if t564 {
+		t567, e568 := rt.Sub(ctx, rt.Number(0.0), znachenie)
+		if e568 != nil {
+			return rt.Value{}, e568
+		}
+		t566 = t567
+	} else {
+		t566 = znachenie
+	}
+	t569, e570 := CeloeKNulyu(ctx, t566)
+	if e570 != nil {
+		return rt.Value{}, e570
+	}
+	// «к строке»
+	t571, e572 := rt.BToString(ctx, t569)
 	if e572 != nil {
 		return rt.Value{}, e572
 	}
-	t573, e574 := rt.Cond(ctx, t571)
+	// пусть «цифры»
+	cifry := t571
+	// «символы»
+	t573, e574 := rt.BCharacters(ctx, cifry)
 	if e574 != nil {
 		return rt.Value{}, e574
 	}
-	var t575 rt.Value
-	if t573 {
-		t575 = rt.Text("-")
-	} else {
-		t575 = rt.Text("")
+	t575, e576 := rt.RequireList(ctx, t573, "свёртка")
+	if e576 != nil {
+		return rt.Value{}, e576
 	}
-	// пусть «знак»
-	znak := t575
-	t576, e577 := rt.Lt(ctx, znachenie, rt.Number(0.0))
-	if e577 != nil {
-		return rt.Value{}, e577
+	// «длина»
+	t577, e578 := rt.BLength(ctx, cifry)
+	if e578 != nil {
+		return rt.Value{}, e578
 	}
-	t578, e579 := rt.Cond(ctx, t576)
-	if e579 != nil {
-		return rt.Value{}, e579
-	}
-	var t580 rt.Value
-	if t578 {
-		t581, e582 := rt.Sub(ctx, rt.Number(0.0), znachenie)
+	t579 := make([]rt.Field, 3)
+	t579[0] = rt.Field{Name: "собрано", Value: rt.Text("")}
+	t579[1] = rt.Field{Name: "осталось", Value: t577}
+	t579[2] = rt.Field{Name: "разделитель", Value: razdelitel}
+	// «ход»
+	hod := rt.Record(t579)
+	for t580 := range t575 {
+		// «цифра»
+		cifra := t575[t580]
+		t581, e582 := ShagRazryada(ctx, hod, cifra)
 		if e582 != nil {
 			return rt.Value{}, e582
 		}
-		t580 = t581
-	} else {
-		t580 = znachenie
+		hod = t581
 	}
-	t583, e584 := CeloeKNulyu(ctx, t580)
+	t583, e584 := rt.FieldGet(ctx, hod, "собрано")
 	if e584 != nil {
 		return rt.Value{}, e584
 	}
-	// «к строке»
-	t585, e586 := rt.BToString(ctx, t583)
+	t585, e586 := rt.Concat(ctx, znak, t583)
 	if e586 != nil {
 		return rt.Value{}, e586
 	}
-	// пусть «цифры»
-	cifry := t585
-	// «символы»
-	t587, e588 := rt.BCharacters(ctx, cifry)
-	if e588 != nil {
-		return rt.Value{}, e588
-	}
-	t589, e590 := rt.RequireList(ctx, t587, "свёртка")
-	if e590 != nil {
-		return rt.Value{}, e590
-	}
-	// «длина»
-	t591, e592 := rt.BLength(ctx, cifry)
-	if e592 != nil {
-		return rt.Value{}, e592
-	}
-	t593 := make([]rt.Field, 3)
-	t593[0] = rt.Field{Name: "собрано", Value: rt.Text("")}
-	t593[1] = rt.Field{Name: "осталось", Value: t591}
-	t593[2] = rt.Field{Name: "разделитель", Value: razdelitel}
-	// «ход»
-	hod := rt.Record(t593)
-	for t594 := range t589 {
-		// «цифра»
-		cifra := t589[t594]
-		t595, e596 := ShagRazryada(ctx, hod, cifra)
-		if e596 != nil {
-			return rt.Value{}, e596
-		}
-		hod = t595
-	}
-	t597, e598 := rt.FieldGet(ctx, hod, "собрано")
-	if e598 != nil {
-		return rt.Value{}, e598
-	}
-	t599, e600 := rt.Concat(ctx, znak, t597)
-	if e600 != nil {
-		return rt.Value{}, e600
-	}
-	return t599, nil
+	return t585, nil
 }
 
 // Probelnyy — функция flang «Пробельный».
@@ -1916,113 +1882,113 @@ func Probelnyy(ctx *rt.Ctx, znak rt.Value) (rt.Value, error) {
 		hvost := rt.ChainTail(znak)
 		_ = hvost
 		// «код символа»
-		t601, e602 := rt.BCharCodeProven(ctx, golova)
-		if e602 != nil {
-			return rt.Value{}, e602
+		t587, e588 := rt.BCharCodeProven(ctx, golova)
+		if e588 != nil {
+			return rt.Value{}, e588
 		}
-		t603, e604 := rt.Cond(ctx, rt.Flag(rt.Equal(t601, rt.Number(32.0))))
-		if e604 != nil {
-			return rt.Value{}, e604
+		t589, e590 := rt.Cond(ctx, rt.Flag(rt.Equal(t587, rt.Number(32.0))))
+		if e590 != nil {
+			return rt.Value{}, e590
 		}
-		var t605 rt.Value
-		if t603 {
-			t605 = rt.Flag(true)
+		var t591 rt.Value
+		if t589 {
+			t591 = rt.Flag(true)
 		} else {
 			// «код символа»
-			t606, e607 := rt.BCharCodeProven(ctx, golova)
-			if e607 != nil {
-				return rt.Value{}, e607
+			t592, e593 := rt.BCharCodeProven(ctx, golova)
+			if e593 != nil {
+				return rt.Value{}, e593
 			}
-			t605 = rt.Flag(rt.Equal(t606, rt.Number(9.0)))
+			t591 = rt.Flag(rt.Equal(t592, rt.Number(9.0)))
 		}
-		t608, e609 := rt.Cond(ctx, t605)
-		if e609 != nil {
-			return rt.Value{}, e609
+		t594, e595 := rt.Cond(ctx, t591)
+		if e595 != nil {
+			return rt.Value{}, e595
 		}
-		var t610 rt.Value
-		if t608 {
-			t610 = rt.Flag(true)
+		var t596 rt.Value
+		if t594 {
+			t596 = rt.Flag(true)
 		} else {
 			// «код символа»
-			t611, e612 := rt.BCharCodeProven(ctx, golova)
-			if e612 != nil {
-				return rt.Value{}, e612
+			t597, e598 := rt.BCharCodeProven(ctx, golova)
+			if e598 != nil {
+				return rt.Value{}, e598
 			}
-			t610 = rt.Flag(rt.Equal(t611, rt.Number(10.0)))
+			t596 = rt.Flag(rt.Equal(t597, rt.Number(10.0)))
 		}
-		t613, e614 := rt.Cond(ctx, t610)
-		if e614 != nil {
-			return rt.Value{}, e614
+		t599, e600 := rt.Cond(ctx, t596)
+		if e600 != nil {
+			return rt.Value{}, e600
 		}
-		var t615 rt.Value
-		if t613 {
-			t615 = rt.Flag(true)
+		var t601 rt.Value
+		if t599 {
+			t601 = rt.Flag(true)
 		} else {
 			// «код символа»
-			t616, e617 := rt.BCharCodeProven(ctx, golova)
-			if e617 != nil {
-				return rt.Value{}, e617
+			t602, e603 := rt.BCharCodeProven(ctx, golova)
+			if e603 != nil {
+				return rt.Value{}, e603
 			}
-			t615 = rt.Flag(rt.Equal(t616, rt.Number(11.0)))
+			t601 = rt.Flag(rt.Equal(t602, rt.Number(11.0)))
 		}
-		t618, e619 := rt.Cond(ctx, t615)
-		if e619 != nil {
-			return rt.Value{}, e619
+		t604, e605 := rt.Cond(ctx, t601)
+		if e605 != nil {
+			return rt.Value{}, e605
 		}
-		var t620 rt.Value
-		if t618 {
-			t620 = rt.Flag(true)
+		var t606 rt.Value
+		if t604 {
+			t606 = rt.Flag(true)
+		} else {
+			// «код символа»
+			t607, e608 := rt.BCharCodeProven(ctx, golova)
+			if e608 != nil {
+				return rt.Value{}, e608
+			}
+			t606 = rt.Flag(rt.Equal(t607, rt.Number(12.0)))
+		}
+		t609, e610 := rt.Cond(ctx, t606)
+		if e610 != nil {
+			return rt.Value{}, e610
+		}
+		var t611 rt.Value
+		if t609 {
+			t611 = rt.Flag(true)
+		} else {
+			// «код символа»
+			t612, e613 := rt.BCharCodeProven(ctx, golova)
+			if e613 != nil {
+				return rt.Value{}, e613
+			}
+			t611 = rt.Flag(rt.Equal(t612, rt.Number(13.0)))
+		}
+		t614, e615 := rt.Cond(ctx, t611)
+		if e615 != nil {
+			return rt.Value{}, e615
+		}
+		var t616 rt.Value
+		if t614 {
+			t616 = rt.Flag(true)
+		} else {
+			// «код символа»
+			t617, e618 := rt.BCharCodeProven(ctx, golova)
+			if e618 != nil {
+				return rt.Value{}, e618
+			}
+			t616 = rt.Flag(rt.Equal(t617, rt.Number(133.0)))
+		}
+		t619, e620 := rt.Cond(ctx, t616)
+		if e620 != nil {
+			return rt.Value{}, e620
+		}
+		if t619 {
+			return rt.Flag(true), nil
 		} else {
 			// «код символа»
 			t621, e622 := rt.BCharCodeProven(ctx, golova)
 			if e622 != nil {
 				return rt.Value{}, e622
 			}
-			t620 = rt.Flag(rt.Equal(t621, rt.Number(12.0)))
-		}
-		t623, e624 := rt.Cond(ctx, t620)
-		if e624 != nil {
-			return rt.Value{}, e624
-		}
-		var t625 rt.Value
-		if t623 {
-			t625 = rt.Flag(true)
-		} else {
-			// «код символа»
-			t626, e627 := rt.BCharCodeProven(ctx, golova)
-			if e627 != nil {
-				return rt.Value{}, e627
-			}
-			t625 = rt.Flag(rt.Equal(t626, rt.Number(13.0)))
-		}
-		t628, e629 := rt.Cond(ctx, t625)
-		if e629 != nil {
-			return rt.Value{}, e629
-		}
-		var t630 rt.Value
-		if t628 {
-			t630 = rt.Flag(true)
-		} else {
-			// «код символа»
-			t631, e632 := rt.BCharCodeProven(ctx, golova)
-			if e632 != nil {
-				return rt.Value{}, e632
-			}
-			t630 = rt.Flag(rt.Equal(t631, rt.Number(133.0)))
-		}
-		t633, e634 := rt.Cond(ctx, t630)
-		if e634 != nil {
-			return rt.Value{}, e634
-		}
-		if t633 {
-			return rt.Flag(true), nil
-		} else {
-			// «код символа»
-			t635, e636 := rt.BCharCodeProven(ctx, golova)
-			if e636 != nil {
-				return rt.Value{}, e636
-			}
-			return rt.Flag(rt.Equal(t635, rt.Number(160.0))), nil
+			return rt.Flag(rt.Equal(t621, rt.Number(160.0))), nil
 		}
 	} else {
 		return rt.Value{}, rt.MatchFail(ctx, znak)
@@ -2037,50 +2003,50 @@ func Probelnyy(ctx *rt.Ctx, znak rt.Value) (rt.Value, error) {
 // Результат — значение: строка.
 func Procherk(ctx *rt.Ctx, tekst rt.Value) (rt.Value, error) {
 	// «символы»
-	t637, e638 := rt.BCharacters(ctx, tekst)
-	if e638 != nil {
-		return rt.Value{}, e638
+	t623, e624 := rt.BCharacters(ctx, tekst)
+	if e624 != nil {
+		return rt.Value{}, e624
 	}
-	t639, e640 := rt.RequireList(ctx, t637, "отфильтровать")
-	if e640 != nil {
-		return rt.Value{}, e640
+	t625, e626 := rt.RequireList(ctx, t623, "отфильтровать")
+	if e626 != nil {
+		return rt.Value{}, e626
 	}
-	t641 := make([]rt.Value, 0, len(t639))
-	for t642 := range t639 {
+	t627 := make([]rt.Value, 0, len(t625))
+	for t628 := range t625 {
 		// «знак»
-		znak := t639[t642]
-		t643, e644 := Probelnyy(ctx, znak)
-		if e644 != nil {
-			return rt.Value{}, e644
+		znak := t625[t628]
+		t629, e630 := Probelnyy(ctx, znak)
+		if e630 != nil {
+			return rt.Value{}, e630
 		}
-		t645, e646 := rt.Cond(ctx, t643)
-		if e646 != nil {
-			return rt.Value{}, e646
+		t631, e632 := rt.Cond(ctx, t629)
+		if e632 != nil {
+			return rt.Value{}, e632
 		}
-		var t647 rt.Value
-		if t645 {
-			t647 = rt.Flag(false)
+		var t633 rt.Value
+		if t631 {
+			t633 = rt.Flag(false)
 		} else {
-			t647 = rt.Flag(true)
+			t633 = rt.Flag(true)
 		}
-		t648, e649 := rt.Keep(ctx, t647)
-		if e649 != nil {
-			return rt.Value{}, e649
+		t634, e635 := rt.Keep(ctx, t633)
+		if e635 != nil {
+			return rt.Value{}, e635
 		}
-		if t648 {
-			t641 = append(t641, znak)
+		if t634 {
+			t627 = append(t627, znak)
 		}
 	}
 	// «длина»
-	t650, e651 := rt.BLength(ctx, rt.List(t641))
-	if e651 != nil {
-		return rt.Value{}, e651
+	t636, e637 := rt.BLength(ctx, rt.List(t627))
+	if e637 != nil {
+		return rt.Value{}, e637
 	}
-	t652, e653 := rt.Cond(ctx, rt.Flag(rt.Equal(t650, rt.Number(0.0))))
-	if e653 != nil {
-		return rt.Value{}, e653
+	t638, e639 := rt.Cond(ctx, rt.Flag(rt.Equal(t636, rt.Number(0.0))))
+	if e639 != nil {
+		return rt.Value{}, e639
 	}
-	if t652 {
+	if t638 {
 		return rt.Text("—"), nil
 	} else {
 		return tekst, nil
@@ -2096,127 +2062,127 @@ func Procherk(ctx *rt.Ctx, tekst rt.Value) (rt.Value, error) {
 // Результат — значение: строка.
 func Obrezat(ctx *rt.Ctx, tekst rt.Value, skolko rt.Value) (rt.Value, error) {
 	// «длина»
-	t654, e655 := rt.BLength(ctx, tekst)
-	if e655 != nil {
-		return rt.Value{}, e655
+	t640, e641 := rt.BLength(ctx, tekst)
+	if e641 != nil {
+		return rt.Value{}, e641
 	}
-	t656, e657 := rt.Lte(ctx, t654, skolko)
-	if e657 != nil {
-		return rt.Value{}, e657
+	t642, e643 := rt.Lte(ctx, t640, skolko)
+	if e643 != nil {
+		return rt.Value{}, e643
 	}
-	t658, e659 := rt.Cond(ctx, t656)
-	if e659 != nil {
-		return rt.Value{}, e659
+	t644, e645 := rt.Cond(ctx, t642)
+	if e645 != nil {
+		return rt.Value{}, e645
 	}
-	var t660 rt.Value
-	if t658 {
-		t660 = tekst
+	var t646 rt.Value
+	if t644 {
+		t646 = tekst
 	} else {
-		t661, e662 := rt.Lte(ctx, skolko, rt.Number(0.0))
-		if e662 != nil {
-			return rt.Value{}, e662
+		t647, e648 := rt.Lte(ctx, skolko, rt.Number(0.0))
+		if e648 != nil {
+			return rt.Value{}, e648
 		}
-		t663, e664 := rt.Cond(ctx, t661)
-		if e664 != nil {
-			return rt.Value{}, e664
+		t649, e650 := rt.Cond(ctx, t647)
+		if e650 != nil {
+			return rt.Value{}, e650
 		}
-		var t665 rt.Value
-		if t663 {
-			t665 = rt.Text("")
+		var t651 rt.Value
+		if t649 {
+			t651 = rt.Text("")
 		} else {
-			t666, e667 := rt.Lte(ctx, skolko, rt.Number(1.0))
-			if e667 != nil {
-				return rt.Value{}, e667
+			t652, e653 := rt.Lte(ctx, skolko, rt.Number(1.0))
+			if e653 != nil {
+				return rt.Value{}, e653
 			}
-			t668, e669 := rt.Cond(ctx, t666)
-			if e669 != nil {
-				return rt.Value{}, e669
+			t654, e655 := rt.Cond(ctx, t652)
+			if e655 != nil {
+				return rt.Value{}, e655
 			}
-			var t670 rt.Value
-			if t668 {
+			var t656 rt.Value
+			if t654 {
 				// «подстрока»
-				t671, e672 := rt.BSubstring(ctx, tekst, rt.Number(1.0), rt.Number(1.0))
-				if e672 != nil {
-					return rt.Value{}, e672
+				t657, e658 := rt.BSubstring(ctx, tekst, rt.Number(1.0), rt.Number(1.0))
+				if e658 != nil {
+					return rt.Value{}, e658
 				}
-				t670 = t671
+				t656 = t657
 			} else {
-				t673, e674 := rt.Sub(ctx, skolko, rt.Number(1.0))
-				if e674 != nil {
-					return rt.Value{}, e674
+				t659, e660 := rt.Sub(ctx, skolko, rt.Number(1.0))
+				if e660 != nil {
+					return rt.Value{}, e660
 				}
 				// «подстрока»
-				t675, e676 := rt.BSubstring(ctx, tekst, rt.Number(1.0), t673)
-				if e676 != nil {
-					return rt.Value{}, e676
+				t661, e662 := rt.BSubstring(ctx, tekst, rt.Number(1.0), t659)
+				if e662 != nil {
+					return rt.Value{}, e662
 				}
-				t677, e678 := rt.Concat(ctx, t675, rt.Text("…"))
-				if e678 != nil {
-					return rt.Value{}, e678
+				t663, e664 := rt.Concat(ctx, t661, rt.Text("…"))
+				if e664 != nil {
+					return rt.Value{}, e664
 				}
-				t670 = t677
+				t656 = t663
 			}
-			t665 = t670
+			t651 = t656
 		}
-		t660 = t665
+		t646 = t651
 	}
-	t679 := t660
-	t680, e681 := rt.Gte(ctx, skolko, rt.Number(0.0))
-	if e681 != nil {
-		return rt.Value{}, e681
+	t665 := t646
+	t666, e667 := rt.Gte(ctx, skolko, rt.Number(0.0))
+	if e667 != nil {
+		return rt.Value{}, e667
 	}
-	t682, e683 := rt.Cond(ctx, t680)
-	if e683 != nil {
-		return rt.Value{}, e683
+	t668, e669 := rt.Cond(ctx, t666)
+	if e669 != nil {
+		return rt.Value{}, e669
 	}
-	var t684 rt.Value
-	if t682 {
+	var t670 rt.Value
+	if t668 {
 		// «длина»
-		t685, e686 := rt.BLength(ctx, t679)
-		if e686 != nil {
-			return rt.Value{}, e686
+		t671, e672 := rt.BLength(ctx, t665)
+		if e672 != nil {
+			return rt.Value{}, e672
 		}
 		// «длина»
-		t687, e688 := rt.BLength(ctx, tekst)
-		if e688 != nil {
-			return rt.Value{}, e688
+		t673, e674 := rt.BLength(ctx, tekst)
+		if e674 != nil {
+			return rt.Value{}, e674
 		}
-		t689, e690 := rt.Lte(ctx, t687, skolko)
-		if e690 != nil {
-			return rt.Value{}, e690
+		t675, e676 := rt.Lte(ctx, t673, skolko)
+		if e676 != nil {
+			return rt.Value{}, e676
 		}
-		t691, e692 := rt.Cond(ctx, t689)
-		if e692 != nil {
-			return rt.Value{}, e692
+		t677, e678 := rt.Cond(ctx, t675)
+		if e678 != nil {
+			return rt.Value{}, e678
 		}
-		var t693 rt.Value
-		if t691 {
+		var t679 rt.Value
+		if t677 {
 			// «длина»
-			t694, e695 := rt.BLength(ctx, tekst)
-			if e695 != nil {
-				return rt.Value{}, e695
+			t680, e681 := rt.BLength(ctx, tekst)
+			if e681 != nil {
+				return rt.Value{}, e681
 			}
-			t693 = t694
+			t679 = t680
 		} else {
-			t693 = skolko
+			t679 = skolko
 		}
-		t696, e697 := rt.Lte(ctx, t685, t693)
-		if e697 != nil {
-			return rt.Value{}, e697
+		t682, e683 := rt.Lte(ctx, t671, t679)
+		if e683 != nil {
+			return rt.Value{}, e683
 		}
-		t684 = t696
+		t670 = t682
 	} else {
-		t684 = rt.Flag(true)
+		t670 = rt.Flag(true)
 	}
 	// постусловие «обрезанное не длиннее заказа»
-	t698, e699 := rt.Post(ctx, t684, "обрезанное не длиннее заказа", "Обрезать")
-	if e699 != nil {
-		return rt.Value{}, e699
+	t684, e685 := rt.Post(ctx, t670, "обрезанное не длиннее заказа", "Обрезать")
+	if e685 != nil {
+		return rt.Value{}, e685
 	}
-	if !t698 {
+	if !t684 {
 		return rt.Value{}, rt.Fail("FLANG_PROPERTY", "%s", "нарушено свойство «обрезанное не длиннее заказа» функции «Обрезать»")
 	}
-	return t679, nil
+	return t665, nil
 }
 
 // MeraUbyvaet — функция flang «мера убывает».
@@ -2227,20 +2193,20 @@ func Obrezat(ctx *rt.Ctx, tekst rt.Value, skolko rt.Value) (rt.Value, error) {
 // Параметр mera — «мера»: число.
 // Результат — значение: число.
 func MeraUbyvaet(ctx *rt.Ctx, shag rt.Value, mera rt.Value) (rt.Value, error) {
-	t700 := shag
-	t701, e702 := rt.Lt(ctx, t700, mera)
-	if e702 != nil {
-		return rt.Value{}, e702
+	t686 := shag
+	t687, e688 := rt.Lt(ctx, t686, mera)
+	if e688 != nil {
+		return rt.Value{}, e688
 	}
 	// постусловие «мера убывает»
-	t703, e704 := rt.Post(ctx, t701, "мера убывает", "мера убывает")
-	if e704 != nil {
-		return rt.Value{}, e704
+	t689, e690 := rt.Post(ctx, t687, "мера убывает", "мера убывает")
+	if e690 != nil {
+		return rt.Value{}, e690
 	}
-	if !t703 {
+	if !t689 {
 		return rt.Value{}, rt.Fail("FLANG_MEASURE", "%s", "тотальная функция «Повторить»: мера не убыла — аргумент 2 вызова «Повторить» не стал меньше параметра «сколько». Завершение доказано убыванием этой меры, а числа flang — IEEE-754 double: при большом |«сколько»| постоянный шаг не меняет значение, и спуск не идёт. Отказ здесь честнее зацикливания")
 	}
-	return t700, nil
+	return t686, nil
 }
 
 // Call — вызов функции по её исходному имени flang.
