@@ -318,6 +318,25 @@ func Analyze(w io.Writer, l lang.Lang, r scan.Result) {
 	p(l.F("  пропущено     %s  (нет доступа %s, исчезло %s, иные ошибки %s, граница ФС %s, предел глубины %s)",
 		l.Num(int64(s.Total())), l.Num(int64(s.PermissionDenied)), l.Num(int64(s.Vanished)),
 		l.Num(int64(s.OtherErrors)), l.Num(int64(s.DeviceBoundaries)), l.Num(int64(s.DepthLimited))))
+	// Свёрнутое названо поимённо и числом: «быстро» без отчёта о том, за счёт
+	// чего, читается как «часть дерева не посмотрели», а посмотрели всю.
+	if len(r.Folded) > 0 {
+		folded := 0
+		var bytes int64
+		for _, f := range r.Folded {
+			folded += f.Entries
+			bytes += f.Bytes
+		}
+		p(l.F("  свёрнуто      каталогов %s, записей в них %s (%s): сосчитаны все, приговор один на каталог",
+			l.Num(int64(len(r.Folded))), l.Num(int64(folded)), l.Bytes(bytes)))
+		for i, f := range r.Folded {
+			if i == 3 {
+				p(l.F("                и ещё %s", l.Num(int64(len(r.Folded)-3))))
+				break
+			}
+			p(l.F("                %s — %s, записей %s", f.Path, l.Bytes(f.Bytes), l.Num(int64(f.Entries))))
+		}
+	}
 	p(l.F("  время         %s с", l.Dec(r.DurationSeconds, 2)))
 
 	p("")

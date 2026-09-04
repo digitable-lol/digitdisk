@@ -375,6 +375,7 @@ func analyze(args []string, after ui.After) (printed bool, err error) {
 	protectFile := fs.String("protect-file", "", l.T("защитный список файлом"))
 	live := fs.Bool("live", false, l.T("живой экран, даже если о терминале не спрашивали"))
 	plain := fs.Bool("plain", false, l.T("обойти молча и напечатать отчёт, без экрана"))
+	noFold := fs.Bool("no-fold", false, l.T("судить о каждом файле внутри node_modules и подобных, а не о каталоге целиком"))
 	var protectArgs stringList
 	fs.Var(&protectArgs, "protect", l.T("не трогать: путь или «разряд:кэш»; можно повторять"))
 	rest, err := parseFlags(fs, args)
@@ -399,6 +400,12 @@ func analyze(args []string, after ui.After) (printed bool, err error) {
 		MaxDepth:    *maxDepth,
 		Top:         *top,
 		Decider:     decider,
+	}
+	// Свёртка тяжёлых каталогов включена по умолчанию: смысл её в скорости,
+	// а платит за неё только подробность приговора внутри — размер и итог
+	// остаются теми же. Кому нужна подробность, тот её просит.
+	if !*noFold {
+		opt.Fold = scan.FoldByName
 	}
 	if len(rest) == 1 {
 		opt.Root = rest[0]
