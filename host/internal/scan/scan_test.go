@@ -305,3 +305,89 @@ func TestWalkSizeRuleInExactBytes(t *testing.T) {
 		t.Errorf("the directories' own size must still be reported, just not counted into the total")
 	}
 }
+
+// TestFoldCountsEverythingAndDecidesOnce проверяет обещание свёртки целиком, а
+// не по частям: числа обхода обязаны совпасть со свёрткой и без неё до
+// единицы, приговор внутри свёрнутого каталога обязан быть вынесен ОДИН раз, а
+// сам каталог обязан попасть в рейтинг с размером поддерева.
+//
+// Отрицательный контроль здесь встроен: тот же самый счётчик решений на том же
+// дереве без Fold обязан быть больше единицы, иначе тест не отличил бы свёртку
+// от пустого дерева.
+func TestFoldCountsEverythingAndDecidesOnce(t *testing.T) {
+	root := t.TempDir()
+	heavy := filepath.Join(root, "node_modules")
+	if err := os.MkdirAll(filepath.Join(heavy, "pkg", "dist"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(path string, size int) {
+		if err := os.WriteFile(path, make([]byte, size), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(filepath.Join(root, "своё.txt"), 100)
+	write(filepath.Join(heavy, "a.js"), 200)
+	write(filepath.Join(heavy, "pkg", "b.js"), 300)
+	write(filepath.Join(heavy, "pkg", "dist", "c.js"), 400)
+
+	counting := &countingDecider{ready: true}
+	folded, err := Walk(Options{Root: root, Top: 5, Now: time.Now(), Decider: counting, Fold: FoldByName})
+	if err != nil {
+		t.Fatal(err)
+	}
+	decisionsWithFold := len(counting.seen)
+
+	counting2 := &countingDecider{ready: true}
+	plain, err := Walk(Options{Root: root, Top: 5, Now: time.Now(), Decider: counting2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if folded.Entries != plain.Entries || folded.Files != plain.Files || folded.Dirs != plain.Dirs {
+		t.Errorf("свёртка изменила счёт записей: %d/%d/%d против %d/%d/%d",
+			folded.Entries, folded.Files, folded.Dirs, plain.Entries, plain.Files, plain.Dirs)
+	}
+	if folded.TotalBytes != plain.TotalBytes {
+		t.Errorf("свёртка изменила объём: %d против %d", folded.TotalBytes, plain.TotalBytes)
+	}
+	// Приговоров со свёрткой: корень, «своё.txt» и сам node_modules — три.
+	// Без свёртки их восемь: те же три плюс пять записей внутри.
+	if decisionsWithFold != 3 {
+		t.Errorf("решений со свёрткой %d, ждали 3 (корень, свой файл, каталог)", decisionsWithFold)
+	}
+	if len(counting2.seen) <= decisionsWithFold {
+		t.Fatalf("отрицательный контроль не сработал: без свёртки решений %d, со свёрткой %d",
+			len(counting2.seen), decisionsWithFold)
+	}
+	if len(folded.Folded) != 1 || filepath.Base(folded.Folded[0].Path) != "node_modules" {
+		t.Fatalf("свёрнутое не названо: %+v", folded.Folded)
+	}
+	// Пять: a.js, pkg, pkg/b.js, pkg/dist, pkg/dist/c.js. Сам node_modules в
+	// счёт своего содержимого не входит.
+	if folded.Folded[0].Entries != 5 {
+		t.Errorf("внутри свёрнутого записей %d, на диске 5", folded.Folded[0].Entries)
+	}
+	if folded.Folded[0].Bytes != 900 {
+		t.Errorf("байт в свёрнутом %d, ждали 900", folded.Folded[0].Bytes)
+	}
+	var found bool
+	for _, e := range folded.Largest {
+		if filepath.Base(e.Path) == "node_modules" {
+			found = true
+			if e.Size != 900 {
+				t.Errorf("в рейтинге у свёрнутого размер %d, ждали 900 — размер поддерева", e.Size)
+			}
+		}
+	}
+	if !found {
+		t.Error("свёрнутый каталог не попал в рейтинг крупнейших")
+	}
+	// Корзины обязаны сойтись с итогом, иначе свёртка «потеряла» байты.
+	var bucket int64
+	for _, b := range folded.ByClass {
+		bucket += b.Bytes
+	}
+	if bucket != folded.TotalBytes {
+		t.Errorf("корзины по разряду дают %d, итог %d", bucket, folded.TotalBytes)
+	}
+}

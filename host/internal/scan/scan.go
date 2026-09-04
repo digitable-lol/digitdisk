@@ -82,6 +82,28 @@ type Options struct {
 	// and a work list is not a report.
 	Observe func(Entry, fs.FileInfo)
 
+	// Fold, when set, is asked about every directory below the root.
+	// Returning true folds it: the walk still counts every byte inside it
+	// (TotalBytes stays du -sb compatible, hard links stay counted once),
+	// but the decision layer is asked ONCE — about the directory itself —
+	// instead of once per entry underneath, and nothing inside enters the
+	// rankings or Observe.
+	//
+	// This is not a speed trick with a cost hidden somewhere: it is the
+	// answer to a measurement.  On a tree of 82 923 entries the walk itself
+	// takes 0,81 s and the same walk with the flang decision layer takes
+	// 17,5 s; 50 384 of those entries are one node_modules, and they alone
+	// cost 9,9 s.  A person deletes node_modules whole or leaves it whole —
+	// fifty thousand separate verdicts about files inside it answer a
+	// question nobody asked.
+	//
+	// What the folded directory keeps: its own verdict, its own place in
+	// the rankings (with the size of the whole subtree, not of the
+	// directory inode), and its bytes in the class/verdict buckets — the
+	// subtree is charged to the verdict the directory itself received, so
+	// the buckets still sum back to TotalBytes.
+	Fold func(path string, info fs.FileInfo) bool
+
 	// Watch, when set, is called once for every accounted entry with the
 	// bytes the walk CHARGED for it.  Observe carries the entry's own
 	// st_size, which is the right number for a ranking and the wrong one
@@ -114,6 +136,15 @@ type Entry struct {
 	Class   core.Class   `json:"разряд"`
 	Verdict core.Verdict `json:"приговор"`
 	Weight  float64      `json:"вес"`
+}
+
+// Folded is one directory the walk counted whole instead of entry by entry.
+// Entries counts what is inside it (the directory itself is not counted here),
+// Bytes is what those entries charged to TotalBytes.
+type Folded struct {
+	Path    string `json:"путь"`
+	Entries int    `json:"записей"`
+	Bytes   int64  `json:"байт"`
 }
 
 // Bucket is a count/size pair.
@@ -162,6 +193,7 @@ type Result struct {
 	Skipped         Skips                   `json:"skipped"`
 	ByClass         map[core.Class]Bucket   `json:"by_class"`
 	ByVerdict       map[core.Verdict]Bucket `json:"by_verdict"`
+	Folded          []Folded                `json:"folded,omitempty"`
 	Removable       []Entry                 `json:"removable_top"`
 	Largest         []Entry                 `json:"largest_top"`
 	DurationSeconds float64                 `json:"duration_seconds"`
@@ -247,6 +279,15 @@ func Walk(opt Options) (Result, error) {
 
 	// account turns one lstat result into a record, asks the decision layer
 	// about it, and folds the answer into the totals.
+	// Свёрнутое поддерево заряжается в корзины приговором своего каталога:
+	// решающий слой о его содержимом не спрашивают вовсе, а корзины обязаны
+	// сойтись с TotalBytes. Пусто — обычный путь, решение на каждую запись.
+	type imposed struct {
+		class   core.Class
+		verdict core.Verdict
+	}
+	var forced *imposed
+
 	account := func(path string, info fs.FileInfo, accessible bool) {
 		res.Entries++
 		rec := core.Record{Path: path, Accessible: accessible}
@@ -301,7 +342,14 @@ func Walk(opt Options) (Result, error) {
 		}
 		res.TotalBytes += charged
 
-		d := opt.Decider.Decide(rec)
+		var d core.Decision
+		if forced != nil {
+			// Внутри свёрнутого каталога: приговор один на всё поддерево,
+			// и он уже вынесен — о самом каталоге, один раз.
+			d = core.Decision{Class: forced.class, Verdict: forced.verdict}
+		} else {
+			d = opt.Decider.Decide(rec)
+		}
 		// Buckets are charged the same bytes as TotalBytes, so they sum
 		// back to it; an Entry still shows the path's own st_size.
 		bc := res.ByClass[d.Class]
@@ -313,14 +361,16 @@ func Walk(opt Options) (Result, error) {
 		bv.Bytes += charged
 		res.ByVerdict[d.Verdict] = bv
 
-		e := Entry{Path: path, Size: rec.Size, AgeDays: rec.AgeDays, Kind: k,
-			Class: d.Class, Verdict: d.Verdict, Weight: d.Weight}
-		largest.add(e)
-		if d.Verdict == core.VerdictRemovable {
-			removable.add(e)
-		}
-		if opt.Observe != nil {
-			opt.Observe(e, info)
+		if forced == nil {
+			e := Entry{Path: path, Size: rec.Size, AgeDays: rec.AgeDays, Kind: k,
+				Class: d.Class, Verdict: d.Verdict, Weight: d.Weight}
+			largest.add(e)
+			if d.Verdict == core.VerdictRemovable {
+				removable.add(e)
+			}
+			if opt.Observe != nil {
+				opt.Observe(e, info)
+			}
 		}
 		if opt.Watch != nil {
 			opt.Watch(Step{Path: path, Charged: charged, Kind: k})
@@ -341,12 +391,80 @@ func Walk(opt Options) (Result, error) {
 		}
 	}
 
-	account(opt.Root, rootInfo, true)
-
 	type job struct {
 		path  string
 		depth int
 	}
+
+	// foldDir считает каталог целиком: решение о нём выносится ОДИН раз,
+	// поддерево заряжается тем же приговором, и в рейтинги уходит одна
+	// запись — с размером всего поддерева, а не с st_size каталога.
+	foldDir := func(dir string, info fs.FileInfo, depth int) {
+		beforeEntries := res.Entries
+		beforeBytes := res.TotalBytes
+
+		rec := core.Record{Path: dir, Accessible: true, Kind: core.KindDir,
+			Size: info.Size(), AgeDays: opt.Now.Sub(info.ModTime()).Hours() / 24}
+		if rec.AgeDays < 0 {
+			rec.AgeDays = 0
+		}
+		d := opt.Decider.Decide(rec)
+
+		// Сам каталог — обычной записью (счётчики, корзины), но без
+		// рейтинга: место в рейтинге он займёт ниже, с полным размером.
+		forced = &imposed{class: d.Class, verdict: d.Verdict}
+		account(dir, info, true)
+
+		inner := []job{{dir, depth}}
+		for len(inner) > 0 {
+			cur := inner[len(inner)-1]
+			inner = inner[:len(inner)-1]
+			entries, err := os.ReadDir(cur.path)
+			if err != nil {
+				noteSkip(cur.path, err)
+				continue
+			}
+			for _, de := range entries {
+				child := filepath.Join(cur.path, de.Name())
+				ci, err := de.Info()
+				if err != nil {
+					noteSkip(child, err)
+					account(child, nil, false)
+					continue
+				}
+				account(child, ci, true)
+				if !ci.IsDir() {
+					continue
+				}
+				if !opt.CrossDevice && devOf(ci) != rootDev {
+					res.Skipped.DeviceBoundaries++
+					continue
+				}
+				if opt.MaxDepth > 0 && cur.depth+1 >= opt.MaxDepth {
+					res.Skipped.DepthLimited++
+					continue
+				}
+				inner = append(inner, job{child, cur.depth + 1})
+			}
+		}
+		forced = nil
+
+		bytes := res.TotalBytes - beforeBytes
+		// −1: сам каталог в счёт свёрнутого содержимого не входит.
+		res.Folded = append(res.Folded, Folded{Path: dir, Entries: res.Entries - beforeEntries - 1, Bytes: bytes})
+
+		e := Entry{Path: dir, Size: bytes, AgeDays: rec.AgeDays, Kind: core.KindDir,
+			Class: d.Class, Verdict: d.Verdict, Weight: d.Weight}
+		largest.add(e)
+		if d.Verdict == core.VerdictRemovable {
+			removable.add(e)
+		}
+		if opt.Observe != nil {
+			opt.Observe(e, info)
+		}
+	}
+
+	account(opt.Root, rootInfo, true)
 	var stack []job
 	if rootInfo.IsDir() {
 		stack = append(stack, job{opt.Root, 0})
@@ -370,6 +488,14 @@ func Walk(opt Options) (Result, error) {
 			if err != nil {
 				noteSkip(child, err)
 				account(child, nil, false)
+				continue
+			}
+			// Свёртка спрашивается ДО учёта: свёрнутый каталог идёт
+			// своим путём, где решение выносится один раз и поддерево
+			// заряжается им целиком.
+			if info.IsDir() && opt.Fold != nil && opt.Fold(child, info) &&
+				(opt.CrossDevice || devOf(info) == rootDev) {
+				foldDir(child, info, cur.depth)
 				continue
 			}
 			account(child, info, true)
