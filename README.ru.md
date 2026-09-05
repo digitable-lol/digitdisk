@@ -86,8 +86,11 @@ sudo install -m 0755 digitdisk-$V-linux-$A/digitdisk /usr/local/bin/digitdisk
 
 ### Сборка из исходников
 
-Для сборки из чистого клона хватает Go: напечатанный Go лежит в дереве.
-Собирается изнутри `host/` — модуль там, в корне дерева модуля нет.
+Из чистого клона хватает Go — и это не про `go build` вообще, а про признак
+`flangcore` ниже: печать, которую он кладёт внутрь, лежит в дереве
+(`core/out-go`, 6 304 строки; почему именно она, а не всё напечатанное, —
+[`core/README.md`](core/README.md)). Собирается изнутри `host/` — модуль там, в
+корне дерева модуля нет.
 
 ```bash
 cd host && go build -tags flangcore -o ../digitdisk .
@@ -974,8 +977,9 @@ cd host && go test ./internal/lang/ -v -run 'Пары|Заполнители|Д�
 
 Сторож лицензий и сверка печати написаны на flang, а не на Python и JavaScript:
 в дереве нет ни того, ни другого. Компилятор flang — один двоичный файл,
-которому нужен только `cc` (`brew install flang`, `asdf`, либо
-`make -C bootstrap` в клоне языка); Node он не требует.
+которому нужен только `cc` (`brew install digitable-lol/tap/flang`, `asdf`,
+либо `make -C bootstrap` в клоне языка — 1 мин 54 с при `-j4`); Node он не
+требует.
 
 ## Состояние
 

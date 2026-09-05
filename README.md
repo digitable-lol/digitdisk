@@ -89,9 +89,11 @@ formula, so the two ways install the same bytes.
 
 ### From source
 
-A Go toolchain is enough from a clean checkout, because the printed Go is
-committed. The build runs inside `host/`: that is where the module lives, and
-there is no module at the root.
+A Go toolchain is enough from a clean checkout — not for `go build` in general,
+but for the `flangcore` tag below: the print that tag links in is committed
+(`core/out-go`, 6,304 lines; why that one and not every print, see
+[`core/README.md`](core/README.md)). The build runs inside `host/`: that is
+where the module lives, and there is no module at the root.
 
 ```bash
 cd host && go build -tags flangcore -o ../digitdisk .
@@ -1008,8 +1010,9 @@ dictionary, and 29 names of the договор translated as words.
 
 The licensing guard and the emission cross-check are written in flang, not in
 Python or JavaScript: neither is present in this tree. The flang compiler is a
-single binary that needs only a C compiler (`brew install flang`, `asdf`, or
-`make -C bootstrap` in a clone of the language); it does not require Node.
+single binary that needs only a C compiler (`brew install
+digitable-lol/tap/flang`, `asdf`, or `make -C bootstrap` in a clone of the
+language — 1 min 54 s at `-j4`); it does not require Node.
 
 ## State
 
